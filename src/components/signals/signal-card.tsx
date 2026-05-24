@@ -10,6 +10,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
   const flashIds = useSignalsStore((s) => s.flashIds);
   const setHover = useSignalsStore((s) => s.setHover);
   const pin = useSignalsStore((s) => s.pin);
+  const openDetail = useSignalsStore((s) => s.openDetail);
   const flashing = flashIds.has(signal.id);
 
   const ringByStatus: Record<string, string> = {
