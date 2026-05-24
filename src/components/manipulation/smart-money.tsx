@@ -1,8 +1,37 @@
 import { ORDER_FLOW, WHALE_ORDERS, FUNDING } from "@/lib/manipulation-data";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ArrowUp, ArrowDown } from "lucide-react";
+import { useEffect, useState } from "react";
+
+type Whale = { id: number; side: string; size: string; price: string; ago: string; fresh?: boolean };
+
+const NEW_WHALES: Omit<Whale, "id" | "ago">[] = [
+  { side: "BUY", size: "612 BTC", price: "$43,265", fresh: true },
+  { side: "SELL", size: "9,800 SOL", price: "$98.05", fresh: true },
+  { side: "BUY", size: "2,840 ETH", price: "$2,247", fresh: true },
+  { side: "SELL", size: "415 BTC", price: "$43,190", fresh: true },
+];
 
 export function SmartMoney() {
+  const [whales, setWhales] = useState<Whale[]>(
+    WHALE_ORDERS.map((w, i) => ({ ...w, id: i }))
+  );
+
+  useEffect(() => {
+    let id = whales.length;
+    let step = 0;
+    const t = setInterval(() => {
+      const tpl = NEW_WHALES[step % NEW_WHALES.length];
+      step++;
+      id++;
+      setWhales((prev) => {
+        const aged = prev.map((w) => ({ ...w, ago: bumpAgo(w.ago), fresh: false }));
+        return [{ ...tpl, id, ago: "just now" }, ...aged].slice(0, 8);
+      });
+    }, 6000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div className="rounded-xl border border-border bg-card/40 p-5">
       <div className="flex items-center gap-2 mb-3">
@@ -51,6 +80,39 @@ export function SmartMoney() {
               </div>
             ))}
           </div>
+        </TabsContent>
+
+        <TabsContent value="whales" className="mt-4">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Last 10 minutes · live</div>
+          <div className="space-y-1.5 overflow-hidden">
+            {whales.map((w) => (
+              <div
+                key={w.id}
+                className={`flex items-center gap-2 text-xs font-mono rounded-md px-2 py-1 whale-row ${
+                  w.fresh ? "whale-fresh" : ""
+                }`}
+              >
+                <span className={w.side === "BUY" ? "text-emerald-400" : "text-red-400"}>
+                  {w.side === "BUY" ? "🟢" : "🔴"} {w.side}
+                </span>
+                <span className="font-medium">{w.size}</span>
+                <span className="text-muted-foreground">@ {w.price}</span>
+                <span className="text-muted-foreground ml-auto">{w.ago}</span>
+              </div>
+            ))}
+          </div>
+          <style>{`
+            @keyframes whaleSlideIn {
+              0% { transform: translateY(-10px); opacity: 0; }
+              100% { transform: translateY(0); opacity: 1; }
+            }
+            @keyframes whaleFlash {
+              0% { background: rgba(34,211,238,0.22); }
+              100% { background: transparent; }
+            }
+            .whale-row { animation: whaleSlideIn 320ms ease-out; }
+            .whale-fresh { animation: whaleSlideIn 320ms ease-out, whaleFlash 1600ms ease-out; }
+          `}</style>
         </TabsContent>
 
         <TabsContent value="funding" className="mt-4 space-y-2">
