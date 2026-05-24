@@ -19,8 +19,6 @@ import { SignalDrawer } from "@/components/dashboard/signal-drawer";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { AnnouncementBanner } from "@/components/dashboard/announcement-banner";
 import { IntegrationWidgets } from "@/components/dashboard/integration-widgets";
-import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
-import { Bot4xGlobalNotifier } from "@/components/global/bot4x-notifier";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
