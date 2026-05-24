@@ -52,6 +52,7 @@ export function LeftSidebar() {
 
 function SideLink({ item, active }: { item: { icon: typeof LayoutDashboard; label: string; to: string }; active: boolean }) {
   const Icon = item.icon;
+  const shortcut = item.to === "/bot4x" ? " — Press B" : "";
   return (
     <Link
       to={item.to}
@@ -62,7 +63,7 @@ function SideLink({ item, active }: { item: { icon: typeof LayoutDashboard; labe
       <Icon className="size-[18px]" />
       {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r bg-[var(--brand-cyan)]" />}
       <span className="pointer-events-none absolute left-full ml-2 px-2 py-1 rounded-md bg-card border border-border text-[11px] text-foreground whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-lg">
-        {item.label}
+        {item.label}{shortcut}
       </span>
     </Link>
   );
