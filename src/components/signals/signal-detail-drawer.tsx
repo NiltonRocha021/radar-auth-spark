@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Bell, Bookmark, LineChart, Share2, ChevronDown, AlertTriangle, Check,
-  TrendingUp, TrendingDown, Globe, Activity, ShieldCheck, Shield, ShieldAlert, Sparkles,
+  TrendingUp, TrendingDown, Globe, Activity, ShieldCheck, Shield, ShieldAlert, Sparkles, GripVertical,
 } from "lucide-react";
 import { ScoreBadge, scoreColor } from "@/components/dashboard/score-badge";
 import { useSignalsStore } from "@/lib/signals-store";
