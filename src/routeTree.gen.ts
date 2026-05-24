@@ -16,6 +16,7 @@ import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSentimentRouteImport } from './routes/_authenticated/sentiment'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedManipulationRouteImport } from './routes/_authenticated/manipulation'
 import { Route as AuthenticatedDnaTraderRouteImport } from './routes/_authenticated/dna-trader'
@@ -55,6 +56,11 @@ const AuthenticatedSentimentRoute = AuthenticatedSentimentRouteImport.update({
 const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedPricingRoute = AuthenticatedPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
   '/manipulation': typeof AuthenticatedManipulationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/pricing': typeof AuthenticatedPricingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/sentiment': typeof AuthenticatedSentimentRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByTo {
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
   '/manipulation': typeof AuthenticatedManipulationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/pricing': typeof AuthenticatedPricingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/sentiment': typeof AuthenticatedSentimentRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   '/_authenticated/dna-trader': typeof AuthenticatedDnaTraderRoute
   '/_authenticated/manipulation': typeof AuthenticatedManipulationRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/pricing': typeof AuthenticatedPricingRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/sentiment': typeof AuthenticatedSentimentRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/dna-trader'
     | '/manipulation'
     | '/onboarding'
+    | '/pricing'
     | '/profile'
     | '/sentiment'
     | '/settings'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/dna-trader'
     | '/manipulation'
     | '/onboarding'
+    | '/pricing'
     | '/profile'
     | '/sentiment'
     | '/settings'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dna-trader'
     | '/_authenticated/manipulation'
     | '/_authenticated/onboarding'
+    | '/_authenticated/pricing'
     | '/_authenticated/profile'
     | '/_authenticated/sentiment'
     | '/_authenticated/settings'
@@ -236,6 +248,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedProfileRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/pricing': {
+      id: '/_authenticated/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof AuthenticatedPricingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/onboarding': {
       id: '/_authenticated/onboarding'
       path: '/onboarding'
@@ -288,6 +307,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDnaTraderRoute: typeof AuthenticatedDnaTraderRoute
   AuthenticatedManipulationRoute: typeof AuthenticatedManipulationRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedPricingRoute: typeof AuthenticatedPricingRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSentimentRoute: typeof AuthenticatedSentimentRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -301,6 +321,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDnaTraderRoute: AuthenticatedDnaTraderRoute,
   AuthenticatedManipulationRoute: AuthenticatedManipulationRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedPricingRoute: AuthenticatedPricingRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSentimentRoute: AuthenticatedSentimentRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
