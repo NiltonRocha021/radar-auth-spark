@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import { type HeatmapAsset } from "@/lib/dashboard-data";
 
@@ -11,6 +12,13 @@ function colorFor(change: number) {
 
 export function AssetHeatmap() {
   const heatmap = useDashboardStore((s) => s.heatmap);
+  const [pulseTick, setPulseTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setPulseTick((t) => t + 1), 8000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="rounded-xl border border-border bg-card p-4 h-full">
       <div className="flex items-baseline justify-between mb-3">
@@ -18,23 +26,37 @@ export function AssetHeatmap() {
         <span className="text-[11px] text-muted-foreground">24h change</span>
       </div>
       <div className="grid grid-cols-4 gap-2">
-        {heatmap.map((a) => (
-          <Cell key={a.symbol} asset={a} />
+        {heatmap.map((a, i) => (
+          <Cell key={a.symbol} asset={a} pulseTick={pulseTick} index={i} />
         ))}
       </div>
     </div>
   );
 }
 
-function Cell({ asset }: { asset: HeatmapAsset }) {
+function Cell({ asset, pulseTick, index }: { asset: HeatmapAsset; pulseTick: number; index: number }) {
   const bg = colorFor(asset.change);
   const up = asset.change >= 0;
+  const [bright, setBright] = useState(false);
+
+  useEffect(() => {
+    if (pulseTick === 0) return;
+    const delay = (index % 4) * 120 + Math.random() * 200;
+    const onT = setTimeout(() => setBright(true), delay);
+    const offT = setTimeout(() => setBright(false), delay + 600);
+    return () => {
+      clearTimeout(onT);
+      clearTimeout(offT);
+    };
+  }, [pulseTick, index]);
+
   return (
     <div
-      className="relative group rounded-lg p-2.5 transition-all duration-300 hover:scale-[1.03] cursor-pointer"
+      className="relative group rounded-lg p-2.5 transition-all duration-500 hover:scale-[1.03] cursor-pointer"
       style={{
-        background: `color-mix(in oklab, ${bg} 50%, var(--card))`,
-        border: `1px solid color-mix(in oklab, ${bg} 60%, transparent)`,
+        background: `color-mix(in oklab, ${bg} ${bright ? 85 : 50}%, var(--card))`,
+        border: `1px solid color-mix(in oklab, ${bg} ${bright ? 100 : 60}%, transparent)`,
+        boxShadow: bright ? `0 0 16px color-mix(in oklab, ${bg} 70%, transparent)` : "none",
       }}
     >
       <div className="text-[13px] font-semibold text-foreground">{asset.symbol}</div>

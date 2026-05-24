@@ -17,6 +17,7 @@ import { QuickActions } from "@/components/dashboard/quick-actions";
 import { LiveToasts } from "@/components/dashboard/live-toasts";
 import { SignalDrawer } from "@/components/dashboard/signal-drawer";
 import { CommandPalette } from "@/components/dashboard/command-palette";
+import { AnnouncementBanner } from "@/components/dashboard/announcement-banner";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -37,6 +38,7 @@ function Dashboard() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <TopBar />
+      <AnnouncementBanner />
       <div className="flex">
         <LeftSidebar />
         <main className="flex-1 min-w-0 p-5 space-y-5">
