@@ -170,25 +170,68 @@ function StatusBadge({ status }: { status: Signal["status"] }) {
   );
 }
 
+// ---------- Score Ring ----------
+function ScoreRing({ score, children }: { score: number; children: React.ReactNode }) {
+  const color = scoreColor(score);
+  const size = 64;
+  const stroke = 2.5;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg className="absolute inset-0 -rotate-90" width={size} height={size}>
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="#1E2028" strokeWidth={stroke} fill="none" />
+        <motion.circle
+          cx={size / 2} cy={size / 2} r={r}
+          stroke={color} strokeWidth={stroke} fill="none" strokeLinecap="round"
+          strokeDasharray={c}
+          initial={{ strokeDashoffset: c }}
+          animate={{ strokeDashoffset: c * (1 - score / 100) }}
+          transition={{ duration: 1.1, ease: "easeOut", delay: 0.15 }}
+          style={{ filter: `drop-shadow(0 0 4px color-mix(in oklab, ${color} 60%, transparent))` }}
+        />
+      </svg>
+      {children}
+    </div>
+  );
+}
+
 // ---------- Section 1: Trade Setup ----------
 function SectionTradeSetup({ signal, isBuy, accent }: { signal: Signal; isBuy: boolean; accent: string }) {
-  const t2 = isBuy ? signal.target : signal.target;
+  const [stop, setStop] = useState(signal.stop);
+  const [target, setTarget] = useState(signal.target);
+
+  useEffect(() => {
+    setStop(signal.stop);
+    setTarget(signal.target);
+  }, [signal.id, signal.stop, signal.target]);
+
+  const t2 = target;
   const t1 = isBuy
-    ? signal.entry + (signal.target - signal.entry) * 0.6
-    : signal.entry - (signal.entry - signal.target) * 0.6;
+    ? signal.entry + (target - signal.entry) * 0.6
+    : signal.entry - (signal.entry - target) * 0.6;
 
-  const ladder = [
-    { label: "TARGET 2", price: t2, color: "#1D9E75", change: pct(signal.entry, t2) },
-    { label: "TARGET 1", price: t1, color: "#1D9E75", change: pct(signal.entry, t1) },
-    { label: "ENTRY", price: signal.entry, color: "#378ADD", change: 0, highlight: true },
-    { label: "STOP LOSS", price: signal.stop, color: "#E24B4A", change: pct(signal.entry, signal.stop) },
+  const rr = Math.abs(target - signal.entry) / Math.max(1e-9, Math.abs(signal.entry - stop));
+
+  type Row = {
+    key: string;
+    label: string;
+    price: number;
+    color: string;
+    change: number;
+    highlight?: boolean;
+    draggable?: "target" | "stop";
+  };
+
+  const ladder: Row[] = [
+    { key: "tp2", label: "TARGET 2", price: t2, color: "#1D9E75", change: pct(signal.entry, t2), draggable: "target" },
+    { key: "tp1", label: "TARGET 1", price: t1, color: "#1D9E75", change: pct(signal.entry, t1) },
+    { key: "entry", label: "ENTRY", price: signal.entry, color: "#378ADD", change: 0, highlight: true },
+    { key: "stop", label: "STOP LOSS", price: stop, color: "#E24B4A", change: pct(signal.entry, stop), draggable: "stop" },
   ];
-  // For SELL, reverse direction: targets below entry, stop above
-  if (!isBuy) {
-    ladder.reverse();
-  }
+  if (!isBuy) ladder.reverse();
 
-  const rrColor = signal.rr >= 2 ? "#1D9E75" : "#EF9F27";
+  const rrColor = rr >= 2 ? "#1D9E75" : rr >= 1 ? "#EF9F27" : "#E24B4A";
 
   return (
     <Section title="Trade Setup">
@@ -196,36 +239,116 @@ function SectionTradeSetup({ signal, isBuy, accent }: { signal: Signal; isBuy: b
         {ladder.map((row, i) => {
           const dividerAfter = row.label === "ENTRY" || (i === 1 && !row.highlight);
           return (
-            <div key={row.label}>
-              <div
-                className="flex items-center justify-between px-3 py-2 text-[12px]"
-                style={{
-                  background: row.highlight ? "color-mix(in oklab, #378ADD 14%, transparent)" : "transparent",
-                  borderLeft: `3px solid ${row.color}`,
+            <motion.div
+              key={row.key}
+              initial={{ x: -28, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.05 + i * 0.08, duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <LadderRow
+                row={row}
+                entry={signal.entry}
+                isBuy={isBuy}
+                onChange={(next) => {
+                  if (row.draggable === "stop") setStop(next);
+                  else if (row.draggable === "target") setTarget(next);
                 }}
-              >
-                <span className={`uppercase tracking-wide text-[10px] font-semibold`} style={{ color: row.color }}>
-                  {row.label}
-                </span>
-                <span className="font-semibold tabular-nums text-foreground">${formatPrice(row.price)}</span>
-                <span className="tabular-nums" style={{ color: row.color, minWidth: 56, textAlign: "right" }}>
-                  {row.change === 0 ? "—" : `${row.change > 0 ? "+" : ""}${row.change.toFixed(1)}%`}
-                </span>
-              </div>
+              />
               {dividerAfter && <div className="border-t border-dashed border-border" />}
-            </div>
+            </motion.div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mt-3">
-        <Stat label="R/R" value={`${signal.rr.toFixed(1)}:1`} color={rrColor} bold />
+      <motion.div
+        className="grid grid-cols-3 gap-2 mt-3"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45, duration: 0.3 }}
+      >
+        <Stat label="R/R" value={`${rr.toFixed(2)}:1`} color={rrColor} bold />
         <Stat label="Risk" value={`${signal.riskPct}%`} />
         <Stat label="To TP1" value={`${Math.abs(pct(signal.entry, t1)).toFixed(1)}%`} color={accent} />
-      </div>
+      </motion.div>
 
-      <PositionCalculator signal={signal} t1={t1} t2={t2} />
+      <PositionCalculator signal={signal} stop={stop} t1={t1} t2={t2} />
     </Section>
+  );
+}
+
+function LadderRow({
+  row, entry, isBuy, onChange,
+}: {
+  row: { label: string; price: number; color: string; change: number; highlight?: boolean; draggable?: "target" | "stop" };
+  entry: number;
+  isBuy: boolean;
+  onChange: (next: number) => void;
+}) {
+  const start = useRef<{ y: number; price: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    start.current = { y: e.clientY, price: row.price };
+    setDragging(true);
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!start.current || !row.draggable) return;
+    const dy = e.clientY - start.current.y;
+    const step = Math.max(entry * 0.0003, 1e-6);
+    let next = start.current.price - dy * step;
+    const minGap = entry * 0.001;
+    if (row.draggable === "target") {
+      next = isBuy ? Math.max(entry + minGap, next) : Math.min(entry - minGap, next);
+    } else {
+      next = isBuy ? Math.min(entry - minGap, next) : Math.max(entry + minGap, next);
+    }
+    onChange(next);
+  };
+  const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    start.current = null;
+    setDragging(false);
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+  };
+
+  return (
+    <div
+      className="flex items-center justify-between px-3 py-2 text-[12px] gap-2"
+      style={{
+        background: row.highlight
+          ? "color-mix(in oklab, #378ADD 14%, transparent)"
+          : dragging
+            ? `color-mix(in oklab, ${row.color} 12%, transparent)`
+            : "transparent",
+        borderLeft: `3px solid ${row.color}`,
+        transition: "background 120ms ease",
+      }}
+    >
+      <span className="uppercase tracking-wide text-[10px] font-semibold" style={{ color: row.color }}>
+        {row.label}
+      </span>
+      <span className="font-semibold tabular-nums text-foreground ml-auto">${formatPrice(row.price)}</span>
+      <span className="tabular-nums" style={{ color: row.color, minWidth: 56, textAlign: "right" }}>
+        {row.change === 0 ? "—" : `${row.change > 0 ? "+" : ""}${row.change.toFixed(1)}%`}
+      </span>
+      {row.draggable ? (
+        <button
+          type="button"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          title="Drag to adjust"
+          className="size-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-secondary touch-none select-none"
+          style={{ cursor: dragging ? "grabbing" : "ns-resize" }}
+        >
+          <GripVertical className="size-3.5" />
+        </button>
+      ) : (
+        <span className="size-5" />
+      )}
+    </div>
   );
 }
 
