@@ -26,10 +26,16 @@ function AuthGate() {
       </div>
     );
   }
+  // Ensure bot4x store is initialized globally so widgets/notifier always have data
+  const initBot4x = useBot4xStore((s) => s.init);
+  useEffect(() => { initBot4x(); }, [initBot4x]);
+
   return (
     <>
       <Outlet />
       <Bot4xFloatingWidget />
+      <MobileBottomNav />
+      <Bot4xGlobalNotifier />
     </>
   );
 }
