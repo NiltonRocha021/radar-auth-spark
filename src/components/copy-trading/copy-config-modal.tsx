@@ -18,16 +18,35 @@ type Props = {
 
 export function CopyConfigModal({ trader, open, onOpenChange, onConfirm }: Props) {
   const [config, setConfig] = useState<CopyConfig>(DEFAULT_CONFIG);
+  const [capital, setCapital] = useState(10000);
 
   useEffect(() => {
     if (open) setConfig(DEFAULT_CONFIG);
   }, [open]);
 
+  const sim = useMemo(() => {
+    if (!trader) return null;
+    // Expected per-trade edge ≈ winRate*rr - (1-winRate). Cap risk via maxDailyLoss.
+    const wr = trader.winRate / 100;
+    const edge = wr * trader.rr - (1 - wr);
+    const tradesPerMonth = Math.max(8, Math.round(trader.signals30d * 0.65));
+    const monthlyPct = edge * config.riskPerTrade * tradesPerMonth;
+    const monthlyPnl = capital * (monthlyPct / 100);
+    const yearlyPnl = capital * (Math.pow(1 + monthlyPct / 100, 12) - 1);
+    const ddRisk = capital * (trader.maxDrawdown / 100) * (config.riskPerTrade / 1);
+    return {
+      monthlyPct: +monthlyPct.toFixed(2),
+      monthlyPnl: Math.round(monthlyPnl),
+      yearlyPnl: Math.round(yearlyPnl),
+      worstCase: Math.round(ddRisk),
+    };
+  }, [trader, config.riskPerTrade, capital]);
+
   if (!trader) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Copy {trader.handle}
