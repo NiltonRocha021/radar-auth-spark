@@ -1,7 +1,36 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { useNotificationsStore } from "@/lib/notifications-store";
+
+function burstProfitConfetti() {
+  const end = Date.now() + 2000;
+  const colors = ["#1D9E75", "#5CE1A6", "#0C9A6A", "#E6F1FB"];
+  (function frame() {
+    confetti({
+      particleCount: 3,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.85 },
+      colors,
+      scalar: 0.7,
+      ticks: 120,
+      disableForReducedMotion: true,
+    });
+    confetti({
+      particleCount: 3,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.85 },
+      colors,
+      scalar: 0.7,
+      ticks: 120,
+      disableForReducedMotion: true,
+    });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+}
 
 /**
  * Watches bot4x state and emits global notifications + sonner toasts.
