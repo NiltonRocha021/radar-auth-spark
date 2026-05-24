@@ -77,9 +77,14 @@ export function DnaTraderWidget() {
   );
 }
 
+const SAMPLE_MANIP_ALERTS = [
+  { severity: "critical", title: "Spoofing detectado em BTC/USDT @ Binance" },
+  { severity: "warn", title: "Wash trading suspeito em SOL/USDT" },
+  { severity: "warn", title: "Wall artificial em ETH/USDT" },
+];
+
 export function ManipulationWidget() {
-  const alerts = useDashboardStore((s) => s.alerts);
-  const active = alerts.filter((a) => a.severity === "critical" || a.severity === "warn").slice(0, 5);
+  const active = SAMPLE_MANIP_ALERTS;
   const count = active.length;
   const last = active[0];
 
