@@ -1,5 +1,6 @@
-import { Fragment, useMemo, useState } from "react";
-import { Check, X, Sparkles, Minus } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Check, X, Sparkles, Minus, Play, Award } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -82,7 +83,9 @@ function PlanGrid({ annual }: { annual: boolean }) {
               {p.showPrice ? (
                 <>
                   <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-semibold">R${price}</span>
+                    <span className="text-3xl font-semibold tabular-nums">
+                      R$<TweenNumber value={price} />
+                    </span>
                     <span className="text-sm text-muted-foreground">/mês</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-1">
@@ -128,11 +131,53 @@ function PlanGrid({ annual }: { annual: boolean }) {
             >
               {p.cta}
             </Button>
+            <button
+              onClick={() =>
+                toast.success(`Demo de 14 dias ativada — ${p.name}`, {
+                  description: "Acesso completo às features deste plano, sem cartão de crédito.",
+                  icon: <Play className="size-4" />,
+                })
+              }
+              className="mt-2.5 w-full text-center text-[11px] text-muted-foreground hover:text-[#7BB5F0] transition-colors flex items-center justify-center gap-1 group"
+            >
+              <Play className="size-3 group-hover:scale-110 transition-transform" />
+              Start with demo · 14 dias sem pagamento
+            </button>
           </div>
         );
       })}
     </div>
   );
+}
+
+function TweenNumber({ value, duration = 600 }: { value: number; duration?: number }) {
+  const [display, setDisplay] = useState(value);
+  const fromRef = useRef(value);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const from = fromRef.current;
+    const to = value;
+    if (from === to) return;
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const current = from + (to - from) * eased;
+      setDisplay(current);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      } else {
+        fromRef.current = to;
+      }
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [value, duration]);
+
+  return <>{Math.round(display)}</>;
 }
 
 function ComparisonTable() {
@@ -172,6 +217,24 @@ function ComparisonTable() {
                 </Fragment>
               ))}
             </tbody>
+            <tfoot className="sticky bottom-0 z-10">
+              <tr className="border-t-2 border-[#378ADD]/40 bg-background/95 backdrop-blur">
+                <td className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Veredito
+                </td>
+                <td className="px-4 py-3 text-center text-[11px] text-muted-foreground">
+                  Entrada
+                </td>
+                <td className="px-4 py-3 text-center bg-gradient-to-b from-[#378ADD]/15 to-[#378ADD]/5 relative">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#378ADD] text-white text-[10px] font-semibold uppercase tracking-wider shadow-[0_0_18px_-4px_rgba(55,138,221,0.7)]">
+                    <Award className="size-3" /> Best value
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-center text-[11px] text-muted-foreground">
+                  Para mesas
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
