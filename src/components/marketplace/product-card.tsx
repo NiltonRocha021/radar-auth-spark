@@ -1,11 +1,24 @@
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Rating } from "./rating";
 import { CATEGORY_BADGES, CATEGORY_GRADIENTS, type Product } from "@/lib/marketplace-data";
+import { useWishlist } from "@/lib/wishlist-store";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function ProductCard({ product, onOpen }: { product: Product; onOpen: (p: Product) => void }) {
   const free = product.price === 0;
+  const { has, toggle } = useWishlist();
+  const wished = has(product.id);
+
+  function handleWish(e: React.MouseEvent) {
+    e.stopPropagation();
+    const nowSaved = toggle(product.id);
+    toast(nowSaved ? "Salvo na wishlist" : "Removido da wishlist", {
+      description: nowSaved ? "Veja em Profile › Wishlist" : undefined,
+    });
+  }
+
   return (
     <div className="group rounded-lg border border-border bg-card/40 hover:bg-card/70 hover:border-[#378ADD]/40 transition-all overflow-hidden flex flex-col">
       <button
@@ -24,6 +37,17 @@ export function ProductCard({ product, onOpen }: { product: Product; onOpen: (p:
             Featured
           </span>
         )}
+        <button
+          type="button"
+          onClick={handleWish}
+          aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}
+          className={cn(
+            "absolute bottom-2 right-2 size-7 rounded-full bg-background/70 backdrop-blur border border-border flex items-center justify-center transition-colors hover:border-rose-400/60",
+            wished && "border-rose-400/60"
+          )}
+        >
+          <Heart className={cn("size-3.5 transition-colors", wished ? "fill-rose-400 text-rose-400" : "text-muted-foreground")} />
+        </button>
       </button>
 
       <div className="p-3 space-y-2 flex-1 flex flex-col">
