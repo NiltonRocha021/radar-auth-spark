@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
-import { Download, Search } from "lucide-react";
+import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine, ReferenceDot } from "recharts";
+import { Download, Search, Flag } from "lucide-react";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { PROFILES, type CalibProfile, type Trade, fmt } from "@/lib/bot4x-data";
 
@@ -92,12 +92,24 @@ function EquityCurve() {
   const data = useMemo(() => history.map((t, i) => ({ x: i, day: t.day, capital: t.accumulated })), [history]);
   const start = data[0]?.capital ?? 1000;
 
+  const breakerEvents = useMemo(
+    () => history.filter((t) => t.result === "SHUTDOWN"),
+    [history],
+  );
+
   return (
     <section className="rounded-lg border border-border bg-card p-4">
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Equity curve</div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Equity curve</span>
+        {breakerEvents.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-[#E24B4A]">
+            <Flag className="size-3" /> {breakerEvents.length} circuit breaker{breakerEvents.length > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
       <div className="h-60">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data}>
+          <AreaChart data={data} margin={{ top: 24, right: 40, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="eq" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#378ADD" stopOpacity={0.4} />
@@ -114,10 +126,37 @@ function EquityCurve() {
             <ReferenceLine y={start * (1 + 0.03)} stroke="#1D9E75" strokeDasharray="3 3" label={{ value: "+3%", fill: "#1D9E75", fontSize: 10, position: "right" }} />
             <ReferenceLine y={start * (1 + 0.04)} stroke="#7F77DD" strokeDasharray="3 3" label={{ value: "+4%", fill: "#7F77DD", fontSize: 10, position: "right" }} />
             <Area type="monotone" dataKey="capital" stroke="#378ADD" strokeWidth={2} fill="url(#eq)" />
+            {breakerEvents.map((ev) => (
+              <ReferenceDot
+                key={ev.id}
+                x={ev.day}
+                y={ev.accumulated}
+                r={0}
+                ifOverflow="extendDomain"
+                shape={(props: unknown) => {
+                  const p = props as { cx?: number; cy?: number };
+                  return <BreakerFlag cx={p.cx ?? 0} cy={p.cy ?? 0} day={ev.day} pnl={ev.pnl} />;
+                }}
+              />
+            ))}
           </AreaChart>
         </ResponsiveContainer>
       </div>
     </section>
+  );
+}
+
+function BreakerFlag({ cx, cy, day, pnl }: { cx: number; cy: number; day: string; pnl: number }) {
+  return (
+    <g transform={`translate(${cx}, ${cy})`} style={{ pointerEvents: "auto" }}>
+      <title>{`Circuit breaker · ${day} · ${pnl.toFixed(2)} USDT`}</title>
+      <line x1={0} y1={0} x2={0} y2={-22} stroke="#E24B4A" strokeWidth={1} strokeDasharray="2 2" opacity={0.6} />
+      <circle r={4} fill="#E24B4A" stroke="#0A0B0E" strokeWidth={1.5} />
+      <g transform="translate(0, -28)">
+        <rect x={-1} y={-2} width={1.5} height={14} fill="#E24B4A" />
+        <path d="M0.5 -2 L11 -2 L8 2 L11 6 L0.5 6 Z" fill="#E24B4A" stroke="#0A0B0E" strokeWidth={0.5} />
+      </g>
+    </g>
   );
 }
 

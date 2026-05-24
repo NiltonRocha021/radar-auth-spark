@@ -32,6 +32,7 @@ const TABS: { id: Tab; label: string }[] = [
 function Bot4xPage() {
   const init = useBot4xStore((s) => s.init);
   const cleanup = useBot4xStore((s) => s.cleanup);
+  const breakerTriggered = useBot4xStore((s) => s.dailyPnlPct <= -1.5);
   const [tab, setTab] = useState<Tab>("painel");
 
   useEffect(() => {
@@ -49,6 +50,7 @@ function Bot4xPage() {
           <div className="flex items-center gap-1 border-b border-border">
             {TABS.map((t) => {
               const active = tab === t.id;
+              const showBreaker = t.id === "painel" && breakerTriggered;
               return (
                 <button
                   key={t.id}
@@ -57,7 +59,15 @@ function Bot4xPage() {
                     active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {t.label}
+                  <span className="inline-flex items-center gap-1.5">
+                    {t.label}
+                    {showBreaker && (
+                      <span className="relative flex size-2" title="Circuit breaker triggered">
+                        <span className="absolute inline-flex h-full w-full rounded-full bg-[#E24B4A] opacity-75 animate-ping" />
+                        <span className="relative inline-flex size-2 rounded-full bg-[#E24B4A]" />
+                      </span>
+                    )}
+                  </span>
                   {active && (
                     <motion.div
                       layoutId="bot4x-tab"

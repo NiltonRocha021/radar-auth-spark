@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Outlet, redirect } from "@tanstack/react-
 import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
+import { Bot4xFloatingWidget } from "@/components/bot4x/floating-widget";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthGate,
@@ -22,5 +23,10 @@ function AuthGate() {
       </div>
     );
   }
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <Bot4xFloatingWidget />
+    </>
+  );
 }
