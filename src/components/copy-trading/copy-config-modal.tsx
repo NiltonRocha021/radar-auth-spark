@@ -194,3 +194,13 @@ function Field({ label, value, children }: { label: string; value: string; child
     </div>
   );
 }
+
+function SimStat({ label, primary, secondary, tone }: { label: string; primary: string; secondary: string; tone: "pos" | "neg" }) {
+  return (
+    <div className="rounded bg-card/60 border border-border/60 px-2.5 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={cn("text-base font-semibold tabular-nums mt-0.5", tone === "pos" ? "text-emerald-400" : "text-red-400")}>{primary}</div>
+      <div className="text-[10.5px] text-muted-foreground tabular-nums">{secondary}</div>
+    </div>
+  );
+}
