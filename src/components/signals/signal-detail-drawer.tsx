@@ -352,13 +352,13 @@ function LadderRow({
   );
 }
 
-function PositionCalculator({ signal, t1, t2 }: { signal: Signal; t1: number; t2: number }) {
+function PositionCalculator({ signal, stop, t1, t2 }: { signal: Signal; stop: number; t1: number; t2: number }) {
   const [open, setOpen] = useState(false);
   const [account, setAccount] = useState(10000);
   const [risk, setRisk] = useState(1);
 
   const isBuy = signal.direction === "BUY";
-  const riskPerUnit = Math.abs(signal.entry - signal.stop);
+  const riskPerUnit = Math.abs(signal.entry - stop);
   const dollarRisk = account * (risk / 100);
   const units = riskPerUnit > 0 ? dollarRisk / riskPerUnit : 0;
   const positionSize = units * signal.entry;
