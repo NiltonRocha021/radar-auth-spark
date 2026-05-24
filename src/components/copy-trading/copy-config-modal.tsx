@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
-import { BadgeCheck, Lock } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BadgeCheck, Calculator, Lock } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DEFAULT_CONFIG, type CopyConfig, type Trader } from "@/lib/copy-trading-data";
+import { cn } from "@/lib/utils";
 
 type Props = {
   trader: Trader | null;
