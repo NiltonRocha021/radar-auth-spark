@@ -1,4 +1,4 @@
-import { LayoutDashboard, Activity, Flame, Bell, Calendar, Brain, BarChart3, Settings, Cpu } from "lucide-react";
+import { LayoutDashboard, Activity, Flame, Bell, Calendar, Brain, BarChart3, Settings, Cpu, User } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { BrandLogo } from "@/components/brand-logo";
 
@@ -11,6 +11,7 @@ const items = [
   { icon: Brain, label: "DNA", to: "/dashboard" as const },
   { icon: Bell, label: "Alerts", to: "/alerts" as const },
   { icon: Calendar, label: "Calendar", to: "/dashboard" as const },
+  { icon: User, label: "Profile", to: "/profile" as const },
 ];
 
 export function LeftSidebar() {
