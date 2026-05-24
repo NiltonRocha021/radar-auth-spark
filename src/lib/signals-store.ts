@@ -79,6 +79,7 @@ export const useSignalsStore = create<State>((set, get) => ({
   streamOpen: false,
   pinnedId: null,
   hoverId: null,
+  detailId: null,
   toasts: [],
   flashIds: new Set(),
   setView: (v) => set({ view: v }),
@@ -99,6 +100,8 @@ export const useSignalsStore = create<State>((set, get) => ({
     }),
   pin: (id) => set({ pinnedId: id }),
   setHover: (id) => set({ hoverId: id }),
+  openDetail: (id) => set({ detailId: id }),
+  closeDetail: () => set({ detailId: null }),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   init: () => {
     if (intervals.length) return;
