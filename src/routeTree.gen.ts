@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticated/signals'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedBot4xRouteImport } from './routes/_authenticated/bot4x'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -45,10 +46,16 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedBot4xRoute = AuthenticatedBot4xRouteImport.update({
+  id: '/bot4x',
+  path: '/bot4x',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/bot4x': typeof AuthenticatedBot4xRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/signals': typeof AuthenticatedSignalsRoute
@@ -56,6 +63,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/bot4x': typeof AuthenticatedBot4xRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/signals': typeof AuthenticatedSignalsRoute
@@ -65,20 +73,28 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/bot4x': typeof AuthenticatedBot4xRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/signals': typeof AuthenticatedSignalsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/dashboard' | '/onboarding' | '/signals'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/bot4x'
+    | '/dashboard'
+    | '/onboarding'
+    | '/signals'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/dashboard' | '/onboarding' | '/signals'
+  to: '/' | '/login' | '/bot4x' | '/dashboard' | '/onboarding' | '/signals'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/bot4x'
     | '/_authenticated/dashboard'
     | '/_authenticated/onboarding'
     | '/_authenticated/signals'
@@ -134,16 +150,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/bot4x': {
+      id: '/_authenticated/bot4x'
+      path: '/bot4x'
+      fullPath: '/bot4x'
+      preLoaderRoute: typeof AuthenticatedBot4xRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedBot4xRoute: typeof AuthenticatedBot4xRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedSignalsRoute: typeof AuthenticatedSignalsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedBot4xRoute: AuthenticatedBot4xRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedSignalsRoute: AuthenticatedSignalsRoute,
