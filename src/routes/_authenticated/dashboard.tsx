@@ -75,8 +75,6 @@ function Dashboard() {
       <LiveToasts />
       <SignalDrawer />
       <CommandPalette />
-      <MobileBottomNav />
-      <Bot4xGlobalNotifier />
     </div>
   );
 }
