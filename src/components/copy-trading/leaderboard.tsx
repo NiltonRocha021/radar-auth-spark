@@ -1,6 +1,7 @@
 import { BadgeCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TRADERS, type Trader } from "@/lib/copy-trading-data";
+import { TRADERS, TRADER_SPARKS, type Trader } from "@/lib/copy-trading-data";
+import { Sparkline } from "./sparkline";
 import { cn } from "@/lib/utils";
 
 const STRATEGY_COLORS: Record<Trader["strategy"], string> = {
@@ -40,6 +41,7 @@ export function Leaderboard({ onCopy, copiedIds }: { onCopy: (t: Trader) => void
                 <th className="text-right font-medium px-3 py-2.5">Signals 30d</th>
                 <th className="text-right font-medium px-3 py-2.5">Followers</th>
                 <th className="text-right font-medium px-3 py-2.5">Monthly</th>
+                <th className="text-left font-medium px-3 py-2.5 w-28">30d PnL</th>
                 <th className="text-right font-medium px-3 py-2.5">Max DD</th>
                 <th className="text-right font-medium px-3 py-2.5 w-28">Action</th>
               </tr>
@@ -71,6 +73,7 @@ export function Leaderboard({ onCopy, copiedIds }: { onCopy: (t: Trader) => void
                     <td className="px-3 py-3 text-right tabular-nums text-muted-foreground">{t.signals30d}</td>
                     <td className="px-3 py-3 text-right tabular-nums text-muted-foreground">{t.followers.toLocaleString()}</td>
                     <td className="px-3 py-3 text-right tabular-nums text-emerald-400 font-medium">+{t.monthlyReturn}%</td>
+                    <td className="px-3 py-3"><Sparkline data={TRADER_SPARKS[t.id]} positive={t.monthlyReturn >= 0} /></td>
                     <td className="px-3 py-3 text-right tabular-nums text-red-400/80">-{t.maxDrawdown}%</td>
                     <td className="px-3 py-3 text-right">
                       <Button
