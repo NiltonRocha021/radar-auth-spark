@@ -25,6 +25,8 @@ export function SettingsAppearance() {
   const [lang, setLang] = useState("pt-BR");
   const [currency, setCurrency] = useState("USD");
   const [dateFmt, setDateFmt] = useState("DD/MM/YYYY");
+  const compactPill = useBot4xPrefs((s) => s.compactPill);
+  const setCompactPill = useBot4xPrefs((s) => s.setCompactPill);
 
   return (
     <>
