@@ -30,7 +30,7 @@ export function Leaderboard({ onCopy, copiedIds }: { onCopy: (t: Trader) => void
       </header>
       <div className="rounded-lg border border-border bg-card/40 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[920px]">
+          <table className="w-full text-sm min-w-[1040px]">
             <thead className="text-[11px] uppercase tracking-wide text-muted-foreground bg-secondary/30">
               <tr>
                 <th className="text-left font-medium px-3 py-2.5 w-10">#</th>
