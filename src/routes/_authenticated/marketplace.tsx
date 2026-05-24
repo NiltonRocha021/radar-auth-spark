@@ -6,6 +6,7 @@ import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FeaturedCarousel } from "@/components/marketplace/featured-carousel";
+import { CreatorTestimonials } from "@/components/marketplace/creator-testimonials";
 import { ProductCard } from "@/components/marketplace/product-card";
 import { ProductDetailModal } from "@/components/marketplace/product-detail-modal";
 import { CreatorBanner } from "@/components/marketplace/creator-banner";
