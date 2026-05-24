@@ -32,6 +32,7 @@ export function SmartMoney() {
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
   return (
     <div className="rounded-xl border border-border bg-card/40 p-5">
       <div className="flex items-center gap-2 mb-3">
@@ -66,21 +67,6 @@ export function SmartMoney() {
           ))}
         </TabsContent>
 
-        <TabsContent value="whales" className="mt-4">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Last 10 minutes</div>
-          <div className="space-y-1.5">
-            {WHALE_ORDERS.map((w, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs font-mono">
-                <span className={w.side === "BUY" ? "text-emerald-400" : "text-red-400"}>
-                  {w.side === "BUY" ? "🟢" : "🔴"} {w.side}
-                </span>
-                <span className="font-medium">{w.size}</span>
-                <span className="text-muted-foreground">@ {w.price}</span>
-                <span className="text-muted-foreground ml-auto">{w.ago}</span>
-              </div>
-            ))}
-          </div>
-        </TabsContent>
 
         <TabsContent value="whales" className="mt-4">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Last 10 minutes · live</div>
