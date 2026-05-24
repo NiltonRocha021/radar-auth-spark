@@ -35,7 +35,7 @@ export const useBot4xStore = create<State>((set, get) => ({
   totalCapital: 1000,
   allocationPct: 30,
   leverage: 3,
-  profile: "conservador",
+  profile: (typeof window !== "undefined" && (localStorage.getItem("bot4x.profile") as CalibProfile)) || "conservador",
   orders: [],
   dailyPnlPct: -0.42,
   trailingPeakPct: 0,
