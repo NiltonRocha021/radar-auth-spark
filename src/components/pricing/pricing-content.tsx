@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Check, X, Sparkles, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -155,8 +155,8 @@ function ComparisonTable() {
             </thead>
             <tbody>
               {COMPARISON.map((group) => (
-                <>
-                  <tr key={group.group} className="bg-secondary/20">
+                <Fragment key={group.group}>
+                  <tr className="bg-secondary/20">
                     <td colSpan={4} className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       {group.group}
                     </td>
@@ -169,7 +169,7 @@ function ComparisonTable() {
                       <td className="px-4 py-3 text-center"><Cell v={r.institutional} /></td>
                     </tr>
                   ))}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
