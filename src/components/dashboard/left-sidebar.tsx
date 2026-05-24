@@ -38,9 +38,15 @@ export function LeftSidebar() {
         );
       })}
       <div className="mt-auto">
-        <button title="Settings" className="size-10 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground">
+        <Link
+          to="/settings"
+          title="Settings"
+          className={`size-10 rounded-lg flex items-center justify-center transition-colors ${
+            path === "/settings" ? "bg-[var(--brand-blue-deep)] text-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+          }`}
+        >
           <Settings className="size-[18px]" />
-        </button>
+        </Link>
       </div>
     </aside>
   );
