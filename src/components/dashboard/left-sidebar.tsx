@@ -1,10 +1,11 @@
-import { LayoutDashboard, Activity, Flame, Bell, Calendar, Brain, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, Activity, Flame, Bell, Calendar, Brain, BarChart3, Settings, Cpu } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { BrandLogo } from "@/components/brand-logo";
 
 const items = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" as const },
   { icon: Activity, label: "Signals", to: "/signals" as const },
+  { icon: Cpu, label: "Bot4x", to: "/bot4x" as const },
   { icon: Flame, label: "Heatmap", to: "/dashboard" as const },
   { icon: BarChart3, label: "Performance", to: "/dashboard" as const },
   { icon: Brain, label: "DNA", to: "/dashboard" as const },
