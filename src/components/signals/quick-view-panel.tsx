@@ -116,7 +116,10 @@ export function QuickViewPanel() {
               </div>
             </div>
 
-            <button className="w-full h-9 rounded-md bg-[var(--brand-blue-deep)] hover:bg-[var(--brand-blue)] text-foreground text-[12px] font-medium transition-colors">
+            <button
+              onClick={() => useSignalsStore.getState().openDetail(signal.id)}
+              className="w-full h-9 rounded-md bg-[var(--brand-blue-deep)] hover:bg-[var(--brand-blue)] text-foreground text-[12px] font-medium transition-colors"
+            >
               Open full analysis →
             </button>
 

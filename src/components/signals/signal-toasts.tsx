@@ -8,6 +8,7 @@ import { useEffect } from "react";
 export function SignalToasts() {
   const toasts = useSignalsStore((s) => s.toasts);
   const dismiss = useSignalsStore((s) => s.dismissToast);
+  const openDetail = useSignalsStore((s) => s.openDetail);
 
   useEffect(() => {
     const timers = toasts.map((t) =>
