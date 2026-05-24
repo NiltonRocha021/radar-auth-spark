@@ -22,6 +22,7 @@ import { Route as AuthenticatedManipulationRouteImport } from './routes/_authent
 import { Route as AuthenticatedDnaTraderRouteImport } from './routes/_authenticated/dna-trader'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBot4xRouteImport } from './routes/_authenticated/bot4x'
+import { Route as AuthenticatedApiRouteImport } from './routes/_authenticated/api'
 import { Route as AuthenticatedAlertsRouteImport } from './routes/_authenticated/alerts'
 
 const LoginRoute = LoginRouteImport.update({
@@ -89,6 +90,11 @@ const AuthenticatedBot4xRoute = AuthenticatedBot4xRouteImport.update({
   path: '/bot4x',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedApiRoute = AuthenticatedApiRouteImport.update({
+  id: '/api',
+  path: '/api',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedAlertsRoute = AuthenticatedAlertsRouteImport.update({
   id: '/alerts',
   path: '/alerts',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/alerts': typeof AuthenticatedAlertsRoute
+  '/api': typeof AuthenticatedApiRoute
   '/bot4x': typeof AuthenticatedBot4xRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/alerts': typeof AuthenticatedAlertsRoute
+  '/api': typeof AuthenticatedApiRoute
   '/bot4x': typeof AuthenticatedBot4xRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/alerts': typeof AuthenticatedAlertsRoute
+  '/_authenticated/api': typeof AuthenticatedApiRoute
   '/_authenticated/bot4x': typeof AuthenticatedBot4xRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/alerts'
+    | '/api'
     | '/bot4x'
     | '/dashboard'
     | '/dna-trader'
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/alerts'
+    | '/api'
     | '/bot4x'
     | '/dashboard'
     | '/dna-trader'
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/_authenticated/alerts'
+    | '/_authenticated/api'
     | '/_authenticated/bot4x'
     | '/_authenticated/dashboard'
     | '/_authenticated/dna-trader'
@@ -290,6 +302,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBot4xRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/api': {
+      id: '/_authenticated/api'
+      path: '/api'
+      fullPath: '/api'
+      preLoaderRoute: typeof AuthenticatedApiRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/alerts': {
       id: '/_authenticated/alerts'
       path: '/alerts'
@@ -302,6 +321,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAlertsRoute: typeof AuthenticatedAlertsRoute
+  AuthenticatedApiRoute: typeof AuthenticatedApiRoute
   AuthenticatedBot4xRoute: typeof AuthenticatedBot4xRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDnaTraderRoute: typeof AuthenticatedDnaTraderRoute
@@ -316,6 +336,7 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAlertsRoute: AuthenticatedAlertsRoute,
+  AuthenticatedApiRoute: AuthenticatedApiRoute,
   AuthenticatedBot4xRoute: AuthenticatedBot4xRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDnaTraderRoute: AuthenticatedDnaTraderRoute,
