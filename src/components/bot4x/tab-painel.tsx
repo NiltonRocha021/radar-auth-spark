@@ -417,13 +417,69 @@ function OrderGrid() {
 // ----- Today PnL row -----
 function TodayPnlRow() {
   const pnl = useBot4xStore((s) => s.dailyPnlPct);
+  const color = pnl >= 0 ? "#1D9E75" : "#E24B4A";
+
+  // Mock last-2h equity series (24 pts ≈ 5min ticks) walking toward current pnl
+  const points = useMemo(() => {
+    const N = 24;
+    const out: number[] = [];
+    let v = 0;
+    const target = pnl;
+    for (let i = 0; i < N; i++) {
+      const drift = (target - v) * 0.08;
+      const noise = (Math.sin(i * 1.7) + Math.cos(i * 0.9)) * 0.04;
+      v = v + drift + noise;
+      out.push(+v.toFixed(3));
+    }
+    out[N - 1] = pnl;
+    return out;
+  }, [pnl]);
+
   return (
     <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <Stat label="Daily PnL" value={`${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`} color={pnl >= 0 ? "#1D9E75" : "#E24B4A"} />
+      <div className="rounded-lg border border-border bg-card px-4 py-3 relative overflow-hidden">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Daily PnL</div>
+            <div className="text-[16px] font-semibold tabular-nums mt-1" style={{ color }}>
+              {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
+            </div>
+          </div>
+          <span className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">2h</span>
+        </div>
+        <Sparkline points={points} color={color} />
+      </div>
       <Stat label="Trades (W/L)" value="7 / 4" />
       <Stat label="Win rate" value="63.6%" color="#1D9E75" />
       <Stat label="Capital at risk" value="120 USDT" />
     </section>
+  );
+}
+
+function Sparkline({ points, color }: { points: number[]; color: string }) {
+  const W = 120, H = 28;
+  const min = Math.min(...points, 0);
+  const max = Math.max(...points, 0);
+  const range = max - min || 1;
+  const step = W / (points.length - 1);
+  const norm = (v: number) => H - ((v - min) / range) * H;
+  const d = points.map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${norm(v).toFixed(1)}`).join(" ");
+  const area = `${d} L${W},${H} L0,${H} Z`;
+  const zeroY = norm(0);
+  const gid = `spark-${color.replace("#", "")}`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="mt-1.5 w-full h-7" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <line x1="0" x2={W} y1={zeroY} y2={zeroY} stroke="currentColor" strokeOpacity="0.18" strokeDasharray="2 2" />
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={W} cy={norm(points[points.length - 1])} r="1.8" fill={color} />
+    </svg>
   );
 }
 
