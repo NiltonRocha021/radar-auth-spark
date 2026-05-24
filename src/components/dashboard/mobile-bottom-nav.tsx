@@ -1,4 +1,4 @@
-import { LayoutDashboard, Activity, Cpu, Brain, Menu } from "lucide-react";
+import { LayoutDashboard, Activity, Bot, Brain, Menu } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
