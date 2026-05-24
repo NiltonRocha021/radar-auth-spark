@@ -15,10 +15,15 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthGate() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
+  const initBot4x = useBot4xStore((s) => s.init);
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });
   }, [loading, session, navigate]);
+
+  useEffect(() => {
+    if (session) initBot4x();
+  }, [session, initBot4x]);
 
   if (loading || !session) {
     return (
@@ -27,9 +32,6 @@ function AuthGate() {
       </div>
     );
   }
-  // Ensure bot4x store is initialized globally so widgets/notifier always have data
-  const initBot4x = useBot4xStore((s) => s.init);
-  useEffect(() => { initBot4x(); }, [initBot4x]);
 
   return (
     <>
