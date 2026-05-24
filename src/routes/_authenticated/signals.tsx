@@ -70,6 +70,7 @@ function SignalsPage() {
       <TopBar />
       <div className="flex">
         <LeftSidebar />
+        <SignalStream />
         <div className="flex-1 min-w-0">
           <FilterBar />
           <StatsBar />
