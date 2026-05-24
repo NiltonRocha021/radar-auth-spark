@@ -127,19 +127,28 @@ function Bot4xPill() {
 
   const breaker = pnl <= -1.5;
   const warn = pnl < -0.5 && !breaker;
-  const color = breaker ? "#E24B4A" : warn ? "#EF9F27" : "#1D9E75";
+  const pnlColor = breaker ? "#E24B4A" : warn ? "#EF9F27" : pnl >= 0 ? "#1D9E75" : "#E24B4A";
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <button
-          className="hidden sm:flex items-center gap-1.5 px-2 h-8 rounded-md border text-[11.5px] font-medium tabular-nums transition-colors hover:bg-secondary"
-          style={{ borderColor: `color-mix(in oklab, ${color} 35%, var(--border))`, color }}
+          className="hidden sm:flex items-center gap-2 px-2 h-8 rounded-md border text-[11.5px] font-medium tabular-nums transition-colors hover:bg-secondary"
+          style={{ borderColor: `color-mix(in oklab, ${pnlColor} 35%, var(--border))` }}
           title="Bot4x status"
         >
-          <Cpu className="size-3.5" />
-          <span>{mode[0]}/{PROFILE_INITIAL[profile] ?? "?"}</span>
-          <span>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%</span>
+          <span
+            className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
+            style={{
+              background: mode === "REAL" ? "color-mix(in oklab, #E24B4A 18%, transparent)" : "color-mix(in oklab, #1D9E75 18%, transparent)",
+              color: mode === "REAL" ? "#E24B4A" : "#1D9E75",
+              border: `1px solid color-mix(in oklab, ${mode === "REAL" ? "#E24B4A" : "#1D9E75"} 35%, transparent)`,
+            }}
+          >
+            {mode}
+          </span>
+          <Cpu className="size-3.5" style={{ color: pnlColor }} />
+          <span style={{ color: pnlColor }}>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[320px] p-0 overflow-hidden">
@@ -148,7 +157,7 @@ function Bot4xPill() {
             <h4 className="text-sm font-semibold">Bot4x</h4>
             <span
               className="px-2 py-0.5 rounded text-[10px] font-bold border"
-              style={{ borderColor: `${color}55`, color, background: `color-mix(in oklab, ${color} 14%, transparent)` }}
+              style={{ borderColor: `${pnlColor}55`, color: pnlColor, background: `color-mix(in oklab, ${pnlColor} 14%, transparent)` }}
             >
               {breaker ? "SHUTDOWN" : warn ? "WARNING" : "ACTIVE"}
             </span>
@@ -156,7 +165,7 @@ function Bot4xPill() {
           <div className="grid grid-cols-3 gap-2 text-[11px]">
             <Stat label="Mode" value={mode} />
             <Stat label="Profile" value={profile.split("-")[0]} />
-            <Stat label="PnL hoje" value={`${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`} color={color} />
+            <Stat label="PnL hoje" value={`${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`} color={pnlColor} />
           </div>
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>Ordens abertas</span>
