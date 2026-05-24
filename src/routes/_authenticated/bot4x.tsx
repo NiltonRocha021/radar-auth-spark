@@ -39,7 +39,6 @@ function Bot4xPage() {
     init();
     return () => cleanup();
   }, [init, cleanup]);
-  }, [init, cleanup]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
