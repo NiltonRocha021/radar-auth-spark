@@ -1,4 +1,4 @@
-import { Search, LayoutGrid, Table as TableIcon, Radar, SlidersHorizontal, ChevronDown, Play, Pause } from "lucide-react";
+import { Search, LayoutGrid, Table as TableIcon, Radar, SlidersHorizontal, ChevronDown, Play, Pause, Rss } from "lucide-react";
 import { useSignalsStore } from "@/lib/signals-store";
 
 const assetClasses = ["All", "Crypto", "Forex", "Indices", "Stocks"] as const;
@@ -13,7 +13,7 @@ const scoreOptions = [
 const exchanges = ["Binance", "Bybit", "OKX", "Coinbase"];
 
 export function FilterBar() {
-  const { filters, view, sort, live, setView, setSort, setLive, setFilter, toggleAdv, toggleExchange } = useSignalsStore();
+  const { filters, view, sort, live, streamOpen, setView, setSort, setLive, setFilter, toggleAdv, toggleStream, toggleExchange } = useSignalsStore();
 
   return (
     <div className="sticky top-12 z-30 bg-background/95 backdrop-blur border-b border-border">
@@ -76,6 +76,18 @@ export function FilterBar() {
         </button>
 
         <div className="flex-1" />
+
+        <button
+          onClick={toggleStream}
+          title="Signal stream (Bloomberg-style ticker)"
+          className={`h-8 px-3 rounded-md border text-[12px] inline-flex items-center gap-1.5 transition-colors ${
+            streamOpen
+              ? "border-[var(--brand-cyan)] bg-[color-mix(in_oklab,var(--brand-cyan)_18%,transparent)] text-foreground"
+              : "border-border bg-card text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Rss className="size-3.5" /> Stream
+        </button>
 
         <button
           onClick={() => setLive(!live)}

@@ -30,6 +30,7 @@ type State = {
   sort: SortKey;
   live: boolean;
   advOpen: boolean;
+  streamOpen: boolean;
   pinnedId: string | null;
   hoverId: string | null;
   toasts: SignalToast[];
@@ -39,6 +40,7 @@ type State = {
   setSort: (s: SortKey) => void;
   setLive: (v: boolean) => void;
   toggleAdv: () => void;
+  toggleStream: () => void;
   setFilter: <K extends keyof Filters>(k: K, v: Filters[K]) => void;
   toggleExchange: (e: string) => void;
   pin: (id: string | null) => void;
@@ -71,6 +73,7 @@ export const useSignalsStore = create<State>((set, get) => ({
   sort: "score",
   live: true,
   advOpen: false,
+  streamOpen: false,
   pinnedId: null,
   hoverId: null,
   toasts: [],
@@ -79,6 +82,7 @@ export const useSignalsStore = create<State>((set, get) => ({
   setSort: (s) => set({ sort: s }),
   setLive: (v) => set({ live: v }),
   toggleAdv: () => set((s) => ({ advOpen: !s.advOpen })),
+  toggleStream: () => set((s) => ({ streamOpen: !s.streamOpen })),
   setFilter: (k, v) => set((s) => ({ filters: { ...s.filters, [k]: v } })),
   toggleExchange: (e) =>
     set((s) => {
