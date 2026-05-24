@@ -35,7 +35,7 @@ export const useBot4xStore = create<State>((set, get) => ({
   totalCapital: 1000,
   allocationPct: 30,
   leverage: 3,
-  profile: "conservador",
+  profile: (typeof window !== "undefined" && (localStorage.getItem("bot4x.profile") as CalibProfile)) || "conservador",
   orders: [],
   dailyPnlPct: -0.42,
   trailingPeakPct: 0,
@@ -65,7 +65,7 @@ export const useBot4xStore = create<State>((set, get) => ({
   setTotalCapital: (n) => set({ totalCapital: Math.max(0, n) }),
   setAllocationPct: (n) => set({ allocationPct: Math.min(100, Math.max(1, n)) }),
   setLeverage: (n) => set({ leverage: Math.min(10, Math.max(1, n)) }),
-  setProfile: (profile) => set({ profile }),
+  setProfile: (profile) => { if (typeof window !== "undefined") localStorage.setItem("bot4x.profile", profile); set({ profile }); },
   closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
   seedOrders: () => {
     const sample: Order[] = [

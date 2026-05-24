@@ -6,39 +6,50 @@ export type ProfileSpec = {
   id: CalibProfile;
   name: string;
   color: string;
+  riskLabel: string;
   desc: string;
   rsiBuy: number;
   rsiSell: number;
   aiScore: number;
   fomo: number;
   wr: number;
+  blockings30d: number;
+  trades30d: number;
   riskRank: 1 | 2 | 3 | 4;
+  warning?: { level: "amber" | "red"; text: string };
   levMatrix: Record<number, "ok" | "warn" | "no">;
 };
 
 export const PROFILES: Record<CalibProfile, ProfileSpec> = {
   conservador: {
-    id: "conservador", name: "Conservador", color: "#1D9E75",
-    desc: "Máxima qualidade. Aceita poucos sinais, prioriza taxa de acerto.",
-    rsiBuy: 35, rsiSell: 65, aiScore: 85, fomo: 15, wr: 62, riskRank: 1,
+    id: "conservador", name: "Conservador", color: "#3B6D11", riskLabel: "Risco Baixo",
+    desc: "Máxima proteção patrimonial. Opera apenas em confluências institucionais perfeitas.",
+    rsiBuy: 35, rsiSell: 65, aiScore: 85, fomo: 15, wr: 62,
+    blockings30d: 647, trades30d: 183, riskRank: 1,
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "warn", 5: "warn", 6: "warn", 7: "warn", 8: "no", 9: "no", 10: "no" },
   },
   rsi: {
-    id: "rsi", name: "Calibrado RSI", color: "#378ADD",
-    desc: "Relaxa RSI mantendo aiScore alto. Mais entradas com risco controlado.",
-    rsiBuy: 40, rsiSell: 60, aiScore: 85, fomo: 15, wr: 59, riskRank: 2,
+    id: "rsi", name: "Calibrado RSI", color: "#185FA5", riskLabel: "Risco Moderado",
+    desc: "RSI ampliado para capturar extremos menos severos. Reduz ~25% dos bloqueios.",
+    rsiBuy: 40, rsiSell: 60, aiScore: 85, fomo: 15, wr: 59,
+    blockings30d: 485, trades30d: 221, riskRank: 2,
+    warning: { level: "amber", text: "⚠ Monitorar disjuntores em lev 1:6 e 1:10" },
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "ok", 5: "warn", 6: "warn", 7: "warn", 8: "warn", 9: "no", 10: "no" },
   },
   aiscore: {
-    id: "aiscore", name: "Calibrado aiScore", color: "#7F77DD",
-    desc: "Relaxa aiScore mantendo RSI estrito. Aceita confiança IA mais baixa.",
-    rsiBuy: 35, rsiSell: 65, aiScore: 78, fomo: 15, wr: 57, riskRank: 3,
-    levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "ok", 5: "warn", 6: "warn", 7: "warn", 8: "warn", 9: "no", 10: "no" },
+    id: "aiscore", name: "Calibrado aiScore", color: "#534AB7", riskLabel: "Risco Médio",
+    desc: "aiScore reduzido para 78. Libera sinais em dias de baixa volatilidade.",
+    rsiBuy: 35, rsiSell: 65, aiScore: 78, fomo: 15, wr: 57,
+    blockings30d: 516, trades30d: 208, riskRank: 3,
+    warning: { level: "red", text: "⛔ Não usar com alavancagem 1:8 e 1:10" },
+    levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "ok", 5: "warn", 6: "warn", 7: "warn", 8: "no", 9: "no", 10: "no" },
   },
   agressivo: {
-    id: "agressivo", name: "Agressivo", color: "#E24B4A",
-    desc: "Máximo volume de sinais. Aceita FOMO mais alto. Use com cautela.",
-    rsiBuy: 40, rsiSell: 60, aiScore: 78, fomo: 20, wr: 53, riskRank: 4,
+    id: "agressivo", name: "Agressivo", color: "#A32D2D", riskLabel: "Risco Alto",
+    desc: "RSI 40/60 + aiScore 78 + FOMO 20%. Máximo volume de operações.",
+    rsiBuy: 40, rsiSell: 60, aiScore: 78, fomo: 20, wr: 53,
+    blockings30d: 378, trades30d: 267, riskRank: 4,
+    warning: { level: "red", text: "🚨 EXCLUSIVO para alavancagem 1:1 e 1:3" },
     levMatrix: { 1: "ok", 2: "ok", 3: "warn", 4: "warn", 5: "warn", 6: "warn", 7: "no", 8: "no", 9: "no", 10: "no" },
   },
 };
