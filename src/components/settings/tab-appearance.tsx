@@ -179,6 +179,23 @@ export function SettingsAppearance() {
           </div>
         </div>
       </SectionCard>
+
+      <SectionCard title="Bot4x">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card/40 p-3">
+          <div className="flex items-start gap-3">
+            <div className="size-9 rounded-full bg-[var(--brand-blue-deep)] flex items-center justify-center shrink-0">
+              <Cpu className="size-4 text-[var(--brand-cyan)]" />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Modo compacto</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Mostra um pill fixo de 64px no canto inferior esquerdo em todas as páginas com modo e PnL do dia.
+              </p>
+            </div>
+          </div>
+          <Switch checked={compactPill} onCheckedChange={setCompactPill} />
+        </div>
+      </SectionCard>
     </>
   );
 }
