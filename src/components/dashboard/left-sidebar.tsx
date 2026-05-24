@@ -8,7 +8,7 @@ const items = [
   { icon: Cpu, label: "Bot4x", to: "/bot4x" as const },
   { icon: Flame, label: "Heatmap", to: "/dashboard" as const },
   { icon: BarChart3, label: "Performance", to: "/dashboard" as const },
-  { icon: Brain, label: "DNA", to: "/dashboard" as const },
+  { icon: Brain, label: "DNA", to: "/dna-trader" as const },
   { icon: Bell, label: "Alerts", to: "/alerts" as const },
   { icon: Calendar, label: "Calendar", to: "/dashboard" as const },
   { icon: User, label: "Profile", to: "/profile" as const },
