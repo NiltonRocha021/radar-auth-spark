@@ -216,16 +216,19 @@ function LeverageSelector() {
           const r = leverageRisk(n);
           const active = n === lev;
           return (
-            <button
+            <motion.button
               key={n}
               onClick={() => setLev(n)}
-              className={`h-10 rounded-md text-[13px] font-semibold tabular-nums transition-all ${
+              whileTap={{ scale: 0.88 }}
+              animate={{ scale: active ? 1.06 : 1 }}
+              transition={{ type: "spring", stiffness: 500, damping: 20 }}
+              className={`h-10 rounded-md text-[13px] font-semibold tabular-nums transition-[background,border-color,color,box-shadow] duration-300 ease-out ${
                 active ? "text-white" : "bg-background border border-border text-muted-foreground hover:text-foreground hover:border-border"
               }`}
-              style={active ? { background: r.color, borderColor: r.color, boxShadow: `0 0 0 1px ${r.color}` } : undefined}
+              style={active ? { background: r.color, borderColor: r.color, boxShadow: `0 0 0 1px ${r.color}, 0 4px 14px -2px ${r.color}66` } : undefined}
             >
               {n}
-            </button>
+            </motion.button>
           );
         })}
       </div>
