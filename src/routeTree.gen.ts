@@ -98,7 +98,14 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/signals'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/alerts' | '/bot4x' | '/dashboard' | '/onboarding' | '/signals'
+  to:
+    | '/'
+    | '/login'
+    | '/alerts'
+    | '/bot4x'
+    | '/dashboard'
+    | '/onboarding'
+    | '/signals'
   id:
     | '__root__'
     | '/'
