@@ -3,6 +3,7 @@ import {
   type ExecMode, type CalibProfile, type Order, type Tick, type Trade,
   makeTick, genHistory,
 } from "./bot4x-data";
+import { PROFILES } from "./bot4x-data";
 
 type State = {
   mode: ExecMode;
@@ -14,6 +15,8 @@ type State = {
   dailyPnlPct: number;
   trailingPeakPct: number;
   ticks: Tick[];
+  ticksProcessed: number;
+  feedPaused: boolean;
   history: Trade[];
   monitorTab: "tick" | "order" | "shutdown";
   _ticker?: ReturnType<typeof setInterval>;
@@ -28,7 +31,19 @@ type State = {
   closeOrder: (id: string) => void;
   seedOrders: () => void;
   setMonitorTab: (t: "tick" | "order" | "shutdown") => void;
+  toggleFeedPaused: () => void;
+  clearTicks: () => void;
 };
+
+function genCtxTick(get: () => State): Tick {
+  const s = get();
+  return makeTick({
+    profile: PROFILES[s.profile],
+    slotsUsed: s.orders.length,
+    busyPairs: s.orders.map((o) => o.pair),
+    shutdown: s.dailyPnlPct <= -1.5,
+  });
+}
 
 export const useBot4xStore = create<State>((set, get) => ({
   mode: "DEMO",
@@ -40,6 +55,8 @@ export const useBot4xStore = create<State>((set, get) => ({
   dailyPnlPct: -0.42,
   trailingPeakPct: 0,
   ticks: [],
+  ticksProcessed: 1247,
+  feedPaused: false,
   history: [],
   monitorTab: "tick",
 
@@ -49,11 +66,12 @@ export const useBot4xStore = create<State>((set, get) => ({
     set({ history });
     get().seedOrders();
     const ticker = setInterval(() => {
-      const t = makeTick();
-      set((s) => ({ ticks: [t, ...s.ticks].slice(0, 40) }));
+      if (get().feedPaused) return;
+      const t = genCtxTick(get);
+      set((s) => ({ ticks: [t, ...s.ticks].slice(0, 40), ticksProcessed: s.ticksProcessed + 1 }));
     }, 8000);
     // seed a few ticks immediately
-    set({ ticks: Array.from({ length: 5 }, makeTick) });
+    set({ ticks: Array.from({ length: 5 }, () => genCtxTick(get)) });
     set({ _ticker: ticker });
   },
   cleanup: () => {
@@ -75,6 +93,8 @@ export const useBot4xStore = create<State>((set, get) => ({
     set({ orders: sample });
   },
   setMonitorTab: (monitorTab) => set({ monitorTab }),
+  toggleFeedPaused: () => set((s) => ({ feedPaused: !s.feedPaused })),
+  clearTicks: () => set({ ticks: [] }),
 }));
 
 export function selectActiveCapital(s: State) {
