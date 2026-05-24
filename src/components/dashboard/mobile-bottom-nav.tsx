@@ -1,4 +1,4 @@
-import { LayoutDashboard, Activity, Cpu, Brain, Menu } from "lucide-react";
+import { LayoutDashboard, Activity, Bot, Brain, Menu } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 const primary = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" as const },
   { icon: Activity, label: "Radar", to: "/signals" as const },
-  { icon: Cpu, label: "Bot4x", to: "/bot4x" as const },
+  { icon: Bot, label: "Bot4x", to: "/bot4x" as const },
   { icon: Brain, label: "DNA", to: "/dna-trader" as const },
 ];
 
