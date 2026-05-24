@@ -35,6 +35,7 @@ function AuthGate() {
     <>
       <Outlet />
       <Bot4xFloatingWidget />
+      <Bot4xCompactPill />
       <MobileBottomNav />
       <Bot4xGlobalNotifier />
     </>
