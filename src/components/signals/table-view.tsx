@@ -3,12 +3,14 @@ import { Bell, Bookmark, Download, EyeOff, Pin, PinOff, Shield, ShieldAlert, Shi
 import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { type Signal, formatPrice, formatAge } from "@/lib/signals-data";
 import { useSignalsStore } from "@/lib/signals-store";
+import { useBot4xStore } from "@/lib/bot4x-store";
+import { bot4xEligibility, ELIGIBILITY_META } from "@/lib/bot4x-eligibility";
 
 const PAGE = 20;
 
 type ColKey =
   | "select" | "num" | "asset" | "dir" | "score" | "entry" | "stop" | "target"
-  | "rr" | "risk" | "tf" | "exchange" | "setup" | "confirms" | "dna" | "manip" | "age" | "actions";
+  | "rr" | "risk" | "tf" | "exchange" | "setup" | "confirms" | "dna" | "manip" | "bot4x" | "age" | "actions";
 
 type ColDef = {
   key: ColKey;
@@ -54,6 +56,7 @@ const COLUMNS: Record<ColKey, ColDef> = {
         s.manipRisk === "medium" ? <Shield className="size-3.5 text-[#EF9F27]" /> :
           <ShieldAlert className="size-3.5 text-[#E24B4A]" />,
   },
+  bot4x: { key: "bot4x", label: "Bot4x", render: (s) => <Bot4xCell signal={s} /> },
   age: { key: "age", label: "Age", render: (s) => <span className="text-muted-foreground">{formatAge(s.ageMin)}</span> },
   actions: {
     key: "actions", label: "Actions",
@@ -73,7 +76,23 @@ function ViewLink({ id }: { id: string }) {
   );
 }
 
-const DEFAULT_ORDER: ColKey[] = ["select", "num", "asset", "dir", "score", "entry", "stop", "target", "rr", "risk", "tf", "exchange", "setup", "confirms", "dna", "manip", "age", "actions"];
+function Bot4xCell({ signal }: { signal: Signal }) {
+  const mode = useBot4xStore((s) => s.mode);
+  const profile = useBot4xStore((s) => s.profile);
+  const dailyPnlPct = useBot4xStore((s) => s.dailyPnlPct);
+  const elig = bot4xEligibility(signal, { mode, profile, dailyPnlPct });
+  const m = ELIGIBILITY_META[elig];
+  return (
+    <span
+      className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide"
+      style={{ background: m.bg, color: m.color }}
+    >
+      {m.label}
+    </span>
+  );
+}
+
+const DEFAULT_ORDER: ColKey[] = ["select", "num", "asset", "dir", "score", "entry", "stop", "target", "rr", "risk", "tf", "exchange", "setup", "confirms", "dna", "manip", "bot4x", "age", "actions"];
 const STORAGE_KEY = "signals.table.cols.v1";
 
 type ColState = { order: ColKey[]; hidden: ColKey[]; pinned: ColKey[] };

@@ -18,6 +18,7 @@ import { LiveToasts } from "@/components/dashboard/live-toasts";
 import { SignalDrawer } from "@/components/dashboard/signal-drawer";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { AnnouncementBanner } from "@/components/dashboard/announcement-banner";
+import { IntegrationWidgets } from "@/components/dashboard/integration-widgets";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -42,6 +43,7 @@ function Dashboard() {
       <div className="flex">
         <LeftSidebar />
         <main className="flex-1 min-w-0 p-5 space-y-5">
+          <IntegrationWidgets />
           <MetricCards />
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
