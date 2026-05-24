@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown,
+  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { PROFILES, type CalibProfile, type ProfileSpec } from "@/lib/bot4x-data";
 
@@ -65,28 +66,51 @@ function SectionHeader() {
 
 // ----- Profile cards -----
 function ProfileGrid() {
+  const [simId, setSimId] = useState<CalibProfile | null>(null);
   return (
-    <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {ORDER.map((id) => <ProfileCard key={id} p={PROFILES[id]} />)}
-    </section>
+    <>
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {ORDER.map((id) => (
+          <ProfileCard key={id} p={PROFILES[id]} onOpenSim={() => setSimId(id)} />
+        ))}
+      </section>
+      <AnimatePresence>
+        {simId && <SimulationModal profile={PROFILES[simId]} onClose={() => setSimId(null)} />}
+      </AnimatePresence>
+    </>
   );
 }
 
-function ProfileCard({ p }: { p: ProfileSpec }) {
+function ProfileCard({ p, onOpenSim }: { p: ProfileSpec; onOpenSim: () => void }) {
   const active = useBot4xStore((s) => s.profile);
   const set = useBot4xStore((s) => s.setProfile);
   const isActive = active === p.id;
   const Icon = ICONS[p.id];
 
+  const handleActivate = () => {
+    if (isActive) return;
+    set(p.id);
+    toast.success(`Perfil ${p.name} ativado`, {
+      description: p.riskLabel,
+      duration: 3000,
+    });
+  };
+
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg bg-card border border-border overflow-hidden transition-shadow"
-      style={{
-        borderLeft: `3px solid ${p.color}`,
-        boxShadow: isActive ? `0 0 0 1px ${p.color}, 0 10px 32px -14px color-mix(in oklab, ${p.color} 50%, transparent)` : undefined,
+      initial={{ opacity: 0, y: 6 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        borderColor: isActive ? p.color : "var(--border)",
+        boxShadow: isActive
+          ? `0 0 0 1px ${p.color}, 0 10px 32px -14px color-mix(in oklab, ${p.color} 50%, transparent)`
+          : "0 0 0 0 transparent, 0 0 0 0 transparent",
       }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="rounded-lg bg-card border overflow-hidden"
+      style={{ borderLeft: `3px solid ${p.color}` }}
     >
       <div className="p-4">
         <div className="flex items-start justify-between gap-2">
@@ -140,16 +164,141 @@ function ProfileCard({ p }: { p: ProfileSpec }) {
 
         <motion.button
           whileTap={{ scale: 0.97 }}
-          onClick={() => set(p.id)}
-          className={`mt-3 w-full h-9 rounded-md text-[13px] font-semibold transition-colors ${
+          onClick={handleActivate}
+          className={`mt-3 w-full h-9 rounded-md text-[13px] font-semibold transition-colors duration-300 ${
             isActive ? "text-white" : "bg-secondary text-foreground hover:bg-secondary/70"
           }`}
           style={isActive ? { background: p.color } : undefined}
         >
           {isActive ? "✓ Perfil Ativo" : `Ativar ${p.name}`}
         </motion.button>
+
+        <button
+          onClick={onOpenSim}
+          className="mt-2 w-full inline-flex items-center justify-center gap-1.5 h-8 rounded-md text-[12px] font-medium text-muted-foreground hover:text-foreground transition-colors group"
+        >
+          Ver simulação 30 dias
+          <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+        </button>
       </div>
     </motion.div>
+  );
+}
+
+// ----- Simulation modal -----
+function SimulationModal({ profile, onClose }: { profile: ProfileSpec; onClose: () => void }) {
+  const Icon = ICONS[profile.id];
+  // 30-day equity curve seeded from profile WR
+  const series = useMemo(() => {
+    const N = 30;
+    const out: number[] = [];
+    let acc = 1000;
+    const tradesPerDay = Math.max(1, Math.round(profile.trades30d / 30));
+    let seed = profile.id.length * 7919;
+    const rng = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0xFFFFFFFF; };
+    for (let i = 0; i < N; i++) {
+      let day = 0;
+      for (let t = 0; t < tradesPerDay; t++) {
+        const win = rng() < profile.wr / 100;
+        const pct = win ? 0.4 + rng() * 0.5 : -(0.3 + rng() * 0.4);
+        day += pct;
+      }
+      acc = +(acc * (1 + day / 100)).toFixed(2);
+      out.push(acc);
+    }
+    return out;
+  }, [profile.id, profile.wr, profile.trades30d]);
+
+  const final = series[series.length - 1];
+  const pnlPct = ((final - 1000) / 1000) * 100;
+  const peak = Math.max(...series);
+  const trough = Math.min(...series.map((v, i) => v - Math.max(...series.slice(0, i + 1))));
+  const maxDD = (trough / peak) * 100;
+
+  const W = 560, H = 160;
+  const min = Math.min(...series, 1000);
+  const max = Math.max(...series, 1000);
+  const range = max - min || 1;
+  const step = W / (series.length - 1);
+  const norm = (v: number) => H - ((v - min) / range) * H;
+  const d = series.map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${norm(v).toFixed(1)}`).join(" ");
+  const area = `${d} L${W},${H} L0,${H} Z`;
+
+  return (
+    <>
+      <motion.div
+        className="fixed inset-0 bg-black/70 z-[70]"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+      />
+      <motion.div
+        className="fixed inset-0 z-[71] flex items-center justify-center p-4"
+        initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+      >
+        <div className="w-full max-w-2xl rounded-xl bg-[#111318] border border-border shadow-2xl overflow-hidden">
+          <div className="px-5 pt-4 pb-3 border-b border-border flex items-start gap-3">
+            <div
+              className="size-9 rounded-md flex items-center justify-center shrink-0"
+              style={{ background: `color-mix(in oklab, ${profile.color} 22%, transparent)` }}
+            >
+              <Icon className="size-5" style={{ color: profile.color }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[15px] font-semibold text-foreground">
+                Simulação 30 dias — {profile.name}
+              </h3>
+              <p className="text-[12px] text-muted-foreground mt-0.5">
+                Capital inicial 1.000 USDT · {profile.trades30d} trades · WR ~{profile.wr}%
+              </p>
+            </div>
+            <button onClick={onClose} className="size-7 rounded hover:bg-secondary flex items-center justify-center text-muted-foreground">
+              <X className="size-4" />
+            </button>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <SimStat label="Resultado" value={`${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%`} color={pnlPct >= 0 ? "#1D9E75" : "#E24B4A"} />
+              <SimStat label="Capital final" value={`${final.toFixed(0)} USDT`} />
+              <SimStat label="Max drawdown" value={`${maxDD.toFixed(2)}%`} color="#E24B4A" />
+              <SimStat label="Bloqueios" value={`~${profile.blockings30d}`} />
+            </div>
+            <div className="rounded-md border border-border bg-background p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1.5">
+                  <TrendingUp className="size-3.5" /> Curva de equity (30d)
+                </span>
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  min {min.toFixed(0)} · max {max.toFixed(0)}
+                </span>
+              </div>
+              <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-40" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id={`sim-${profile.id}`} x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor={profile.color} stopOpacity="0.35" />
+                    <stop offset="100%" stopColor={profile.color} stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <line x1="0" x2={W} y1={norm(1000)} y2={norm(1000)} stroke="currentColor" strokeOpacity="0.15" strokeDasharray="3 3" />
+                <path d={area} fill={`url(#sim-${profile.id})`} />
+                <path d={d} fill="none" stroke={profile.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Simulação determinística baseada em WR e volume médios. Resultados reais variam com slippage e condições de mercado.
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
+
+function SimStat({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background px-3 py-2">
+      <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-[14px] font-semibold tabular-nums mt-0.5" style={{ color: color ?? undefined }}>{value}</div>
+    </div>
   );
 }
 
