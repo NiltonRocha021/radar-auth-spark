@@ -22,6 +22,38 @@ export const TRADERS: Trader[] = [
   { id: "t6", handle: "@NightScalper", strategy: "Scalper", winRate: 58, rr: 1.6, signals30d: 98, followers: 512, monthlyReturn: 8, maxDrawdown: 12.6, verified: false },
 ];
 
+// Deterministic 30-day PnL sparkline for each trader
+export const TRADER_SPARKS: Record<string, number[]> = Object.fromEntries(
+  TRADERS.map((t) => {
+    const seed = t.handle.length + t.monthlyReturn;
+    const points: number[] = [];
+    let v = 0;
+    for (let i = 0; i < 30; i++) {
+      const noise = Math.sin(seed + i * 0.9) * 1.4 + Math.cos(i * 0.4 + seed * 0.3) * 0.9;
+      v += t.monthlyReturn / 30 + noise * 0.5;
+      points.push(+v.toFixed(2));
+    }
+    return [t.id, points];
+  })
+);
+
+export type TopCopier = {
+  id: string;
+  handle: string;
+  followingCount: number;
+  pnl30d: number;
+  winRate: number;
+  capital: string;
+};
+
+export const TOP_COPIERS: TopCopier[] = [
+  { id: "c1", handle: "@diego_quant", followingCount: 5, pnl30d: 18.4, winRate: 68, capital: "$120k" },
+  { id: "c2", handle: "@mariaFX", followingCount: 3, pnl30d: 14.2, winRate: 64, capital: "$45k" },
+  { id: "c3", handle: "@whaleHunter", followingCount: 4, pnl30d: 12.8, winRate: 61, capital: "$210k" },
+  { id: "c4", handle: "@nightTrader", followingCount: 2, pnl30d: 10.5, winRate: 59, capital: "$28k" },
+  { id: "c5", handle: "@btc_max", followingCount: 6, pnl30d: 9.7, winRate: 57, capital: "$72k" },
+];
+
 export const STATS = [
   { label: "Active Copiers", value: "1,247", delta: "+38 today" },
   { label: "Signals Copied Today", value: "89", delta: "+12% vs yesterday" },
