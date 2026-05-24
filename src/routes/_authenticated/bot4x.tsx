@@ -32,11 +32,13 @@ const TABS: { id: Tab; label: string }[] = [
 function Bot4xPage() {
   const init = useBot4xStore((s) => s.init);
   const cleanup = useBot4xStore((s) => s.cleanup);
+  const breakerTriggered = useBot4xStore((s) => s.dailyPnlPct <= -1.5);
   const [tab, setTab] = useState<Tab>("painel");
 
   useEffect(() => {
     init();
     return () => cleanup();
+  }, [init, cleanup]);
   }, [init, cleanup]);
 
   return (
