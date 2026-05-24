@@ -46,6 +46,7 @@ type State = {
   archetype: string;
   daysActive: number;
   signalsViewed: number;
+  publicProfile: boolean;
 };
 
 type Actions = {
@@ -54,6 +55,7 @@ type Actions = {
   toggleMarket: (m: Market) => void;
   toggleTimeframe: (t: Timeframe) => void;
   setConnection: <K extends keyof Connections>(k: K, patch: Partial<Connections[K]>) => void;
+  setPublicProfile: (v: boolean) => void;
 };
 
 const defaultInfo: ProfileInfo = {
@@ -92,6 +94,9 @@ export const useProfileStore = create<State & Actions>((set) => ({
   archetype: "MOMENTUM TRADER",
   daysActive: 47,
   signalsViewed: 312,
+  publicProfile: false,
+
+  setPublicProfile: (v) => set({ publicProfile: v }),
 
   setInfo: (patch) => set((s) => ({ info: { ...s.info, ...patch } })),
   setPrefs: (patch) => set((s) => ({ prefs: { ...s.prefs, ...patch } })),
