@@ -1,8 +1,27 @@
-import { Bell, Search, ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, Settings, User, Cpu, Activity, ShieldAlert, Sparkles, TrendingUp } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useDashboardStore } from "@/lib/dashboard-store";
+import { useBot4xStore } from "@/lib/bot4x-store";
+import { useNotificationsStore, type NotifType } from "@/lib/notifications-store";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useRef, useEffect } from "react";
+
+const PROFILE_INITIAL: Record<string, string> = {
+  conservador: "C",
+  regular: "R",
+  agressivo: "A",
+  "agressivo-galaxy": "G",
+};
+
+const NOTIF_META: Record<NotifType, { icon: typeof Cpu; color: string }> = {
+  EXECUTE: { icon: Activity, color: "#1D9E75" },
+  EMERGENCY_SHUTDOWN: { icon: ShieldAlert, color: "#E24B4A" },
+  PROFIT_LOCK: { icon: TrendingUp, color: "#1D9E75" },
+  ALERT: { icon: Bell, color: "#EF9F27" },
+  INFO: { icon: Sparkles, color: "#7F77DD" },
+};
 
 export function TopBar() {
   const { user } = useAuth();
@@ -29,15 +48,13 @@ export function TopBar() {
   const eth = prices.ETH ?? { price: 2251, change: -0.4 };
 
   return (
-    <header className="h-12 sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur flex items-center px-4 gap-6">
-      {/* Left */}
+    <header className="h-12 sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur flex items-center px-4 gap-3 md:gap-6">
       <div className="flex items-baseline gap-2 min-w-0">
-        <span className="text-[14px] text-muted-foreground">Dashboard</span>
-        <span className="text-[16px] font-medium text-foreground truncate">{greeting}, {name}</span>
+        <span className="hidden sm:inline text-[14px] text-muted-foreground">Dashboard</span>
+        <span className="text-[14px] md:text-[16px] font-medium text-foreground truncate">{greeting}, {name}</span>
       </div>
 
-      {/* Center */}
-      <div className="hidden lg:flex items-center gap-4 mx-auto text-[13px] tabular-nums">
+      <div className="hidden xl:flex items-center gap-4 mx-auto text-[13px] tabular-nums">
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
           <span className="size-1.5 rounded-full bg-[#1D9E75] animate-pulse" />
           <span className="text-foreground">Markets Open</span>
@@ -47,23 +64,24 @@ export function TopBar() {
         <span className="text-muted-foreground">BTC Dom <span className="text-foreground">52.4%</span></span>
       </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-3 ml-auto">
+      <div className="flex items-center gap-2 ml-auto">
         <span className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium"
           style={{ background: "color-mix(in oklab, #1D9E75 18%, transparent)", color: "#1D9E75", border: "1px solid color-mix(in oklab, #1D9E75 35%, transparent)" }}>
           68 · Greed
         </span>
+
+        <Bot4xPill />
+
         <button
           onClick={() => setCmdkOpen(true)}
-          className="size-8 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          className="hidden sm:flex size-8 rounded-md hover:bg-secondary items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
           aria-label="Search (Cmd+K)"
         >
           <Search className="size-4" />
         </button>
-        <button className="relative size-8 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-          <Bell className="size-4" />
-          <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-[#E24B4A]" />
-        </button>
+
+        <NotificationsBell />
+
         <div className="relative" ref={ref}>
           <button
             onClick={() => setOpen((v) => !v)}
@@ -72,7 +90,7 @@ export function TopBar() {
             <span className="size-7 rounded-full brand-gradient flex items-center justify-center text-[11px] font-semibold text-white uppercase">
               {name.slice(0, 1)}
             </span>
-            <ChevronDown className="size-3.5 text-muted-foreground" />
+            <ChevronDown className="hidden sm:inline size-3.5 text-muted-foreground" />
           </button>
           {open && (
             <div className="absolute right-0 top-10 w-56 rounded-lg border border-border bg-card shadow-xl py-1.5 text-sm">
@@ -80,8 +98,12 @@ export function TopBar() {
                 <div className="font-medium text-foreground truncate">{name}</div>
                 <div className="text-xs text-muted-foreground truncate">{user?.email}</div>
               </div>
-              <MenuItem icon={<User className="size-4" />} label="Profile" />
-              <MenuItem icon={<Settings className="size-4" />} label="Settings" />
+              <Link to="/profile" onClick={() => setOpen(false)} className="w-full flex items-center gap-2 px-3 py-2 text-foreground hover:bg-secondary">
+                <User className="size-4" /> Profile
+              </Link>
+              <Link to="/settings" onClick={() => setOpen(false)} className="w-full flex items-center gap-2 px-3 py-2 text-foreground hover:bg-secondary">
+                <Settings className="size-4" /> Settings
+              </Link>
               <div className="my-1 h-px bg-border" />
               <button
                 onClick={() => supabase.auth.signOut()}
@@ -97,6 +119,138 @@ export function TopBar() {
   );
 }
 
+function Bot4xPill() {
+  const mode = useBot4xStore((s) => s.mode);
+  const profile = useBot4xStore((s) => s.profile);
+  const pnl = useBot4xStore((s) => s.dailyPnlPct);
+  const orders = useBot4xStore((s) => s.orders);
+
+  const breaker = pnl <= -1.5;
+  const warn = pnl < -0.5 && !breaker;
+  const color = breaker ? "#E24B4A" : warn ? "#EF9F27" : "#1D9E75";
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="hidden sm:flex items-center gap-1.5 px-2 h-8 rounded-md border text-[11.5px] font-medium tabular-nums transition-colors hover:bg-secondary"
+          style={{ borderColor: `color-mix(in oklab, ${color} 35%, var(--border))`, color }}
+          title="Bot4x status"
+        >
+          <Cpu className="size-3.5" />
+          <span>{mode[0]}/{PROFILE_INITIAL[profile] ?? "?"}</span>
+          <span>{pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[320px] p-0 overflow-hidden">
+        <div className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold">Bot4x</h4>
+            <span
+              className="px-2 py-0.5 rounded text-[10px] font-bold border"
+              style={{ borderColor: `${color}55`, color, background: `color-mix(in oklab, ${color} 14%, transparent)` }}
+            >
+              {breaker ? "SHUTDOWN" : warn ? "WARNING" : "ACTIVE"}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-[11px]">
+            <Stat label="Mode" value={mode} />
+            <Stat label="Profile" value={profile.split("-")[0]} />
+            <Stat label="PnL hoje" value={`${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}%`} color={color} />
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>Ordens abertas</span>
+            <span className="text-foreground font-medium tabular-nums">{orders.length}</span>
+          </div>
+          <Link
+            to="/bot4x"
+            className="block text-center w-full h-8 leading-8 rounded-md bg-[var(--brand-blue-deep)] hover:bg-[var(--brand-blue)] text-foreground text-[12px] font-medium transition-colors"
+          >
+            Open Bot4x →
+          </Link>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div className="rounded-md border border-border bg-card/40 p-2">
+      <div className="text-[10px] uppercase text-muted-foreground tracking-wide">{label}</div>
+      <div className="text-[12px] font-medium tabular-nums truncate uppercase" style={{ color: color ?? "var(--foreground)" }}>{value}</div>
+    </div>
+  );
+}
+
+function NotificationsBell() {
+  const events = useNotificationsStore((s) => s.events);
+  const markAllRead = useNotificationsStore((s) => s.markAllRead);
+  const dismiss = useNotificationsStore((s) => s.dismiss);
+  const unread = events.filter((e) => !e.read).length;
+
+  return (
+    <Popover onOpenChange={(o) => { if (o) markAllRead(); }}>
+      <PopoverTrigger asChild>
+        <button className="relative size-8 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+          <Bell className="size-4" />
+          {unread > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#E24B4A] text-white text-[9px] font-bold flex items-center justify-center tabular-nums">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-[340px] p-0">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+          <h4 className="text-sm font-semibold">Notifications</h4>
+          <span className="text-[11px] text-muted-foreground">{events.length} eventos</span>
+        </div>
+        <div className="max-h-[360px] overflow-y-auto">
+          {events.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground">Sem notificações</div>
+          ) : (
+            events.slice(0, 10).map((e) => {
+              const M = NOTIF_META[e.type];
+              const Icon = M.icon;
+              return (
+                <div key={e.id} className="flex items-start gap-2.5 px-3 py-2.5 border-b border-border/60 last:border-b-0 hover:bg-secondary/40">
+                  <div
+                    className="size-7 rounded-md flex items-center justify-center shrink-0"
+                    style={{ background: `color-mix(in oklab, ${M.color} 16%, transparent)`, color: M.color }}
+                  >
+                    <Icon className="size-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[12px] font-medium text-foreground line-clamp-1">{e.title}</div>
+                    {e.body && <div className="text-[11px] text-muted-foreground line-clamp-2">{e.body}</div>}
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{relativeTime(e.createdAt)}</div>
+                  </div>
+                  <button
+                    onClick={() => dismiss(e.id)}
+                    className="text-[10px] text-muted-foreground hover:text-foreground"
+                    aria-label="Dismiss"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function relativeTime(ts: number) {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return `${diff}s atrás`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m atrás`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h atrás`;
+  return `${Math.floor(diff / 86400)}d atrás`;
+}
+
 function Ticker({ symbol, price, change }: { symbol: string; price: number; change: number }) {
   const up = change >= 0;
   return (
@@ -105,13 +259,5 @@ function Ticker({ symbol, price, change }: { symbol: string; price: number; chan
       <span className="text-foreground">${price.toLocaleString(undefined, { maximumFractionDigits: price > 100 ? 0 : 2 })}</span>
       <span style={{ color: up ? "#1D9E75" : "#E24B4A" }}>{up ? "+" : ""}{change.toFixed(1)}%</span>
     </span>
-  );
-}
-
-function MenuItem({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <button className="w-full flex items-center gap-2 px-3 py-2 text-left text-foreground hover:bg-secondary">
-      {icon} {label}
-    </button>
   );
 }
