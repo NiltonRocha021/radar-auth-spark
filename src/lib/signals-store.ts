@@ -33,6 +33,7 @@ type State = {
   streamOpen: boolean;
   pinnedId: string | null;
   hoverId: string | null;
+  detailId: string | null;
   toasts: SignalToast[];
   flashIds: Set<string>;
   // actions
@@ -45,6 +46,8 @@ type State = {
   toggleExchange: (e: string) => void;
   pin: (id: string | null) => void;
   setHover: (id: string | null) => void;
+  openDetail: (id: string) => void;
+  closeDetail: () => void;
   dismissToast: (id: string) => void;
   init: () => void;
   cleanup: () => void;
