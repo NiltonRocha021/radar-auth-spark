@@ -45,54 +45,56 @@ function Bot4xPage() {
       <TopBar />
       <div className="flex">
         <LeftSidebar />
-        <main className="flex-1 min-w-0 p-5 space-y-5">
-          <Bot4xHeader />
-          <div className="flex items-center gap-1 border-b border-border">
-            {TABS.map((t) => {
-              const active = tab === t.id;
-              const showBreaker = t.id === "painel" && breakerTriggered;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`relative px-4 py-2.5 text-[13px] font-medium transition-colors ${
-                    active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    {t.label}
-                    {showBreaker && (
-                      <span className="relative flex size-2" title="Circuit breaker triggered">
-                        <span className="absolute inline-flex h-full w-full rounded-full bg-[#E24B4A] opacity-75 animate-ping" />
-                        <span className="relative inline-flex size-2 rounded-full bg-[#E24B4A]" />
-                      </span>
+        <main className="flex-1 min-w-0">
+          <div className="max-w-[1200px] mx-auto p-5 space-y-5">
+            <Bot4xHeader />
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur flex items-center gap-1 border-b border-border -mx-5 px-5">
+              {TABS.map((t) => {
+                const active = tab === t.id;
+                const showBreaker = t.id === "painel" && breakerTriggered;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    className={`relative px-4 py-2.5 text-[13px] font-medium transition-colors ${
+                      active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      {t.label}
+                      {showBreaker && (
+                        <span className="relative flex size-2" title="Circuit breaker triggered">
+                          <span className="absolute inline-flex h-full w-full rounded-full bg-[#E24B4A] opacity-75 animate-ping" />
+                          <span className="relative inline-flex size-2 rounded-full bg-[#E24B4A]" />
+                        </span>
+                      )}
+                    </span>
+                    {active && (
+                      <motion.div
+                        layoutId="bot4x-tab"
+                        className="absolute left-0 right-0 -bottom-px h-0.5 bg-[var(--brand-cyan)]"
+                      />
                     )}
-                  </span>
-                  {active && (
-                    <motion.div
-                      layoutId="bot4x-tab"
-                      className="absolute left-0 right-0 -bottom-px h-0.5 bg-[var(--brand-cyan)]"
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
+                  </button>
+                );
+              })}
+            </div>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={tab}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.2 }}
-            >
-              {tab === "painel" && <TabPainel />}
-              {tab === "calibrador" && <TabCalibrador />}
-              {tab === "monitor" && <TabMonitor />}
-              {tab === "historico" && <TabHistorico />}
-            </motion.div>
-          </AnimatePresence>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={tab}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+              >
+                {tab === "painel" && <TabPainel />}
+                {tab === "calibrador" && <TabCalibrador />}
+                {tab === "monitor" && <TabMonitor />}
+                {tab === "historico" && <TabHistorico />}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </main>
       </div>
     </div>
