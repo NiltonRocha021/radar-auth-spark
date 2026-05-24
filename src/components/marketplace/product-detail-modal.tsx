@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
-import { BadgeCheck, Heart } from "lucide-react";
+import { useMemo } from "react";
+import { BadgeCheck, Heart, Sparkles } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Rating } from "./rating";
 import { CATEGORY_BADGES, CATEGORY_GRADIENTS, SAMPLE_REVIEWS, type Product } from "@/lib/marketplace-data";
+import { useWishlist } from "@/lib/wishlist-store";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -15,10 +16,11 @@ type Props = {
 };
 
 export function ProductDetailModal({ product, open, onOpenChange }: Props) {
-  const [wishlisted, setWishlisted] = useState(false);
+  const { has, toggle } = useWishlist();
   const reviews = useMemo(() => SAMPLE_REVIEWS, []);
   if (!product) return null;
   const free = product.price === 0;
+  const wishlisted = has(product.id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
