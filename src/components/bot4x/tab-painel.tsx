@@ -343,6 +343,14 @@ function CircuitBreakerProfit() {
       <div className="text-[10px] text-muted-foreground mt-1.5">
         {state === "LOCKED" ? "Lucro travado — bot encerra ao tocar +3%." : "Sem lock ativo."}
       </div>
+      {IS_DEV && (
+        <button
+          onClick={() => useBot4xStore.setState({ trailingPeakPct: state !== "INACTIVE" ? 0 : 4.2 })}
+          className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-[#7AD9B4] hover:text-white border border-[#1D9E7555] hover:border-[#1D9E75] rounded px-2 py-1 transition-colors"
+        >
+          <Zap className="size-3" /> {state !== "INACTIVE" ? "Resetar" : "Simular acionamento"} <span className="opacity-50">· dev</span>
+        </button>
+      )}
     </section>
   );
 }
