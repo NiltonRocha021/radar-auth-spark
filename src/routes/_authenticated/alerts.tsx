@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, KeyboardEvent } from "react";
-import { Send, Mail, Bell, MessageSquare, Phone, X, Check } from "lucide-react";
+import { Send, Mail, Bell, MessageSquare, Phone, X, Check, Zap } from "lucide-react";
+import { toast } from "sonner";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { ChannelRow } from "@/components/alerts/channel-row";
 import { TelegramConnectModal } from "@/components/alerts/telegram-modal";
 import { MessagePreview } from "@/components/alerts/message-preview";
 import { RecentFeed } from "@/components/alerts/recent-feed";
+import { VolumeChart } from "@/components/alerts/volume-chart";
 import { useAlertsStore, type AlertType, type Frequency } from "@/lib/alerts-store";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
@@ -63,17 +65,41 @@ function AlertsPage() {
     }
   };
 
+  const sendTestAlert = () => {
+    const active = Object.entries(s.channels).filter(([, c]) => c.on).map(([k]) => k);
+    if (active.length === 0) {
+      toast.error("No channels enabled", { description: "Turn on at least one delivery channel." });
+      return;
+    }
+    s.pushFeed({
+      id: `test-${Date.now()}`,
+      kind: "signal",
+      type: "Test alert",
+      asset: "BTC/USDT",
+      description: `Sample notification delivered via ${active.join(", ")}.`,
+      at: Date.now(),
+      read: false,
+    });
+    toast.success("Test alert sent", {
+      description: `Delivered to ${active.length} channel${active.length > 1 ? "s" : ""}: ${active.join(", ")}.`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <TopBar />
       <div className="flex">
         <LeftSidebar />
         <main className="flex-1 min-w-0 p-5 space-y-5">
-          <header className="flex items-center justify-between">
+          <header className="flex items-center justify-between gap-4">
             <div>
               <h1 className="text-xl font-semibold tracking-tight">Alerts</h1>
               <p className="text-sm text-muted-foreground mt-1">Choose how and when AISignalRadar reaches you.</p>
             </div>
+            <Button onClick={sendTestAlert} variant="outline" className="gap-2">
+              <Zap className="size-4 text-[var(--brand-cyan)]" />
+              Test alert
+            </Button>
           </header>
 
           <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 items-start">
@@ -309,7 +335,10 @@ function AlertsPage() {
                 </div>
               </Section>
 
-              {/* Section 4: Recent feed */}
+              {/* Section 4: Volume */}
+              <VolumeChart />
+
+              {/* Section 5: Recent feed */}
               <RecentFeed />
             </div>
 
