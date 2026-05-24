@@ -38,8 +38,14 @@ export function TabMonitor() {
 
 // ============= PIPELINE =============
 function FilterPipeline() {
-  const last = useBot4xStore((s) => s.ticks[0]);
+  const liveLast = useBot4xStore((s) => s.ticks[0]);
   const ticks = useBot4xStore((s) => s.ticks);
+
+  const [replayTick, setReplayTick] = useState<Tick | null>(null);
+  const [replayActive, setReplayActive] = useState(false);
+  const replayRef = useRef<{ cancel: boolean }>({ cancel: false });
+
+  const last = replayTick ?? liveLast;
 
   const counts = useMemo(() => {
     const c: Record<FilterKey, number> = { F1: 0, F2: 0, F3: 0, F4: 0, F5: 0, F6: 0 };
@@ -47,11 +53,65 @@ function FilterPipeline() {
     return c;
   }, [ticks]);
 
+  const runReplay = async () => {
+    if (replayActive) return;
+    const sample = ticks.slice(0, 10).reverse();
+    if (sample.length === 0) return;
+    setReplayActive(true);
+    replayRef.current = { cancel: false };
+    const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    for (const t of sample) {
+      if (replayRef.current.cancel) break;
+      // Step through filters one per second
+      const progressiveFilters: Record<FilterKey, boolean> = { F1: false, F2: false, F3: false, F4: false, F5: false, F6: false };
+      for (const k of FILTER_ORDER) {
+        if (replayRef.current.cancel) break;
+        const passed = t.filters[k] && t.blockedAt !== k;
+        progressiveFilters[k] = passed;
+        const blockedHere = t.blockedAt === k;
+        setReplayTick({
+          ...t,
+          id: `replay-${t.id}-${k}`,
+          filters: { ...progressiveFilters },
+          blockedAt: blockedHere ? k : undefined,
+          verdict: blockedHere ? t.verdict : "IGNORE",
+        });
+        await wait(1000);
+        if (blockedHere) break;
+      }
+      if (replayRef.current.cancel) break;
+      // Show final verdict (execute node lights up if applicable)
+      setReplayTick({ ...t, id: `replay-${t.id}-final` });
+      await wait(700);
+    }
+    setReplayTick(null);
+    setReplayActive(false);
+  };
+
+  const stopReplay = () => {
+    replayRef.current.cancel = true;
+    setReplayTick(null);
+    setReplayActive(false);
+  };
+
   return (
     <section className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Pipeline de filtros</div>
-        <div className="text-[10px] text-muted-foreground">Animação em tempo real · tick a cada 8s</div>
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Pipeline de filtros
+          {replayActive && <span className="ml-2 text-[#EF9F27] normal-case">· REPLAY em curso</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={replayActive ? stopReplay : runReplay}
+            disabled={!replayActive && ticks.length === 0}
+            className="inline-flex items-center gap-1 h-7 px-2 rounded text-[11px] text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-border"
+          >
+            <Rewind className="size-3.5" />
+            {replayActive ? "Parar replay" : "Replay últimos 10"}
+          </button>
+          <div className="text-[10px] text-muted-foreground">tick a cada 8s</div>
+        </div>
       </div>
       <div className="flex items-start justify-between gap-1 overflow-x-auto pb-1">
         {FILTER_ORDER.map((k, i) => {
@@ -76,7 +136,6 @@ function FilterPipeline() {
             />
           );
         })}
-        {/* Execute node */}
         <ExecuteNode last={last} />
       </div>
     </section>
