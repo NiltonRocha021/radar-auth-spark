@@ -45,6 +45,7 @@ function Dashboard() {
       <div className="flex">
         <LeftSidebar />
         <main className="flex-1 min-w-0 p-5 space-y-5">
+          <IntegrationWidgets />
           <MetricCards />
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
