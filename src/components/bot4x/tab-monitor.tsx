@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ChevronDown, Copy, Check, Pause, Play, Trash2, Zap,
+  ChevronDown, Copy, Check, Pause, Play, Trash2, Zap, Rewind,
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell, PieChart, Pie } from "recharts";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { FILTER_NAMES, type FilterKey, type Tick, type Verdict } from "@/lib/bot4x-data";
 
@@ -38,8 +38,14 @@ export function TabMonitor() {
 
 // ============= PIPELINE =============
 function FilterPipeline() {
-  const last = useBot4xStore((s) => s.ticks[0]);
+  const liveLast = useBot4xStore((s) => s.ticks[0]);
   const ticks = useBot4xStore((s) => s.ticks);
+
+  const [replayTick, setReplayTick] = useState<Tick | null>(null);
+  const [replayActive, setReplayActive] = useState(false);
+  const replayRef = useRef<{ cancel: boolean }>({ cancel: false });
+
+  const last = replayTick ?? liveLast;
 
   const counts = useMemo(() => {
     const c: Record<FilterKey, number> = { F1: 0, F2: 0, F3: 0, F4: 0, F5: 0, F6: 0 };
@@ -47,11 +53,65 @@ function FilterPipeline() {
     return c;
   }, [ticks]);
 
+  const runReplay = async () => {
+    if (replayActive) return;
+    const sample = ticks.slice(0, 10).reverse();
+    if (sample.length === 0) return;
+    setReplayActive(true);
+    replayRef.current = { cancel: false };
+    const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+    for (const t of sample) {
+      if (replayRef.current.cancel) break;
+      // Step through filters one per second
+      const progressiveFilters: Record<FilterKey, boolean> = { F1: false, F2: false, F3: false, F4: false, F5: false, F6: false };
+      for (const k of FILTER_ORDER) {
+        if (replayRef.current.cancel) break;
+        const passed = t.filters[k] && t.blockedAt !== k;
+        progressiveFilters[k] = passed;
+        const blockedHere = t.blockedAt === k;
+        setReplayTick({
+          ...t,
+          id: `replay-${t.id}-${k}`,
+          filters: { ...progressiveFilters },
+          blockedAt: blockedHere ? k : undefined,
+          verdict: blockedHere ? t.verdict : "IGNORE",
+        });
+        await wait(1000);
+        if (blockedHere) break;
+      }
+      if (replayRef.current.cancel) break;
+      // Show final verdict (execute node lights up if applicable)
+      setReplayTick({ ...t, id: `replay-${t.id}-final` });
+      await wait(700);
+    }
+    setReplayTick(null);
+    setReplayActive(false);
+  };
+
+  const stopReplay = () => {
+    replayRef.current.cancel = true;
+    setReplayTick(null);
+    setReplayActive(false);
+  };
+
   return (
     <section className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Pipeline de filtros</div>
-        <div className="text-[10px] text-muted-foreground">Animação em tempo real · tick a cada 8s</div>
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Pipeline de filtros
+          {replayActive && <span className="ml-2 text-[#EF9F27] normal-case">· REPLAY em curso</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={replayActive ? stopReplay : runReplay}
+            disabled={!replayActive && ticks.length === 0}
+            className="inline-flex items-center gap-1 h-7 px-2 rounded text-[11px] text-foreground hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed border border-border"
+          >
+            <Rewind className="size-3.5" />
+            {replayActive ? "Parar replay" : "Replay últimos 10"}
+          </button>
+          <div className="text-[10px] text-muted-foreground">tick a cada 8s</div>
+        </div>
       </div>
       <div className="flex items-start justify-between gap-1 overflow-x-auto pb-1">
         {FILTER_ORDER.map((k, i) => {
@@ -76,7 +136,6 @@ function FilterPipeline() {
             />
           );
         })}
-        {/* Execute node */}
         <ExecuteNode last={last} />
       </div>
     </section>
@@ -367,6 +426,15 @@ function JsonViewer() {
     try { await navigator.clipboard.writeText(json); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
   };
 
+  const [glow, setGlow] = useState(false);
+  useEffect(() => {
+    if (lastTick?.verdict === "EXECUTE") {
+      setGlow(true);
+      const id = setTimeout(() => setGlow(false), 3000);
+      return () => clearTimeout(id);
+    }
+  }, [lastTick?.id, lastTick?.verdict]);
+
   const tabs = [
     { id: "tick" as const, label: "Último tick" },
     { id: "order" as const, label: "Última ordem" },
@@ -374,7 +442,16 @@ function JsonViewer() {
   ];
 
   return (
-    <section className="rounded-lg border border-border bg-card h-full flex flex-col">
+    <motion.section
+      animate={{
+        borderColor: glow ? "#1D9E75" : "hsl(var(--border))",
+        boxShadow: glow
+          ? "0 0 0 1px #1D9E75, 0 0 24px color-mix(in oklab, #1D9E75 45%, transparent)"
+          : "0 0 0 0px transparent",
+      }}
+      transition={{ duration: 0.4 }}
+      className="rounded-lg border bg-card h-full flex flex-col"
+    >
       <div className="px-3 py-2 border-b border-border flex items-center gap-1 overflow-x-auto">
         {tabs.map((t) => (
           <button
@@ -411,7 +488,7 @@ function JsonViewer() {
           </div>
         ))}
       </pre>
-    </section>
+    </motion.section>
   );
 }
 
@@ -440,7 +517,7 @@ function FilterStats() {
   const processed = useBot4xStore((s) => s.ticksProcessed);
 
   const stats = useMemo(() => {
-    let exec = 0, blocked = 0;
+    let exec = 0, blockedCount = 0, ignore = 0;
     const cat: Record<string, number> = {
       "F4 Zona central": 0,
       "F5 RSI": 0,
@@ -449,7 +526,9 @@ function FilterStats() {
       "F6 FOMO": 0,
     };
     for (const t of ticks) {
-      if (t.verdict === "EXECUTE") exec++; else blocked++;
+      if (t.verdict === "EXECUTE") exec++;
+      else if (t.verdict === "IGNORE") ignore++;
+      else blockedCount++;
       if (t.blockedAt === "F4") cat["F4 Zona central"]++;
       else if (t.blockedAt === "F5") {
         if (t.f5Sub === "RSI") cat["F5 RSI"]++;
@@ -466,15 +545,21 @@ function FilterStats() {
     };
     const bars = Object.entries(cat).map(([name, blocks]) => ({ name, blocks, fill: colors[name] }));
     const total = ticks.length;
+    const donut = [
+      { name: "EXECUTE", value: exec, fill: "#1D9E75" },
+      { name: "IGNORE", value: ignore, fill: "#888780" },
+      { name: "BLOCKED", value: blockedCount, fill: "#E24B4A" },
+    ];
     return {
-      bars, exec, blocked, total, processed,
-      blockedPct: total ? Math.round((blocked / total) * 100) : 0,
-      winRate: exec ? Math.round((exec * 0.62) / exec * 100) : 0, // proxy 62% on executed
+      bars, donut, exec, ignore, blocked: blockedCount, total, processed,
+      blockedPct: total ? Math.round((blockedCount / total) * 100) : 0,
+      execPct: total ? Math.round((exec / total) * 100) : 0,
+      ignorePct: total ? Math.round((ignore / total) * 100) : 0,
     };
   }, [ticks, processed]);
 
   return (
-    <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
       <div className="lg:col-span-2 rounded-lg border border-border bg-card p-4">
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Bloqueios por filtro (sessão)</div>
         <div className="h-48">
@@ -493,13 +578,58 @@ function FilterStats() {
           </ResponsiveContainer>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="rounded-lg border border-border bg-card p-4 flex flex-col">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Distribuição hoje</div>
+        <div className="relative h-40">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={stats.donut.every((d) => d.value === 0) ? [{ name: "—", value: 1, fill: "#2a2b30" }] : stats.donut}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={42}
+                outerRadius={62}
+                paddingAngle={2}
+                stroke="none"
+                isAnimationActive
+              >
+                {stats.donut.map((d) => (<Cell key={d.name} fill={d.fill} />))}
+              </Pie>
+              <Tooltip
+                contentStyle={{ background: "#111318", border: "1px solid #1E2028", borderRadius: 6, fontSize: 12 }}
+                formatter={(v: number, n: string) => [`${v} (${stats.total ? Math.round((v / stats.total) * 100) : 0}%)`, n]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <div className="text-[18px] font-semibold tabular-nums text-foreground">{stats.total}</div>
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">ticks</div>
+          </div>
+        </div>
+        <div className="mt-2 space-y-1 text-[10.5px]">
+          <LegendRow color="#1D9E75" label="EXECUTE" value={stats.exec} pct={stats.execPct} />
+          <LegendRow color="#888780" label="IGNORE" value={stats.ignore} pct={stats.ignorePct} />
+          <LegendRow color="#E24B4A" label="BLOCKED" value={stats.blocked} pct={stats.blockedPct} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 content-start">
         <SummaryCard label="Total ticks" value={`${stats.processed.toLocaleString()}`} />
         <SummaryCard label="Bloqueados" value={`${stats.blocked} · ${stats.blockedPct}%`} color="#E24B4A" />
         <SummaryCard label="Executados" value={`${stats.exec}`} color="#1D9E75" />
         <SummaryCard label="Win rate (exec)" value={`~62%`} color="#7AD9B4" />
       </div>
     </section>
+  );
+}
+
+function LegendRow({ color, label, value, pct }: { color: string; label: string; value: number; pct: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="inline-block size-2 rounded-sm" style={{ background: color }} />
+      <span className="text-muted-foreground flex-1">{label}</span>
+      <span className="tabular-nums font-semibold" style={{ color }}>{value}</span>
+      <span className="tabular-nums text-muted-foreground w-9 text-right">{pct}%</span>
+    </div>
   );
 }
 
