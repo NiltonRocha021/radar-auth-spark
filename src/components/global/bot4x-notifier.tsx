@@ -79,6 +79,7 @@ export function Bot4xGlobalNotifier() {
         description: `+${trailingPeak.toFixed(1)}% travados`,
         duration: Infinity,
       });
+      burstProfitConfetti();
     }
     lastLock.current = lock;
   }, [trailingPeak, push]);
