@@ -141,7 +141,10 @@ export function SignalCard({ signal }: { signal: Signal }) {
         <div className="flex items-center gap-1 mt-4">
           <FooterBtn icon={<Bell className="size-3" />} label="Alert" />
           <FooterBtn icon={<Bookmark className="size-3" />} label="Save" />
-          <button className="ml-auto h-7 px-3 rounded-md bg-[var(--brand-blue-deep)] hover:bg-[var(--brand-blue)] text-foreground text-[11px] font-medium inline-flex items-center gap-1 transition-colors">
+          <button
+            onClick={(e) => { e.stopPropagation(); openDetail(signal.id); }}
+            className="ml-auto h-7 px-3 rounded-md bg-[var(--brand-blue-deep)] hover:bg-[var(--brand-blue)] text-foreground text-[11px] font-medium inline-flex items-center gap-1 transition-colors"
+          >
             View Analysis <ArrowRight className="size-3" />
           </button>
         </div>
