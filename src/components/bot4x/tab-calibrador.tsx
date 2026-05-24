@@ -1,12 +1,24 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Copy, Check } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown,
+} from "lucide-react";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { PROFILES, type CalibProfile, type ProfileSpec } from "@/lib/bot4x-data";
+
+const ICONS: Record<CalibProfile, typeof Sliders> = {
+  conservador: ShieldCheck,
+  rsi: Sliders,
+  aiscore: Brain,
+  agressivo: Zap,
+};
+
+const ORDER: CalibProfile[] = ["conservador", "rsi", "aiscore", "agressivo"];
 
 export function TabCalibrador() {
   return (
     <div className="space-y-5">
+      <SectionHeader />
       <ProfileGrid />
       <ImpactSummary />
       <LeverageMatrix />
@@ -15,77 +27,139 @@ export function TabCalibrador() {
   );
 }
 
+// ----- Header -----
+function SectionHeader() {
+  const active = useBot4xStore((s) => s.profile);
+  const p = PROFILES[active];
+  return (
+    <section className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-start gap-3">
+        <div className="size-10 rounded-md bg-secondary flex items-center justify-center shrink-0">
+          <Sliders className="size-5 text-foreground" />
+        </div>
+        <div>
+          <h2 className="text-[18px] font-semibold text-foreground leading-tight">
+            Calibrador de Perfil Operacional
+          </h2>
+          <p className="text-[12px] text-muted-foreground mt-0.5">
+            Define o comportamento dos Filtros 5 e 6 do motor de execução
+          </p>
+        </div>
+      </div>
+      <motion.div
+        key={active}
+        initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="inline-flex items-center gap-2 h-9 px-3 rounded-md border"
+        style={{
+          background: `color-mix(in oklab, ${p.color} 16%, transparent)`,
+          borderColor: p.color,
+        }}
+      >
+        <span className="size-2 rounded-full" style={{ background: p.color }} />
+        <span className="text-[12px] font-semibold text-foreground">{p.name}</span>
+        <span className="text-[11px] text-muted-foreground">— {p.riskLabel}</span>
+      </motion.div>
+    </section>
+  );
+}
+
+// ----- Profile cards -----
 function ProfileGrid() {
+  return (
+    <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {ORDER.map((id) => <ProfileCard key={id} p={PROFILES[id]} />)}
+    </section>
+  );
+}
+
+function ProfileCard({ p }: { p: ProfileSpec }) {
   const active = useBot4xStore((s) => s.profile);
   const set = useBot4xStore((s) => s.setProfile);
-  const order: CalibProfile[] = ["conservador", "rsi", "aiscore", "agressivo"];
+  const isActive = active === p.id;
+  const Icon = ICONS[p.id];
 
   return (
-    <section>
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Perfis de calibração</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {order.map((id) => {
-          const p = PROFILES[id];
-          const isActive = active === id;
-          return (
-            <motion.div
-              key={id}
-              initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-              className="rounded-lg bg-card p-4 border transition-colors"
-              style={{
-                borderColor: isActive ? p.color : "var(--border)",
-                boxShadow: isActive ? `0 0 0 1px ${p.color}, 0 8px 30px -12px color-mix(in oklab, ${p.color} 40%, transparent)` : undefined,
-              }}
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+      className="rounded-lg bg-card border border-border overflow-hidden transition-shadow"
+      style={{
+        borderLeft: `3px solid ${p.color}`,
+        boxShadow: isActive ? `0 0 0 1px ${p.color}, 0 10px 32px -14px color-mix(in oklab, ${p.color} 50%, transparent)` : undefined,
+      }}
+    >
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              className="size-8 rounded-md flex items-center justify-center shrink-0"
+              style={{ background: `color-mix(in oklab, ${p.color} 22%, transparent)` }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[15px] font-semibold text-foreground">{p.name}</span>
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: `color-mix(in oklab, ${p.color} 22%, transparent)`, color: p.color }}>
-                      Risco {p.riskRank}/4
-                    </span>
-                  </div>
-                  <p className="text-[11.5px] text-muted-foreground mt-1 max-w-[34ch]">{p.desc}</p>
-                </div>
-                <RiskMeter rank={p.riskRank} color={p.color} />
+              <Icon className="size-4" style={{ color: p.color }} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[14px] font-semibold text-foreground">{p.name}</span>
+                <span
+                  className="px-1.5 py-0.5 rounded text-[10px] font-bold"
+                  style={{ background: `color-mix(in oklab, ${p.color} 22%, transparent)`, color: p.color }}
+                >
+                  {p.riskLabel}
+                </span>
               </div>
+              <p className="text-[11.5px] text-muted-foreground mt-1 leading-snug">{p.desc}</p>
+            </div>
+          </div>
+          <RiskMeter rank={p.riskRank} color={p.color} />
+        </div>
 
-              <div className="mt-3 rounded-md bg-background border border-border px-3 py-2 font-mono text-[11px] text-foreground/85 space-y-0.5">
-                <div>rsi.buy &lt; {p.rsiBuy} · rsi.sell &gt; {p.rsiSell}</div>
-                <div>aiScore ≥ {p.aiScore}</div>
-                <div>fomo ≤ {p.fomo}%</div>
-              </div>
+        <div className="mt-3 rounded-md bg-background border border-border px-3 py-2 font-mono text-[11px] text-foreground/85 space-y-0.5">
+          <div>RSI threshold:  &lt; {p.rsiBuy} / &gt; {p.rsiSell}</div>
+          <div>aiScore mín.:   ≥ {p.aiScore}</div>
+          <div>FOMO limite:    ≤ {p.fomo}%</div>
+        </div>
 
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <Mini label="Win rate" value={`~${p.wr}%`} color={p.color} />
-                <Mini label="RSI" value={`<${p.rsiBuy}/>${p.rsiSell}`} />
-                <Mini label="aiScore" value={`≥${p.aiScore}`} />
-              </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <Mini label="Win rate" value={`~${p.wr}%`} color={p.color} />
+          <Mini label="Bloqueios" value={`~${p.blockings30d}/30d`} />
+          <Mini label="Trades" value={`~${p.trades30d}/30d`} />
+        </div>
 
-              <button
-                onClick={() => set(id)}
-                className={`mt-3 w-full h-9 rounded-md text-[13px] font-semibold transition-colors ${
-                  isActive ? "text-white" : "bg-secondary text-foreground hover:bg-secondary/70"
-                }`}
-                style={isActive ? { background: p.color } : undefined}
-              >
-                {isActive ? "Ativo ✓" : "Ativar"}
-              </button>
-            </motion.div>
-          );
-        })}
+        {p.warning && (
+          <div
+            className="mt-3 rounded-md px-3 py-2 text-[11px] border"
+            style={{
+              background: `color-mix(in oklab, ${p.warning.level === "amber" ? "#EF9F27" : "#E24B4A"} 14%, transparent)`,
+              borderColor: `color-mix(in oklab, ${p.warning.level === "amber" ? "#EF9F27" : "#E24B4A"} 55%, transparent)`,
+              color: p.warning.level === "amber" ? "#F2C46B" : "#FF9B9A",
+            }}
+          >
+            {p.warning.text}
+          </div>
+        )}
+
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={() => set(p.id)}
+          className={`mt-3 w-full h-9 rounded-md text-[13px] font-semibold transition-colors ${
+            isActive ? "text-white" : "bg-secondary text-foreground hover:bg-secondary/70"
+          }`}
+          style={isActive ? { background: p.color } : undefined}
+        >
+          {isActive ? "✓ Perfil Ativo" : `Ativar ${p.name}`}
+        </motion.button>
       </div>
-    </section>
+    </motion.div>
   );
 }
 
 function RiskMeter({ rank, color }: { rank: 1 | 2 | 3 | 4; color: string }) {
   return (
-    <div className="flex gap-0.5 mt-1">
+    <div className="flex gap-0.5 mt-1 shrink-0">
       {[1, 2, 3, 4].map((n) => (
         <div
           key={n}
-          className="w-1.5 h-5 rounded-sm"
+          className="w-1.5 h-5 rounded-sm transition-colors"
           style={{ background: n <= rank ? color : "color-mix(in oklab, var(--border) 80%, transparent)" }}
         />
       ))}
@@ -97,77 +171,132 @@ function Mini({ label, value, color }: { label: string; value: string; color?: s
   return (
     <div className="rounded-md bg-background border border-border px-2 py-1.5">
       <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-[12px] font-semibold tabular-nums" style={{ color: color ?? undefined }}>{value}</div>
+      <div className="text-[11.5px] font-semibold tabular-nums truncate" style={{ color: color ?? undefined }}>{value}</div>
     </div>
   );
 }
 
+// ----- Impact summary -----
 function ImpactSummary() {
   const active = useBot4xStore((s) => s.profile);
   const cur = PROFILES[active];
   const base = PROFILES.conservador;
   const items = [
-    { label: "Win rate", cur: `${cur.wr}%`, base: `${base.wr}%`, delta: cur.wr - base.wr, color: cur.color },
-    { label: "Sinais/dia (est)", cur: `${5 + cur.riskRank * 6}`, base: `${5 + base.riskRank * 6}`, delta: cur.riskRank * 6 - base.riskRank * 6, color: "#378ADD" },
-    { label: "aiScore mín.", cur: `${cur.aiScore}`, base: `${base.aiScore}`, delta: cur.aiScore - base.aiScore, color: "#7F77DD" },
-    { label: "FOMO máx.", cur: `${cur.fomo}%`, base: `${base.fomo}%`, delta: cur.fomo - base.fomo, color: "#EF9F27" },
+    {
+      label: "Bloqueios estimados",
+      value: `${cur.blockings30d}/30d`,
+      delta: cur.blockings30d - base.blockings30d,
+      // fewer blocks = "good" for volume, but we just show raw delta
+      goodWhenNegative: true,
+    },
+    {
+      label: "Trades liberados",
+      value: `${cur.trades30d}/30d`,
+      delta: cur.trades30d - base.trades30d,
+      goodWhenNegative: false,
+    },
+    {
+      label: "Win rate estimado",
+      value: `${cur.wr}%`,
+      delta: cur.wr - base.wr,
+      goodWhenNegative: false,
+    },
+    {
+      label: "Nível de risco",
+      value: `${cur.riskRank}/4`,
+      delta: cur.riskRank - base.riskRank,
+      goodWhenNegative: true,
+    },
   ];
-
   return (
     <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {items.map((it) => (
-        <div key={it.label} className="rounded-lg border border-border bg-card px-4 py-3">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{it.label}</div>
-          <div className="text-[18px] font-semibold tabular-nums mt-1 text-foreground">{it.cur}</div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">
-            vs Conservador <span style={{ color: it.delta === 0 ? "#888780" : it.delta > 0 ? "#1D9E75" : "#E24B4A" }}>
-              {it.delta === 0 ? "=" : `${it.delta > 0 ? "+" : ""}${it.delta}`}
-            </span>
-          </div>
-        </div>
-      ))}
+      {items.map((it) => {
+        const positive = it.goodWhenNegative ? it.delta < 0 : it.delta > 0;
+        const negative = it.goodWhenNegative ? it.delta > 0 : it.delta < 0;
+        const color = it.delta === 0 ? "#888780" : positive ? "#1D9E75" : negative ? "#E24B4A" : "#888780";
+        return (
+          <motion.div
+            key={it.label}
+            layout
+            className="rounded-lg border border-border bg-card px-4 py-3"
+          >
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{it.label}</div>
+            <div className="text-[18px] font-semibold tabular-nums mt-1 text-foreground">{it.value}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              vs Conservador{" "}
+              <span style={{ color }} className="font-semibold tabular-nums">
+                {it.delta === 0 ? "=" : `${it.delta > 0 ? "+" : ""}${it.delta}`}
+              </span>
+            </div>
+          </motion.div>
+        );
+      })}
     </section>
   );
 }
 
+// ----- Leverage matrix -----
 function LeverageMatrix() {
+  const activeLev = useBot4xStore((s) => s.leverage);
+  const activeProfile = useBot4xStore((s) => s.profile);
   const profiles: ProfileSpec[] = Object.values(PROFILES);
-  const levs = Array.from({ length: 10 }, (_, i) => i + 1);
+  const cols = [1, 3, 6, 10];
   const sym = (s: "ok" | "warn" | "no") =>
     s === "ok" ? { ch: "✓", color: "#1D9E75" } : s === "warn" ? { ch: "⚠", color: "#EF9F27" } : { ch: "✗", color: "#E24B4A" };
 
+  // Closest highlight column for current leverage
+  const highlightCol = cols.reduce((a, b) => (Math.abs(b - activeLev) < Math.abs(a - activeLev) ? b : a));
+
   return (
     <section className="rounded-lg border border-border bg-card overflow-hidden">
-      <div className="px-4 py-3 border-b border-border text-[12px] font-semibold text-foreground">
-        Compatibilidade perfil × alavancagem
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <div className="text-[12px] font-semibold text-foreground">Compatibilidade perfil × alavancagem</div>
+        <div className="text-[10px] text-muted-foreground">
+          Coluna destacada: <span className="text-foreground font-semibold">{highlightCol}x</span> (lev atual)
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[12px]">
           <thead>
             <tr className="text-muted-foreground">
               <th className="text-left font-medium px-4 py-2">Perfil</th>
-              {levs.map((l) => (<th key={l} className="px-2 py-2 font-medium tabular-nums">{l}x</th>))}
+              {cols.map((l) => (
+                <th
+                  key={l}
+                  className="px-3 py-2 font-medium tabular-nums text-center"
+                  style={l === highlightCol ? { background: "color-mix(in oklab, #378ADD 18%, transparent)", color: "#9CC6F0" } : undefined}
+                >
+                  1:{l}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {profiles.map((p) => (
-              <tr key={p.id} className="border-t border-border">
-                <td className="px-4 py-2 text-foreground">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="size-2 rounded-full" style={{ background: p.color }} />
-                    {p.name}
-                  </span>
-                </td>
-                {levs.map((l) => {
-                  const s = sym(p.levMatrix[l]);
-                  return (
-                    <td key={l} className="px-2 py-2 text-center">
-                      <span style={{ color: s.color }}>{s.ch}</span>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {profiles.map((p) => {
+              const rowActive = p.id === activeProfile;
+              return (
+                <tr key={p.id} className="border-t border-border" style={rowActive ? { background: "color-mix(in oklab, var(--secondary) 50%, transparent)" } : undefined}>
+                  <td className="px-4 py-2 text-foreground">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="size-2 rounded-full" style={{ background: p.color }} />
+                      <span className={rowActive ? "font-semibold" : ""}>{p.name}</span>
+                    </span>
+                  </td>
+                  {cols.map((l) => {
+                    const s = sym(p.levMatrix[l]);
+                    return (
+                      <td
+                        key={l}
+                        className="px-3 py-2 text-center text-[14px] font-semibold"
+                        style={l === highlightCol ? { background: "color-mix(in oklab, #378ADD 10%, transparent)" } : undefined}
+                      >
+                        <span style={{ color: s.color }}>{s.ch}</span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -175,20 +304,24 @@ function LeverageMatrix() {
   );
 }
 
+// ----- Prompt injection -----
 function PromptInjection() {
   const active = useBot4xStore((s) => s.profile);
   const p = PROFILES[active];
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const block = `// Bot4x v2.0 — prompt injection (profile: ${p.id})
-PROFILE = "${p.name}"
-RSI_BUY_MAX   = ${p.rsiBuy}
-RSI_SELL_MIN  = ${p.rsiSell}
-AI_SCORE_MIN  = ${p.aiScore}
-FOMO_MAX      = ${p.fomo}
-RISK_RANK     = ${p.riskRank}/4
-EXPECTED_WR   = ~${p.wr}%
+  const block = `// Bot4x v2.0 — calibration block (profile: ${p.id})
+PROFILE        = "${p.name}"
+RISK_LABEL     = "${p.riskLabel}"
+RSI_BUY_MAX    = ${p.rsiBuy}
+RSI_SELL_MIN   = ${p.rsiSell}
+AI_SCORE_MIN   = ${p.aiScore}
+FOMO_MAX       = ${p.fomo}
+RISK_RANK      = ${p.riskRank}/4
+EXPECTED_WR    = ~${p.wr}%
+BLOCKINGS_30D  = ~${p.blockings30d}
+TRADES_30D     = ~${p.trades30d}
 
 GUARDRAILS:
   - DEMO mode default; REAL requires operator confirmation
@@ -204,25 +337,33 @@ GUARDRAILS:
     <section className="rounded-lg border border-border bg-card">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-[12px] font-medium text-foreground hover:bg-secondary/30"
+        className="w-full flex items-center justify-between px-4 py-3 text-[12px] font-medium text-foreground hover:bg-secondary/30 transition-colors"
       >
-        <span>Prompt injection do perfil ativo</span>
-        <span className="text-[10px] text-muted-foreground">{open ? "Ocultar" : "Mostrar"}</span>
+        <span>Mostrar bloco de injeção para o system prompt</span>
+        <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && (
-        <div className="border-t border-border p-3">
-          <div className="relative">
-            <pre className="font-mono text-[11px] leading-relaxed text-foreground/85 bg-background border border-border rounded-md p-3 overflow-x-auto whitespace-pre-wrap">{block}</pre>
-            <button
-              onClick={copy}
-              className="absolute top-2 right-2 inline-flex items-center gap-1 h-7 px-2 rounded-md bg-secondary text-foreground text-[11px] hover:bg-secondary/70"
-            >
-              {copied ? <Check className="size-3.5 text-[#1D9E75]" /> : <Copy className="size-3.5" />}
-              {copied ? "Copiado" : "Copiar"}
-            </button>
-          </div>
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="border-t border-border p-3">
+              <div className="relative">
+                <pre className="font-mono text-[11px] leading-relaxed text-foreground/85 bg-[#0A0B0E] border border-border rounded-md p-3 overflow-x-auto whitespace-pre-wrap">{block}</pre>
+                <button
+                  onClick={copy}
+                  className="absolute top-2 right-2 inline-flex items-center gap-1 h-7 px-2 rounded-md bg-secondary text-foreground text-[11px] hover:bg-secondary/70 transition-colors"
+                >
+                  {copied ? <Check className="size-3.5 text-[#1D9E75]" /> : <Copy className="size-3.5" />}
+                  {copied ? "Copiado" : "Copiar"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
