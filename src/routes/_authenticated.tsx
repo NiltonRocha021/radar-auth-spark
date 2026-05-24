@@ -25,6 +25,21 @@ function AuthGate() {
     if (session) initBot4x();
   }, [session, initBot4x]);
 
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "b" && e.key !== "B") return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || target.isContentEditable) return;
+      if (target.closest("[contenteditable='true']")) return;
+      e.preventDefault();
+      navigate({ to: "/bot4x" });
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [navigate]);
+
   if (loading || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">

@@ -83,10 +83,10 @@ function Bot4xPage() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={tab}
-                initial={{ opacity: 0, y: 6 }}
+                initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ type: "spring", stiffness: 300, damping: 28 }}
               >
                 {tab === "painel" && <TabPainel />}
                 {tab === "calibrador" && <TabCalibrador />}
