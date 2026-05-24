@@ -76,7 +76,23 @@ function ViewLink({ id }: { id: string }) {
   );
 }
 
-const DEFAULT_ORDER: ColKey[] = ["select", "num", "asset", "dir", "score", "entry", "stop", "target", "rr", "risk", "tf", "exchange", "setup", "confirms", "dna", "manip", "age", "actions"];
+function Bot4xCell({ signal }: { signal: Signal }) {
+  const mode = useBot4xStore((s) => s.mode);
+  const profile = useBot4xStore((s) => s.profile);
+  const dailyPnlPct = useBot4xStore((s) => s.dailyPnlPct);
+  const elig = bot4xEligibility(signal, { mode, profile, dailyPnlPct });
+  const m = ELIGIBILITY_META[elig];
+  return (
+    <span
+      className="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-wide"
+      style={{ background: m.bg, color: m.color }}
+    >
+      {m.label}
+    </span>
+  );
+}
+
+const DEFAULT_ORDER: ColKey[] = ["select", "num", "asset", "dir", "score", "entry", "stop", "target", "rr", "risk", "tf", "exchange", "setup", "confirms", "dna", "manip", "bot4x", "age", "actions"];
 const STORAGE_KEY = "signals.table.cols.v1";
 
 type ColState = { order: ColKey[]; hidden: ColKey[]; pinned: ColKey[] };
