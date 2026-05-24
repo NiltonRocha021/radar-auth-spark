@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { SentimentGauge } from "@/components/sentiment/sentiment-gauge";
@@ -9,6 +10,7 @@ import { AssetSentimentTable } from "@/components/sentiment/asset-table";
 import { SentimentTimeline } from "@/components/sentiment/sentiment-timeline";
 import { SocialHeatmap } from "@/components/sentiment/social-heatmap";
 import { NewsFeed } from "@/components/sentiment/news-feed";
+import { SentimentShiftAlert } from "@/components/sentiment/shift-alert";
 
 export const Route = createFileRoute("/_authenticated/sentiment")({
   head: () => ({
@@ -21,6 +23,8 @@ export const Route = createFileRoute("/_authenticated/sentiment")({
 });
 
 function SentimentPage() {
+  const [narrative, setNarrative] = useState<string | null>(null);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <TopBar />
@@ -34,6 +38,8 @@ function SentimentPage() {
             </p>
           </header>
 
+          <SentimentShiftAlert />
+
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
             <div className="lg:col-span-1"><SentimentGauge /></div>
             <div className="lg:col-span-4"><MacroCards /></div>
@@ -44,13 +50,13 @@ function SentimentPage() {
               <SourceBreakdown />
             </div>
             <div className="lg:col-span-4 space-y-5">
-              <NarrativeRadar />
+              <NarrativeRadar selected={narrative} onSelect={setNarrative} />
               <SentimentTimeline />
               <SocialHeatmap />
               <AssetSentimentTable />
             </div>
             <div className="lg:col-span-3">
-              <NewsFeed />
+              <NewsFeed narrativeFilter={narrative} onClearNarrative={() => setNarrative(null)} />
             </div>
           </div>
         </main>

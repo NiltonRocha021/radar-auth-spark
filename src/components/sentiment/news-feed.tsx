@@ -1,17 +1,32 @@
 import { useState } from "react";
-import { NEWS, type NewsItem } from "@/lib/sentiment-data";
-import { Star } from "lucide-react";
+import { NEWS, NARRATIVES, type NewsItem } from "@/lib/sentiment-data";
+import { Star, Filter, X } from "lucide-react";
 
 const TABS = ["All", "Macro", "Crypto", "Regulatory", "Technical"] as const;
 
-export function NewsFeed() {
+export function NewsFeed({
+  narrativeFilter,
+  onClearNarrative,
+}: {
+  narrativeFilter: string | null;
+  onClearNarrative: () => void;
+}) {
   const [tab, setTab] = useState<typeof TABS[number]>("All");
-  const filtered = NEWS.filter((n) => tab === "All" || n.category === tab);
+
+  const narrative = NARRATIVES.find((n) => n.tag === narrativeFilter);
+  const filtered = NEWS.filter((n) => {
+    if (tab !== "All" && n.category !== tab) return false;
+    if (narrative) {
+      const hay = (n.headline + " " + n.assets.join(" ")).toLowerCase();
+      return narrative.keywords.some((k) => hay.includes(k.toLowerCase()));
+    }
+    return true;
+  });
 
   return (
     <div className="rounded-xl border border-border bg-card/40 p-4 h-full flex flex-col">
       <h3 className="text-sm font-semibold mb-2">News Impact Feed</h3>
-      <div className="flex gap-1 mb-3 flex-wrap">
+      <div className="flex gap-1 mb-2 flex-wrap">
         {TABS.map((t) => (
           <button
             key={t}
@@ -24,10 +39,24 @@ export function NewsFeed() {
           </button>
         ))}
       </div>
+      {narrative && (
+        <div className="mb-3 flex items-center justify-between gap-2 px-2 py-1.5 rounded-md bg-cyan-500/10 border border-cyan-500/30">
+          <div className="flex items-center gap-1.5 text-[11px] text-cyan-200">
+            <Filter className="size-3" />
+            Narrative: <span className="font-semibold">{narrative.tag}</span>
+            <span className="text-muted-foreground">· {filtered.length} match{filtered.length === 1 ? "" : "es"}</span>
+          </div>
+          <button onClick={onClearNarrative} className="text-cyan-200 hover:text-foreground">
+            <X className="size-3" />
+          </button>
+        </div>
+      )}
       <div className="space-y-2 overflow-y-auto flex-1 pr-1 max-h-[640px]">
-        {filtered.map((n, i) => (
-          <NewsRow key={i} n={n} />
-        ))}
+        {filtered.length === 0 ? (
+          <div className="text-center py-8 text-xs text-muted-foreground">No headlines match this narrative yet.</div>
+        ) : (
+          filtered.map((n, i) => <NewsRow key={i} n={n} />)
+        )}
       </div>
     </div>
   );
