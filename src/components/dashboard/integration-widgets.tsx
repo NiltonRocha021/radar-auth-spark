@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Brain, Shield, Cpu, Sparkles, ArrowRight, AlertTriangle, Activity } from "lucide-react";
 import { useBot4xStore } from "@/lib/bot4x-store";
-import { useDashboardStore } from "@/lib/dashboard-store";
 import { dna } from "@/lib/dashboard-data";
 
 const PROFILE_LABEL: Record<string, string> = {
