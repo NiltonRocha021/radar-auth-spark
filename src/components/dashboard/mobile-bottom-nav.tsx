@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 const primary = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" as const },
   { icon: Activity, label: "Radar", to: "/signals" as const },
-  { icon: Cpu, label: "Bot4x", to: "/bot4x" as const },
+  { icon: Bot, label: "Bot4x", to: "/bot4x" as const },
   { icon: Brain, label: "DNA", to: "/dna-trader" as const },
 ];
 
