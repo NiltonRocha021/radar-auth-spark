@@ -287,6 +287,23 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
 
       <PrimaryButton loading={isSubmitting} type="submit">Sign in</PrimaryButton>
 
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={async () => {
+            setFormErr(null);
+            const { error } = await supabase.auth.signInWithPassword({
+              email: "demo@aisignalradar.com",
+              password: "demo12345",
+            });
+            if (error) setFormErr(error.message);
+          }}
+          className="text-sm text-muted-foreground hover:text-[var(--brand-cyan)] transition-colors"
+        >
+          New here? Try demo
+        </button>
+      </div>
+
       <Divider />
       <GoogleButton
         loading={googleLoading}

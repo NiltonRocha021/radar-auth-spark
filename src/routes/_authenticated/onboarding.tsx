@@ -94,8 +94,11 @@ function OnboardingPage() {
         <div className="w-full max-w-2xl overflow-hidden">
           <div
             key={step}
-            className="animate-in fade-in slide-in-from-right-8 zoom-in-[0.96] duration-300"
-            style={{ animationDirection: direction === 1 ? "normal" : "reverse" }}
+            className="animate-in fade-in slide-in-from-right-8 duration-300"
+            style={{
+              animationDirection: direction === 1 ? "normal" : "reverse",
+              animation: `scale-up-enter 0.35s ease-out ${direction === 1 ? "forwards" : "reverse forwards"}`,
+            }}
           >
             {step === 0 && (
               <StepWrapper title="What's your trading experience?" subtitle="We'll tailor signals to your level.">
