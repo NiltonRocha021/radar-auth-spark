@@ -95,7 +95,10 @@ function OnboardingPage() {
           <div
             key={step}
             className="animate-in fade-in slide-in-from-right-8 duration-300"
-            style={{ animationDirection: direction === 1 ? "normal" : "reverse" }}
+            style={{
+              animationDirection: direction === 1 ? "normal" : "reverse",
+              animation: `scale-up-enter 0.35s ease-out ${direction === 1 ? "forwards" : "reverse forwards"}`,
+            }}
           >
             {step === 0 && (
               <StepWrapper title="What's your trading experience?" subtitle="We'll tailor signals to your level.">

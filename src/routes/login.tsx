@@ -69,8 +69,29 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background bg-dot-grid px-4 py-10">
-      <div className="w-full max-w-[420px] rounded-2xl border border-border bg-card shadow-xl shadow-black/40">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background bg-dot-grid px-4 py-10 relative overflow-hidden">
+      {/* Radar pulse behind card */}
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+        <div
+          className="rounded-full border border-[var(--brand-cyan)]"
+          style={{
+            width: 420,
+            height: 420,
+            animation: "radar-pulse 6s ease-out infinite",
+          }}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--brand-cyan)]"
+          style={{
+            width: 420,
+            height: 420,
+            animation: "radar-pulse 6s ease-out infinite",
+            animationDelay: "3s",
+          }}
+        />
+      </div>
+
+      <div className="relative z-10 w-full max-w-[420px] rounded-2xl border border-border bg-card shadow-xl shadow-black/40">
         <div className="p-7">
           <div className="flex items-center gap-3">
             <BrandLogo size={42} />
@@ -265,6 +286,23 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
       {formErr && <p className="text-xs text-destructive">{formErr}</p>}
 
       <PrimaryButton loading={isSubmitting} type="submit">Sign in</PrimaryButton>
+
+      <div className="text-center">
+        <button
+          type="button"
+          onClick={async () => {
+            setFormErr(null);
+            const { error } = await supabase.auth.signInWithPassword({
+              email: "demo@aisignalradar.com",
+              password: "demo12345",
+            });
+            if (error) setFormErr(error.message);
+          }}
+          className="text-sm text-muted-foreground hover:text-[var(--brand-cyan)] transition-colors"
+        >
+          New here? Try demo
+        </button>
+      </div>
 
       <Divider />
       <GoogleButton
