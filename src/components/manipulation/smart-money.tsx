@@ -12,6 +12,13 @@ const NEW_WHALES: Omit<Whale, "id" | "ago">[] = [
   { side: "SELL", size: "415 BTC", price: "$43,190", fresh: true },
 ];
 
+function bumpAgo(ago: string): string {
+  if (ago === "just now") return "1m ago";
+  const m = /^(\d+)m ago$/.exec(ago);
+  if (m) return `${parseInt(m[1]) + 1}m ago`;
+  return ago;
+}
+
 export function SmartMoney() {
   const [whales, setWhales] = useState<Whale[]>(
     WHALE_ORDERS.map((w, i) => ({ ...w, id: i }))
