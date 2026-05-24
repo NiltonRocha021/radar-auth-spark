@@ -23,5 +23,10 @@ function AuthGate() {
       </div>
     );
   }
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <Bot4xFloatingWidget />
+    </>
+  );
 }
