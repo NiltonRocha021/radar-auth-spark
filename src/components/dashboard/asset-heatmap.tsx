@@ -1,0 +1,51 @@
+import { useDashboardStore } from "@/lib/dashboard-store";
+import { type HeatmapAsset } from "@/lib/dashboard-data";
+
+function colorFor(change: number) {
+  if (change > 3) return "#0E5F44";
+  if (change > 1) return "#1D9E75";
+  if (change > -1) return "#3A3D47";
+  if (change > -3) return "#A6383A";
+  return "#6B1F22";
+}
+
+export function AssetHeatmap() {
+  const heatmap = useDashboardStore((s) => s.heatmap);
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 h-full">
+      <div className="flex items-baseline justify-between mb-3">
+        <h3 className="text-[15px] font-medium text-foreground">Asset Heatmap</h3>
+        <span className="text-[11px] text-muted-foreground">24h change</span>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {heatmap.map((a) => (
+          <Cell key={a.symbol} asset={a} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Cell({ asset }: { asset: HeatmapAsset }) {
+  const bg = colorFor(asset.change);
+  const up = asset.change >= 0;
+  return (
+    <div
+      className="relative group rounded-lg p-2.5 transition-all duration-300 hover:scale-[1.03] cursor-pointer"
+      style={{
+        background: `color-mix(in oklab, ${bg} 50%, var(--card))`,
+        border: `1px solid color-mix(in oklab, ${bg} 60%, transparent)`,
+      }}
+    >
+      <div className="text-[13px] font-semibold text-foreground">{asset.symbol}</div>
+      <div className="text-[11px] text-foreground/80 tabular-nums mt-0.5">
+        {up ? "+" : ""}{asset.change.toFixed(1)}%
+      </div>
+      <div className="absolute z-20 hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg border border-border bg-card p-2.5 shadow-xl text-left">
+        <div className="text-[12px] font-medium text-foreground">{asset.name}</div>
+        <div className="text-[11px] text-muted-foreground">Price <span className="text-foreground tabular-nums">${asset.price.toLocaleString(undefined, { maximumFractionDigits: asset.price > 100 ? 1 : 3 })}</span></div>
+        <div className="text-[11px] text-muted-foreground">24h Vol <span className="text-foreground">{asset.volume}</span></div>
+      </div>
+    </div>
+  );
+}
