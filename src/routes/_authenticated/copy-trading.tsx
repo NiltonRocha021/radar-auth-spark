@@ -8,6 +8,7 @@ import { Leaderboard } from "@/components/copy-trading/leaderboard";
 import { CopyConfigModal } from "@/components/copy-trading/copy-config-modal";
 import { MyCopies } from "@/components/copy-trading/my-copies";
 import { PerformanceChart } from "@/components/copy-trading/performance-chart";
+import { TopCopiers } from "@/components/copy-trading/top-copiers";
 import { INITIAL_COPIES, type ActiveCopy, type CopyConfig, type Trader } from "@/lib/copy-trading-data";
 
 export const Route = createFileRoute("/_authenticated/copy-trading")({
@@ -73,6 +74,7 @@ function CopyTradingPage() {
             <Leaderboard onCopy={openCopy} copiedIds={copiedIds} />
             <PerformanceChart />
             <MyCopies copies={copies} onStop={stopCopy} />
+            <TopCopiers />
           </div>
         </main>
       </div>
