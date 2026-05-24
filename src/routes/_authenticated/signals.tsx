@@ -86,6 +86,7 @@ function SignalsPage() {
         </div>
       </div>
       <AdvancedFiltersDrawer />
+      <SignalDetailDrawer />
       <SignalToasts />
     </div>
   );
