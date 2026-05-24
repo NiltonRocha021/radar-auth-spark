@@ -9,7 +9,7 @@ const items = [
   { icon: Flame, label: "Heatmap", to: "/dashboard" as const },
   { icon: BarChart3, label: "Performance", to: "/dashboard" as const },
   { icon: Brain, label: "DNA", to: "/dashboard" as const },
-  { icon: Bell, label: "Alerts", to: "/dashboard" as const },
+  { icon: Bell, label: "Alerts", to: "/alerts" as const },
   { icon: Calendar, label: "Calendar", to: "/dashboard" as const },
 ];
 
