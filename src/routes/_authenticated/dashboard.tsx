@@ -1,36 +1,76 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
-import { BrandLogo } from "@/components/brand-logo";
-import { LogOut } from "lucide-react";
+import { useEffect } from "react";
+import { useDashboardStore } from "@/lib/dashboard-store";
+import { TopBar } from "@/components/dashboard/top-bar";
+import { LeftSidebar } from "@/components/dashboard/left-sidebar";
+import { MetricCards } from "@/components/dashboard/metric-cards";
+import { SignalsTable } from "@/components/dashboard/signals-table";
+import { FearGreedGauge } from "@/components/dashboard/fear-greed-gauge";
+import { AssetHeatmap } from "@/components/dashboard/asset-heatmap";
+import { BtcDominance } from "@/components/dashboard/btc-dominance";
+import { DnaPanel } from "@/components/dashboard/dna-panel";
+import { AlertsFeed } from "@/components/dashboard/alerts-feed";
+import { Sentiment } from "@/components/dashboard/sentiment";
+import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { MarketCalendar } from "@/components/dashboard/market-calendar";
+import { QuickActions } from "@/components/dashboard/quick-actions";
+import { LiveToasts } from "@/components/dashboard/live-toasts";
+import { SignalDrawer } from "@/components/dashboard/signal-drawer";
+import { CommandPalette } from "@/components/dashboard/command-palette";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  head: () => ({
+    meta: [{ title: "Dashboard — AISignalRadar" }],
+  }),
   component: Dashboard,
 });
 
 function Dashboard() {
-  const { user } = useAuth();
+  const init = useDashboardStore((s) => s.init);
+  const cleanup = useDashboardStore((s) => s.cleanup);
+
+  useEffect(() => {
+    init();
+    return () => cleanup();
+  }, [init, cleanup]);
+
   return (
-    <div className="min-h-screen bg-background bg-dot-grid">
-      <header className="px-6 py-5 flex items-center justify-between border-b border-border">
-        <div className="flex items-center gap-3">
-          <BrandLogo size={36} />
-          <div className="flex flex-col leading-tight">
-            <span className="text-base font-medium">AISignalRadar</span>
-            <span className="text-[11px] text-muted-foreground">Dashboard</span>
+    <div className="min-h-screen bg-background text-foreground">
+      <TopBar />
+      <div className="flex">
+        <LeftSidebar />
+        <main className="flex-1 min-w-0 p-5 space-y-5">
+          <MetricCards />
+
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+            <div className="lg:col-span-3"><SignalsTable /></div>
+            <div className="lg:col-span-2"><FearGreedGauge /></div>
           </div>
-        </div>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <LogOut className="size-4" /> Sign out
-        </button>
-      </header>
-      <main className="max-w-3xl mx-auto px-6 py-16">
-        <h1 className="text-3xl font-medium">Welcome{user?.email ? `, ${user.email}` : ""}.</h1>
-        <p className="text-muted-foreground mt-2">Your trading intelligence dashboard is being prepared.</p>
-      </main>
+
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+            <div className="lg:col-span-3"><AssetHeatmap /></div>
+            <div className="lg:col-span-2"><BtcDominance /></div>
+          </div>
+
+          <DnaPanel />
+
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+            <div className="lg:col-span-3"><AlertsFeed /></div>
+            <div className="lg:col-span-2"><Sentiment /></div>
+          </div>
+
+          <PerformanceChart />
+
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+            <div className="lg:col-span-3"><MarketCalendar /></div>
+            <div className="lg:col-span-2"><QuickActions /></div>
+          </div>
+        </main>
+      </div>
+
+      <LiveToasts />
+      <SignalDrawer />
+      <CommandPalette />
     </div>
   );
 }
