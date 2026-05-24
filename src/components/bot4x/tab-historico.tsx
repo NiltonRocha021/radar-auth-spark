@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine } from "recharts";
-import { Download, Search } from "lucide-react";
+import { AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine, ReferenceDot } from "recharts";
+import { Download, Search, Flag } from "lucide-react";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { PROFILES, type CalibProfile, type Trade, fmt } from "@/lib/bot4x-data";
 
