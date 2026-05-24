@@ -16,6 +16,7 @@ import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedManipulationRouteImport } from './routes/_authenticated/manipulation'
 import { Route as AuthenticatedDnaTraderRouteImport } from './routes/_authenticated/dna-trader'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBot4xRouteImport } from './routes/_authenticated/bot4x'
@@ -55,6 +56,12 @@ const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedManipulationRoute =
+  AuthenticatedManipulationRouteImport.update({
+    id: '/manipulation',
+    path: '/manipulation',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedDnaTraderRoute = AuthenticatedDnaTraderRouteImport.update({
   id: '/dna-trader',
   path: '/dna-trader',
@@ -83,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/bot4x': typeof AuthenticatedBot4xRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
+  '/manipulation': typeof AuthenticatedManipulationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -95,6 +103,7 @@ export interface FileRoutesByTo {
   '/bot4x': typeof AuthenticatedBot4xRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
+  '/manipulation': typeof AuthenticatedManipulationRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -109,6 +118,7 @@ export interface FileRoutesById {
   '/_authenticated/bot4x': typeof AuthenticatedBot4xRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dna-trader': typeof AuthenticatedDnaTraderRoute
+  '/_authenticated/manipulation': typeof AuthenticatedManipulationRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -123,6 +133,7 @@ export interface FileRouteTypes {
     | '/bot4x'
     | '/dashboard'
     | '/dna-trader'
+    | '/manipulation'
     | '/onboarding'
     | '/profile'
     | '/settings'
@@ -135,6 +146,7 @@ export interface FileRouteTypes {
     | '/bot4x'
     | '/dashboard'
     | '/dna-trader'
+    | '/manipulation'
     | '/onboarding'
     | '/profile'
     | '/settings'
@@ -148,6 +160,7 @@ export interface FileRouteTypes {
     | '/_authenticated/bot4x'
     | '/_authenticated/dashboard'
     | '/_authenticated/dna-trader'
+    | '/_authenticated/manipulation'
     | '/_authenticated/onboarding'
     | '/_authenticated/profile'
     | '/_authenticated/settings'
@@ -211,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/manipulation': {
+      id: '/_authenticated/manipulation'
+      path: '/manipulation'
+      fullPath: '/manipulation'
+      preLoaderRoute: typeof AuthenticatedManipulationRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/dna-trader': {
       id: '/_authenticated/dna-trader'
       path: '/dna-trader'
@@ -247,6 +267,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedBot4xRoute: typeof AuthenticatedBot4xRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDnaTraderRoute: typeof AuthenticatedDnaTraderRoute
+  AuthenticatedManipulationRoute: typeof AuthenticatedManipulationRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -258,6 +279,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedBot4xRoute: AuthenticatedBot4xRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDnaTraderRoute: AuthenticatedDnaTraderRoute,
+  AuthenticatedManipulationRoute: AuthenticatedManipulationRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
