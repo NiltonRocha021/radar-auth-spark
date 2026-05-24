@@ -335,7 +335,10 @@ function AlertsPage() {
                 </div>
               </Section>
 
-              {/* Section 4: Recent feed */}
+              {/* Section 4: Volume */}
+              <VolumeChart />
+
+              {/* Section 5: Recent feed */}
               <RecentFeed />
             </div>
 
