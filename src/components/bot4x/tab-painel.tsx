@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, X, Shield, ShieldAlert } from "lucide-react";
+import { AlertTriangle, X, Shield, ShieldAlert, Zap } from "lucide-react";
 import { useBot4xStore, selectActiveCapital, selectSlotSize } from "@/lib/bot4x-store";
 import { leverageRisk, slTpFromLeverage, fmt } from "@/lib/bot4x-data";
+
+const IS_DEV = import.meta.env.DEV;
 
 export function TabPainel() {
   return (
