@@ -79,18 +79,38 @@ export type Order = {
 
 export type FilterKey = "F1" | "F2" | "F3" | "F4" | "F5" | "F6";
 export const FILTER_NAMES: Record<FilterKey, string> = {
-  F1: "Spread", F2: "Liquidez", F3: "RSI", F4: "aiScore", F5: "FOMO", F6: "Volatilidade",
+  F1: "Universo", F2: "Grade", F3: "Par", F4: "Canal", F5: "Confluência", F6: "FOMO",
 };
+
+export type ChannelZone = "BOTTOM" | "MIDDLE" | "TOP";
+export type TickSide = "BUY" | "SELL" | null;
+export type Verdict = "EXECUTE" | "IGNORE" | "FOMO_BLOCKED" | "GRID_SATURATED" | "EMERGENCY_SHUTDOWN";
+export type F5SubKey = "RSI" | "AISCORE" | "LIQGRAB";
 
 export type Tick = {
   id: string;
   ts: number;
   pair: string;
-  side: Side;
+  side: TickSide;
+  channelZone: ChannelZone;
+  rsi: number;
+  aiScore: number;
+  liquidityGrab: boolean;
+  fomoDisplacement: number;
+  // current calibration snapshot
+  profileId: CalibProfile;
+  rsiBuy: number;
+  rsiSell: number;
+  aiScoreMin: number;
+  fomoLimit: number;
+  // open slots used at the moment
+  slotsUsed: number;
+  // filter results
   filters: Record<FilterKey, boolean>;
   blockedAt?: FilterKey;
-  verdict: "EXECUTE" | "BLOCKED";
-  json: Record<string, unknown>;
+  f5Sub?: F5SubKey; // which sub-criterion of F5 failed
+  verdict: Verdict;
+  detail: Record<FilterKey, string>;
 };
 
 export type Trade = {
@@ -111,36 +131,100 @@ export type Trade = {
   hour: number;
 };
 
-const PAIRS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ARB/USDT", "AVAX/USDT", "LINK/USDT"];
+const PAIRS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ARB/USDT", "AVAX/USDT", "LINK/USDT", "DOGE/USDT", "MATIC/USDT"];
 const rand = (n: number) => Math.floor(Math.random() * n);
 const pick = <T,>(a: T[]) => a[rand(a.length)];
 
-export function makeTick(): Tick {
+type MakeTickCtx = {
+  profile: ProfileSpec;
+  slotsUsed: number;        // 0..3
+  busyPairs?: string[];     // pairs in active orders
+  shutdown?: boolean;       // emergency shutdown active
+};
+
+export function makeTick(ctx: MakeTickCtx): Tick {
+  const { profile, slotsUsed, busyPairs = [], shutdown = false } = ctx;
   const pair = pick(PAIRS);
-  const side: Side = Math.random() > 0.5 ? "LONG" : "SHORT";
+
+  // channel zone distribution: 30% BOTTOM, 30% TOP, 40% MIDDLE
+  const cz = Math.random();
+  const channelZone: ChannelZone = cz < 0.3 ? "BOTTOM" : cz < 0.6 ? "TOP" : "MIDDLE";
+  const side: TickSide = channelZone === "BOTTOM" ? "BUY" : channelZone === "TOP" ? "SELL" : null;
+
+  const rsi = +(Math.random() * 100).toFixed(1);
+  const aiScore = Math.random() < 0.55 ? +(85 + Math.random() * 15).toFixed(1) : +(60 + Math.random() * 25).toFixed(1);
+  const liquidityGrab = Math.random() < 0.65;
+  const fomoDisplacement = +(Math.random() * 25).toFixed(1);
+
   const filters: Record<FilterKey, boolean> = { F1: true, F2: true, F3: true, F4: true, F5: true, F6: true };
+  const detail: Record<FilterKey, string> = {
+    F1: `Top 10 USDT`,
+    F2: `${slotsUsed}/3 slots`,
+    F3: `Par livre`,
+    F4: `Zona ${channelZone}`,
+    F5: `RSI ${rsi} · aiScore ${aiScore} · liqGrab ${liquidityGrab ? "✓" : "✗"} · ${profile.name}`,
+    F6: `Desl. ${fomoDisplacement}% (≤ ${profile.fomo}%)`,
+  };
+
   let blockedAt: FilterKey | undefined;
-  const order: FilterKey[] = ["F1", "F2", "F3", "F4", "F5", "F6"];
-  for (const k of order) {
-    if (Math.random() < 0.18) {
-      filters[k] = false;
-      blockedAt = k;
-      break;
-    }
+  let f5Sub: F5SubKey | undefined;
+  let verdict: Verdict = "EXECUTE";
+
+  // F1: always pass (mocked top 10)
+  // F2: grid saturation
+  if (slotsUsed >= 3) {
+    filters.F2 = false; blockedAt = "F2"; verdict = "GRID_SATURATED";
+    detail.F2 = `Grade 3/3 — saturada`;
   }
-  const verdict = blockedAt ? "BLOCKED" : "EXECUTE";
+  // F3: pair busy
+  else if (busyPairs.includes(pair)) {
+    filters.F3 = false; blockedAt = "F3"; verdict = "IGNORE";
+    detail.F3 = `Par ${pair} já ativo`;
+  }
+  // F4: middle channel
+  else if (channelZone === "MIDDLE") {
+    filters.F4 = false; blockedAt = "F4"; verdict = "IGNORE";
+    detail.F4 = `Zona MIDDLE → BLOQUEADO`;
+  }
+  // F5: confluence
+  else if (side === "BUY" && rsi >= profile.rsiBuy) {
+    filters.F5 = false; blockedAt = "F5"; f5Sub = "RSI"; verdict = "IGNORE";
+    detail.F5 = `RSI ${rsi} ≥ ${profile.rsiBuy} (esperado < ${profile.rsiBuy})`;
+  } else if (side === "SELL" && rsi <= profile.rsiSell) {
+    filters.F5 = false; blockedAt = "F5"; f5Sub = "RSI"; verdict = "IGNORE";
+    detail.F5 = `RSI ${rsi} ≤ ${profile.rsiSell} (esperado > ${profile.rsiSell})`;
+  } else if (aiScore < profile.aiScore) {
+    filters.F5 = false; blockedAt = "F5"; f5Sub = "AISCORE"; verdict = "IGNORE";
+    detail.F5 = `aiScore ${aiScore} < ${profile.aiScore}`;
+  } else if (!liquidityGrab) {
+    filters.F5 = false; blockedAt = "F5"; f5Sub = "LIQGRAB"; verdict = "IGNORE";
+    detail.F5 = `liquidityGrab ausente`;
+  }
+  // F6: FOMO
+  else if (fomoDisplacement > profile.fomo) {
+    filters.F6 = false; blockedAt = "F6"; verdict = "FOMO_BLOCKED";
+    detail.F6 = `Desl. ${fomoDisplacement}% > ${profile.fomo}%`;
+  }
+
+  // Emergency shutdown overrides
+  if (shutdown) {
+    verdict = "EMERGENCY_SHUTDOWN";
+  }
+
+  // Mark filters after the blocked one as not reached
+  if (blockedAt) {
+    const order: FilterKey[] = ["F1", "F2", "F3", "F4", "F5", "F6"];
+    const idx = order.indexOf(blockedAt);
+    for (let i = idx + 1; i < order.length; i++) filters[order[i]] = false;
+  }
+
   return {
-    id: `tk_${Date.now()}_${rand(9999)}`,
+    id: `tk_${Date.now()}_${rand(99999)}`,
     ts: Date.now(),
-    pair, side, filters, blockedAt, verdict,
-    json: {
-      pair, side,
-      rsi: +(20 + Math.random() * 60).toFixed(1),
-      aiScore: +(60 + Math.random() * 40).toFixed(1),
-      fomo: +(Math.random() * 30).toFixed(1),
-      spread: +(0.01 + Math.random() * 0.08).toFixed(3),
-      verdict, blockedAt: blockedAt ?? null,
-    },
+    pair, side, channelZone, rsi, aiScore, liquidityGrab, fomoDisplacement,
+    profileId: profile.id, rsiBuy: profile.rsiBuy, rsiSell: profile.rsiSell,
+    aiScoreMin: profile.aiScore, fomoLimit: profile.fomo,
+    slotsUsed, filters, blockedAt, f5Sub, verdict, detail,
   };
 }
 
