@@ -26,7 +26,7 @@ export function DnaBot4xCompat() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="md:col-span-2 rounded-lg border border-[#1D9E75]/30 bg-[#1D9E75]/8 p-4">
           <div className="text-[10.5px] uppercase tracking-wide text-muted-foreground">Perfil recomendado</div>
-          <div className="text-lg font-semibold text-foreground mt-0.5">Regular</div>
+          <div className="text-lg font-semibold text-foreground mt-0.5">AI Score</div>
           <p className="text-[12px] text-muted-foreground mt-1.5 leading-relaxed">
             Seu DNA (Strategic Sniper) combina entradas seletivas com gestão de risco controlada. O perfil
             <span className="text-foreground font-medium"> Regular </span>
@@ -52,7 +52,7 @@ export function DnaBot4xCompat() {
             <button
               onClick={() => {
                 setProfile(recommended);
-                toast.success("Perfil Regular aplicado no Bot4x");
+                toast.success("Perfil AI Score aplicado no Bot4x");
               }}
               className="h-9 rounded-md bg-[var(--brand-blue-deep)] hover:bg-[var(--brand-blue)] text-foreground text-[12px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
             >
