@@ -4,7 +4,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun, Monitor, Cpu } from "lucide-react";
+import { useBot4xPrefs } from "@/lib/bot4x-prefs-store";
 
 const THEMES = [
   { id: "dark", label: "Dark", icon: Moon, bg: "bg-zinc-900", fg: "bg-zinc-700" },
