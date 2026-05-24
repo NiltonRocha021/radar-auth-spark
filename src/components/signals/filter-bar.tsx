@@ -1,4 +1,4 @@
-import { Search, LayoutGrid, Table as TableIcon, Radar, SlidersHorizontal, ChevronDown, Play, Pause } from "lucide-react";
+import { Search, LayoutGrid, Table as TableIcon, Radar, SlidersHorizontal, ChevronDown, Play, Pause, Rss } from "lucide-react";
 import { useSignalsStore } from "@/lib/signals-store";
 
 const assetClasses = ["All", "Crypto", "Forex", "Indices", "Stocks"] as const;
@@ -13,7 +13,7 @@ const scoreOptions = [
 const exchanges = ["Binance", "Bybit", "OKX", "Coinbase"];
 
 export function FilterBar() {
-  const { filters, view, sort, live, setView, setSort, setLive, setFilter, toggleAdv, toggleExchange } = useSignalsStore();
+  const { filters, view, sort, live, streamOpen, setView, setSort, setLive, setFilter, toggleAdv, toggleStream, toggleExchange } = useSignalsStore();
 
   return (
     <div className="sticky top-12 z-30 bg-background/95 backdrop-blur border-b border-border">
