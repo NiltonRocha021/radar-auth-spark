@@ -1,0 +1,181 @@
+import { useState } from "react";
+import { SectionCard } from "./section-card";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { Moon, Sun, Monitor } from "lucide-react";
+
+const THEMES = [
+  { id: "dark", label: "Dark", icon: Moon, bg: "bg-zinc-900", fg: "bg-zinc-700" },
+  { id: "light", label: "Light", icon: Sun, bg: "bg-zinc-100", fg: "bg-zinc-300" },
+  { id: "system", label: "System", icon: Monitor, bg: "bg-gradient-to-br from-zinc-900 to-zinc-100", fg: "bg-zinc-500" },
+];
+
+export function SettingsAppearance() {
+  const [theme, setTheme] = useState("dark");
+  const [density, setDensity] = useState("default");
+  const [sidebarPos, setSidebarPos] = useState("left");
+  const [sidebarStyle, setSidebarStyle] = useState("icons");
+  const [landing, setLanding] = useState("/dashboard");
+  const [candle, setCandle] = useState("hollow");
+  const [tf, setTf] = useState("15m");
+  const [indicators, setIndicators] = useState(true);
+  const [lang, setLang] = useState("pt-BR");
+  const [currency, setCurrency] = useState("USD");
+  const [dateFmt, setDateFmt] = useState("DD/MM/YYYY");
+
+  return (
+    <>
+      <SectionCard title="Theme">
+        <div className="grid grid-cols-3 gap-3">
+          {THEMES.map((t) => {
+            const Icon = t.icon;
+            const active = theme === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                className={`rounded-lg border p-3 text-left transition-colors ${active ? "border-[var(--brand-cyan)] ring-1 ring-[var(--brand-cyan)]" : "border-border hover:border-muted-foreground"}`}
+              >
+                <div className={`h-20 w-full rounded mb-2 ${t.bg} p-2 flex flex-col gap-1`}>
+                  <div className={`h-1.5 w-1/3 rounded ${t.fg}`} />
+                  <div className={`h-1.5 w-2/3 rounded ${t.fg}`} />
+                  <div className={`h-1.5 w-1/2 rounded ${t.fg}`} />
+                </div>
+                <div className="flex items-center gap-1.5 text-sm">
+                  <Icon className="size-3.5" /> {t.label}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Density">
+        <RadioGroup value={density} onValueChange={setDensity} className="grid grid-cols-3 gap-3">
+          {[
+            { v: "compact", label: "Compact", h: "h-1" },
+            { v: "default", label: "Default", h: "h-1.5" },
+            { v: "comfortable", label: "Comfortable", h: "h-2.5" },
+          ].map((d) => (
+            <label key={d.v} className={`rounded-lg border p-3 cursor-pointer flex flex-col gap-2 ${density === d.v ? "border-[var(--brand-cyan)]" : "border-border"}`}>
+              <div className="space-y-1">
+                <div className={`${d.h} bg-muted-foreground/30 rounded w-2/3`} />
+                <div className={`${d.h} bg-muted-foreground/30 rounded w-full`} />
+                <div className={`${d.h} bg-muted-foreground/30 rounded w-3/4`} />
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <RadioGroupItem value={d.v} /> {d.label}
+              </div>
+            </label>
+          ))}
+        </RadioGroup>
+      </SectionCard>
+
+      <SectionCard title="Sidebar">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs">Position</Label>
+            <Select value={sidebarPos} onValueChange={setSidebarPos}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="left">Left</SelectItem>
+                <SelectItem value="right">Right</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Display</Label>
+            <Select value={sidebarStyle} onValueChange={setSidebarStyle}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="icons">Icons only</SelectItem>
+                <SelectItem value="labels">Icons + labels</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Defaults">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <Label className="text-xs">Default landing page</Label>
+            <Select value={landing} onValueChange={setLanding}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="/dashboard">Dashboard</SelectItem>
+                <SelectItem value="/signals">Signals</SelectItem>
+                <SelectItem value="/bot4x">Bot4x</SelectItem>
+                <SelectItem value="/alerts">Alerts</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Default timeframe</Label>
+            <Select value={tf} onValueChange={setTf}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["1m","5m","15m","1h","4h","1d"].map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Candle style</Label>
+            <Select value={candle} onValueChange={setCandle}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hollow">Hollow</SelectItem>
+                <SelectItem value="filled">Filled</SelectItem>
+                <SelectItem value="heikin">Heikin Ashi</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-between pt-5">
+            <Label className="text-xs">Show default indicators</Label>
+            <Switch checked={indicators} onCheckedChange={setIndicators} />
+          </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Regional">
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div>
+            <Label className="text-xs">Language</Label>
+            <Select value={lang} onValueChange={setLang}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pt-BR">PT-BR</SelectItem>
+                <SelectItem value="en">EN</SelectItem>
+                <SelectItem value="es">ES</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Currency</Label>
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="BRL">BRL</SelectItem>
+                <SelectItem value="USD">USD</SelectItem>
+                <SelectItem value="EUR">EUR</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Date format</Label>
+            <Select value={dateFmt} onValueChange={setDateFmt}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+                <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </SectionCard>
+    </>
+  );
+}
