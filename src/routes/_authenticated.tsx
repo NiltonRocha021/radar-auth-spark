@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { Bot4xFloatingWidget } from "@/components/bot4x/floating-widget";
+import { Bot4xCompactPill } from "@/components/global/bot4x-compact-pill";
 import { Bot4xGlobalNotifier } from "@/components/global/bot4x-notifier";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { useBot4xStore } from "@/lib/bot4x-store";
