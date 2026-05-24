@@ -74,6 +74,9 @@ function MarketplacePage() {
 
             <FeaturedCarousel onOpen={openProduct} />
 
+            <CreatorTestimonials />
+
+
             <section className="space-y-4">
               <div className="flex flex-wrap items-center gap-3 border-b border-border">
                 <div className="flex flex-wrap -mb-px">
