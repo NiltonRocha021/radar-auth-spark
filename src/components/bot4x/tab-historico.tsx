@@ -358,7 +358,7 @@ function TradeSection({
 
   const setF = (patch: Partial<Filters>) => { setFilters({ ...filters, ...patch }); setPage(1); };
 
-  const rowStyle = (r: Trade["result"]): React.CSSProperties =>
+  const rowStyle = (r: Trade["result"]): CSSProperties =>
     r === "WIN" ? { borderLeftColor: "#1D9E75" }
       : r === "LOSS" ? { borderLeftColor: "#E24B4A" }
       : r === "BLOCKED" ? { borderLeftColor: "transparent", opacity: 0.6 }
