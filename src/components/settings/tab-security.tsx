@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ShieldCheck, ShieldOff, Download, Copy, RefreshCw, Laptop, Smartphone } from "lucide-react";
+import { ShieldCheck, ShieldOff, Download, Copy, RefreshCw, Laptop, Smartphone, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 function passwordStrength(pw: string) {
@@ -235,7 +235,7 @@ export function SettingsSecurity() {
                   <div key={c} className="font-mono text-sm bg-secondary rounded px-3 py-2 text-center">{c}</div>
                 ))}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(codes.join("\n")); toast.success("Copied"); }}>
                   <Copy className="size-3.5 mr-1" /> Copy
                 </Button>
@@ -247,6 +247,29 @@ export function SettingsSecurity() {
                   URL.revokeObjectURL(url);
                 }}>
                   <Download className="size-3.5 mr-1" /> Download
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => {
+                  const w = window.open("", "_blank", "width=600,height=700");
+                  if (!w) return toast.error("Allow pop-ups to print");
+                  w.document.write(`<!doctype html><html><head><title>AISignalRadar — Backup Codes</title>
+                    <style>
+                      body{font-family:ui-sans-serif,system-ui,sans-serif;color:#111;padding:32px;max-width:560px;margin:0 auto}
+                      h1{font-size:18px;margin:0 0 4px}
+                      .sub{font-size:12px;color:#666;margin-bottom:24px}
+                      .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+                      .code{font-family:ui-monospace,Menlo,monospace;font-size:16px;padding:12px;border:1px solid #ddd;border-radius:6px;text-align:center;letter-spacing:1px}
+                      .foot{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:12px}
+                      @media print{button{display:none}}
+                    </style></head><body>
+                    <h1>AISignalRadar — 2FA Backup Codes</h1>
+                    <div class="sub">Generated ${new Date().toLocaleString()} · Each code can be used once. Store in a safe place.</div>
+                    <div class="grid">${codes.map((c) => `<div class="code">${c}</div>`).join("")}</div>
+                    <div class="foot">If you lose access to your authenticator app, use any of these codes to sign in. Treat them like passwords.</div>
+                    <script>window.onload=()=>window.print()</script>
+                  </body></html>`);
+                  w.document.close();
+                }}>
+                  <Printer className="size-3.5 mr-1" /> Print
                 </Button>
               </div>
               <DialogFooter>

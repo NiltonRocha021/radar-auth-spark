@@ -18,6 +18,32 @@ function makeKey() {
   return "aisr_live_" + Array.from({ length: 32 }, () => Math.random().toString(36)[2] || "0").join("");
 }
 
+function UsageSparkline({ seed }: { seed: string }) {
+  // deterministic pseudo-random 24h series from seed
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const pts = Array.from({ length: 24 }, (_, i) => {
+    h = (h * 1664525 + 1013904223) >>> 0;
+    return ((h % 1000) / 1000) * 0.7 + Math.sin((i + (seed.length % 7)) / 3) * 0.2 + 0.4;
+  });
+  const max = Math.max(...pts);
+  const min = Math.min(...pts);
+  const w = 88, hPx = 26;
+  const norm = (v: number) => hPx - ((v - min) / (max - min || 1)) * (hPx - 2) - 1;
+  const d = pts.map((v, i) => `${i === 0 ? "M" : "L"}${(i / (pts.length - 1)) * w},${norm(v)}`).join(" ");
+  const area = `${d} L${w},${hPx} L0,${hPx} Z`;
+  const peak = Math.round(max * 280);
+  return (
+    <div className="flex items-center gap-2">
+      <svg width={w} height={hPx} className="overflow-visible">
+        <path d={area} fill="var(--brand-cyan)" fillOpacity="0.15" />
+        <path d={d} fill="none" stroke="var(--brand-cyan)" strokeWidth="1.25" />
+      </svg>
+      <span className="text-[10px] text-muted-foreground font-mono">~{peak}/h</span>
+    </div>
+  );
+}
+
 export function SettingsApiKeys() {
   const [isPro, setIsPro] = useState(true); // institutional toggle for demo
   const [keys, setKeys] = useState<ApiKey[]>([
@@ -93,7 +119,8 @@ export function SettingsApiKeys() {
                 <th className="text-left font-medium px-2 py-2">Name</th>
                 <th className="text-left font-medium px-2 py-2">Key</th>
                 <th className="text-left font-medium px-2 py-2">Permissions</th>
-                <th className="text-right font-medium px-2 py-2">Requests / day</th>
+                <th className="text-left font-medium px-2 py-2">Usage (24h)</th>
+                <th className="text-right font-medium px-2 py-2">Reqs / day</th>
                 <th className="px-2 py-2"></th>
               </tr>
             </thead>
@@ -108,6 +135,7 @@ export function SettingsApiKeys() {
                     </Button>
                   </td>
                   <td className="px-2 py-2"><div className="flex flex-wrap gap-1">{k.permissions.map((p) => <Badge key={p} variant="secondary" className="text-[10px]">{p}</Badge>)}</div></td>
+                  <td className="px-2 py-2"><UsageSparkline seed={k.id + k.name} /></td>
                   <td className="px-2 py-2 text-right font-mono">{k.reqs.toLocaleString()}</td>
                   <td className="px-2 py-2 text-right">
                     <Button size="sm" variant="ghost" className="h-7 text-red-400" onClick={() => { setKeys((cur) => cur.filter(x => x.id !== k.id)); toast.success("Key revoked"); }}>Revoke</Button>

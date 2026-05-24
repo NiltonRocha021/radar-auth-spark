@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CreditCard, ExternalLink, Download, Check } from "lucide-react";
+import { CreditCard, ExternalLink, Download, Check, Sparkles, TrendingDown } from "lucide-react";
 import { toast } from "sonner";
 
 const INVOICES = [
@@ -39,6 +39,33 @@ export function SettingsBilling() {
             <div className="text-sm text-muted-foreground mt-1">$49.00 USD / month · Next billing on June 01, 2026</div>
           </div>
           <Button size="sm" variant="secondary">Upgrade to Institutional</Button>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="Switch to annual billing"
+        description="Pay yearly and get 2 months free."
+        action={<Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"><Sparkles className="size-3 mr-1" /> Save 17%</Badge>}
+      >
+        <div className="grid sm:grid-cols-3 gap-3">
+          <div className="rounded-lg border border-border bg-background/30 p-3">
+            <div className="text-xs text-muted-foreground">Monthly (current)</div>
+            <div className="text-lg font-semibold mt-1">$588<span className="text-xs text-muted-foreground font-normal">/yr</span></div>
+            <div className="text-xs text-muted-foreground mt-0.5">$49 × 12</div>
+          </div>
+          <div className="rounded-lg border border-[var(--brand-cyan)] bg-[var(--brand-blue-deep)]/30 p-3">
+            <div className="text-xs text-[var(--brand-cyan)]">Annual</div>
+            <div className="text-lg font-semibold mt-1">$490<span className="text-xs text-muted-foreground font-normal">/yr</span></div>
+            <div className="text-xs text-muted-foreground mt-0.5">$40.83 effective / mo</div>
+          </div>
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+            <div className="text-xs text-emerald-400 flex items-center gap-1"><TrendingDown className="size-3" /> Projected savings</div>
+            <div className="text-lg font-semibold mt-1 text-emerald-400">$98<span className="text-xs text-muted-foreground font-normal">/yr</span></div>
+            <div className="text-xs text-muted-foreground mt-0.5">≈ 2 months free</div>
+          </div>
+        </div>
+        <div className="mt-3">
+          <Button size="sm" onClick={() => toast.success("Switched to annual billing — you'll save $98/yr")}>Switch to annual</Button>
         </div>
       </SectionCard>
 
