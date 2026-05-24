@@ -48,20 +48,20 @@ export const SOURCES = {
   },
 };
 
-export type Narrative = { tag: string; weight: number; tone: "bull" | "bear" | "neutral" };
+export type Narrative = { tag: string; weight: number; tone: "bull" | "bear" | "neutral"; keywords: string[] };
 export const NARRATIVES: Narrative[] = [
-  { tag: "BTC Halving", weight: 100, tone: "bull" },
-  { tag: "ETF Inflows", weight: 95, tone: "bull" },
-  { tag: "Fed Pivot", weight: 88, tone: "bull" },
-  { tag: "Layer 2", weight: 64, tone: "bull" },
-  { tag: "DeFi Revival", weight: 58, tone: "bull" },
-  { tag: "Regulatory Risk", weight: 54, tone: "bear" },
-  { tag: "Altseason", weight: 42, tone: "bull" },
-  { tag: "CBDC", weight: 36, tone: "bear" },
-  { tag: "Mining Difficulty", weight: 30, tone: "neutral" },
-  { tag: "RWA", weight: 48, tone: "bull" },
-  { tag: "Memecoins", weight: 40, tone: "neutral" },
-  { tag: "Liquidations", weight: 33, tone: "bear" },
+  { tag: "BTC Halving", weight: 100, tone: "bull", keywords: ["halving", "btc", "bitcoin"] },
+  { tag: "ETF Inflows", weight: 95, tone: "bull", keywords: ["etf", "blackrock", "inflow"] },
+  { tag: "Fed Pivot", weight: 88, tone: "bull", keywords: ["fed", "rate", "treasury", "cpi"] },
+  { tag: "Layer 2", weight: 64, tone: "bull", keywords: ["l2", "layer", "tvl", "ethereum"] },
+  { tag: "DeFi Revival", weight: 58, tone: "bull", keywords: ["defi", "tvl"] },
+  { tag: "Regulatory Risk", weight: 54, tone: "bear", keywords: ["regulator", "scrutiny", "probe", "eu"] },
+  { tag: "Altseason", weight: 42, tone: "bull", keywords: ["altcoin", "solana", "sol", "chainlink", "link"] },
+  { tag: "CBDC", weight: 36, tone: "bear", keywords: ["cbdc", "central bank"] },
+  { tag: "Mining Difficulty", weight: 30, tone: "neutral", keywords: ["mining", "hashrate"] },
+  { tag: "RWA", weight: 48, tone: "bull", keywords: ["rwa", "tokenization", "real-world"] },
+  { tag: "Memecoins", weight: 40, tone: "neutral", keywords: ["meme", "doge"] },
+  { tag: "Liquidations", weight: 33, tone: "bear", keywords: ["liquidation", "liquidated"] },
 ];
 
 export type AssetSent = {

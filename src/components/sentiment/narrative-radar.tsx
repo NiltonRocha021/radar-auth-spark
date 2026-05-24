@@ -1,30 +1,49 @@
 import { NARRATIVES } from "@/lib/sentiment-data";
-import { TrendingDown } from "lucide-react";
+import { TrendingDown, X } from "lucide-react";
 
-export function NarrativeRadar() {
+export function NarrativeRadar({
+  selected,
+  onSelect,
+}: {
+  selected: string | null;
+  onSelect: (tag: string | null) => void;
+}) {
   return (
     <div className="rounded-xl border border-border bg-card/40 p-4">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-3">
         <div>
           <h3 className="text-sm font-semibold">Dominant Market Narratives</h3>
-          <p className="text-[11px] text-muted-foreground">Size = relevance · color = sentiment</p>
+          <p className="text-[11px] text-muted-foreground">Click a tag to filter the news feed</p>
         </div>
+        {selected && (
+          <button
+            onClick={() => onSelect(null)}
+            className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-md bg-secondary hover:bg-secondary/70 text-foreground"
+          >
+            <X className="size-3" /> Clear: {selected}
+          </button>
+        )}
       </div>
       <div className="flex flex-wrap gap-2 items-center justify-center py-3">
         {NARRATIVES.map((n) => {
           const size = 10 + (n.weight / 100) * 20;
+          const isActive = selected === n.tag;
+          const isDimmed = selected !== null && !isActive;
           const color =
             n.tone === "bull" ? "text-emerald-300 hover:text-emerald-200"
             : n.tone === "bear" ? "text-red-300 hover:text-red-200"
             : "text-muted-foreground hover:text-foreground";
           return (
-            <span
+            <button
               key={n.tag}
-              className={`font-semibold tracking-tight transition-transform hover:scale-110 cursor-default ${color}`}
+              onClick={() => onSelect(isActive ? null : n.tag)}
+              className={`font-semibold tracking-tight transition-all hover:scale-110 cursor-pointer ${color} ${
+                isDimmed ? "opacity-30" : ""
+              } ${isActive ? "underline underline-offset-4" : ""}`}
               style={{ fontSize: `${size}px`, lineHeight: 1.1 }}
             >
               {n.tag}
-            </span>
+            </button>
           );
         })}
       </div>
