@@ -217,6 +217,24 @@ function ComparisonTable() {
                 </Fragment>
               ))}
             </tbody>
+            <tfoot className="sticky bottom-0 z-10">
+              <tr className="border-t-2 border-[#378ADD]/40 bg-background/95 backdrop-blur">
+                <td className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Veredito
+                </td>
+                <td className="px-4 py-3 text-center text-[11px] text-muted-foreground">
+                  Entrada
+                </td>
+                <td className="px-4 py-3 text-center bg-gradient-to-b from-[#378ADD]/15 to-[#378ADD]/5 relative">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#378ADD] text-white text-[10px] font-semibold uppercase tracking-wider shadow-[0_0_18px_-4px_rgba(55,138,221,0.7)]">
+                    <Award className="size-3" /> Best value
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-center text-[11px] text-muted-foreground">
+                  Para mesas
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
