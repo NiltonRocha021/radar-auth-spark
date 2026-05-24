@@ -56,6 +56,7 @@ const COLUMNS: Record<ColKey, ColDef> = {
         s.manipRisk === "medium" ? <Shield className="size-3.5 text-[#EF9F27]" /> :
           <ShieldAlert className="size-3.5 text-[#E24B4A]" />,
   },
+  bot4x: { key: "bot4x", label: "Bot4x", render: (s) => <Bot4xCell signal={s} /> },
   age: { key: "age", label: "Age", render: (s) => <span className="text-muted-foreground">{formatAge(s.ageMin)}</span> },
   actions: {
     key: "actions", label: "Actions",
