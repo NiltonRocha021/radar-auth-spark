@@ -144,7 +144,9 @@ function Header({ signal, accent, isBuy, onClose }: { signal: Signal; accent: st
         <span className="text-[11px] text-muted-foreground">Generated {formatAge(signal.ageMin)}</span>
         <StatusBadge status={signal.status} />
         <div className="ml-auto flex items-center gap-1.5">
-          <ScoreBadge score={signal.score} size="lg" />
+          <ScoreRing score={signal.score}>
+            <ScoreBadge score={signal.score} size="lg" />
+          </ScoreRing>
         </div>
       </div>
       <div className="text-[10px] uppercase tracking-wider mt-1.5 text-right font-medium" style={{ color: scoreColor(signal.score) }}>
