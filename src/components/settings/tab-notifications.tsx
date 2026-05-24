@@ -2,20 +2,21 @@ import { SectionCard } from "./section-card";
 import { useAlertsStore } from "@/lib/alerts-store";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
-import { Mail, MessageCircle, Smartphone, Globe } from "lucide-react";
+import { Mail, MessageCircle, Smartphone, Hash, Phone } from "lucide-react";
 
 const CHANNELS = [
   { id: "telegram" as const, icon: MessageCircle, label: "Telegram", desc: "Instant push via @AISignalRadarBot" },
   { id: "email" as const, icon: Mail, label: "Email", desc: "Daily digest and high-priority alerts" },
   { id: "push" as const, icon: Smartphone, label: "Mobile push", desc: "iOS / Android app notifications" },
-  { id: "browser" as const, icon: Globe, label: "Browser push", desc: "Web notifications in this device" },
+  { id: "discord" as const, icon: Hash, label: "Discord", desc: "Webhook to your server" },
+  { id: "whatsapp" as const, icon: Phone, label: "WhatsApp", desc: "Direct message to your number" },
 ];
 
 const TYPES = [
-  { id: "signal" as const, label: "Trade signals" },
+  { id: "signal_high" as const, label: "High-confidence signals" },
   { id: "manipulation" as const, label: "Manipulation alerts" },
   { id: "volatility" as const, label: "Volatility spikes" },
-  { id: "profit" as const, label: "Profit/Stop hits" },
+  { id: "setup_confirmed" as const, label: "Setup confirmed" },
 ];
 
 export function SettingsNotifications() {
@@ -26,7 +27,7 @@ export function SettingsNotifications() {
         <div className="space-y-2">
           {CHANNELS.map((c) => {
             const Icon = c.icon;
-            const enabled = s.channels[c.id];
+            const enabled = s.channels[c.id].on;
             return (
               <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background/30">
                 <div className="flex items-center gap-3">
