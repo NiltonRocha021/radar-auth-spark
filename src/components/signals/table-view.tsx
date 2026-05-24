@@ -3,12 +3,14 @@ import { Bell, Bookmark, Download, EyeOff, Pin, PinOff, Shield, ShieldAlert, Shi
 import { ScoreBadge } from "@/components/dashboard/score-badge";
 import { type Signal, formatPrice, formatAge } from "@/lib/signals-data";
 import { useSignalsStore } from "@/lib/signals-store";
+import { useBot4xStore } from "@/lib/bot4x-store";
+import { bot4xEligibility, ELIGIBILITY_META } from "@/lib/bot4x-eligibility";
 
 const PAGE = 20;
 
 type ColKey =
   | "select" | "num" | "asset" | "dir" | "score" | "entry" | "stop" | "target"
-  | "rr" | "risk" | "tf" | "exchange" | "setup" | "confirms" | "dna" | "manip" | "age" | "actions";
+  | "rr" | "risk" | "tf" | "exchange" | "setup" | "confirms" | "dna" | "manip" | "bot4x" | "age" | "actions";
 
 type ColDef = {
   key: ColKey;
