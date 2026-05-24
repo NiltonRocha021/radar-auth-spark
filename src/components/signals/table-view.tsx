@@ -57,9 +57,21 @@ const COLUMNS: Record<ColKey, ColDef> = {
   age: { key: "age", label: "Age", render: (s) => <span className="text-muted-foreground">{formatAge(s.ageMin)}</span> },
   actions: {
     key: "actions", label: "Actions",
-    render: () => <button onClick={(e) => e.stopPropagation()} className="text-[var(--brand-cyan)] hover:underline">View →</button>,
+    render: (s) => <ViewLink id={s.id} />,
   },
 };
+
+function ViewLink({ id }: { id: string }) {
+  const openDetail = useSignalsStore((st) => st.openDetail);
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); openDetail(id); }}
+      className="text-[var(--brand-cyan)] hover:underline"
+    >
+      View →
+    </button>
+  );
+}
 
 const DEFAULT_ORDER: ColKey[] = ["select", "num", "asset", "dir", "score", "entry", "stop", "target", "rr", "risk", "tf", "exchange", "setup", "confirms", "dna", "manip", "age", "actions"];
 const STORAGE_KEY = "signals.table.cols.v1";

@@ -11,6 +11,7 @@ import { RadarMap } from "@/components/signals/radar-map";
 import { QuickViewPanel } from "@/components/signals/quick-view-panel";
 import { SignalToasts } from "@/components/signals/signal-toasts";
 import { SignalStream } from "@/components/signals/signal-stream";
+import { SignalDetailDrawer } from "@/components/signals/signal-detail-drawer";
 import { useSignalsStore, selectFilteredSorted } from "@/lib/signals-store";
 
 export const Route = createFileRoute("/_authenticated/signals")({
@@ -85,6 +86,7 @@ function SignalsPage() {
         </div>
       </div>
       <AdvancedFiltersDrawer />
+      <SignalDetailDrawer />
       <SignalToasts />
     </div>
   );
