@@ -426,6 +426,15 @@ function JsonViewer() {
     try { await navigator.clipboard.writeText(json); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
   };
 
+  const [glow, setGlow] = useState(false);
+  useEffect(() => {
+    if (lastTick?.verdict === "EXECUTE") {
+      setGlow(true);
+      const id = setTimeout(() => setGlow(false), 3000);
+      return () => clearTimeout(id);
+    }
+  }, [lastTick?.id, lastTick?.verdict]);
+
   const tabs = [
     { id: "tick" as const, label: "Último tick" },
     { id: "order" as const, label: "Última ordem" },
@@ -433,7 +442,16 @@ function JsonViewer() {
   ];
 
   return (
-    <section className="rounded-lg border border-border bg-card h-full flex flex-col">
+    <motion.section
+      animate={{
+        borderColor: glow ? "#1D9E75" : "hsl(var(--border))",
+        boxShadow: glow
+          ? "0 0 0 1px #1D9E75, 0 0 24px color-mix(in oklab, #1D9E75 45%, transparent)"
+          : "0 0 0 0px transparent",
+      }}
+      transition={{ duration: 0.4 }}
+      className="rounded-lg border bg-card h-full flex flex-col"
+    >
       <div className="px-3 py-2 border-b border-border flex items-center gap-1 overflow-x-auto">
         {tabs.map((t) => (
           <button
@@ -470,7 +488,7 @@ function JsonViewer() {
           </div>
         ))}
       </pre>
-    </section>
+    </motion.section>
   );
 }
 
