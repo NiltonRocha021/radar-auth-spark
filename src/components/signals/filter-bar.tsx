@@ -78,6 +78,18 @@ export function FilterBar() {
         <div className="flex-1" />
 
         <button
+          onClick={toggleStream}
+          title="Signal stream (Bloomberg-style ticker)"
+          className={`h-8 px-3 rounded-md border text-[12px] inline-flex items-center gap-1.5 transition-colors ${
+            streamOpen
+              ? "border-[var(--brand-cyan)] bg-[color-mix(in_oklab,var(--brand-cyan)_18%,transparent)] text-foreground"
+              : "border-border bg-card text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Rss className="size-3.5" /> Stream
+        </button>
+
+        <button
           onClick={() => setLive(!live)}
           className="h-8 px-3 rounded-md border border-border bg-card text-[12px] text-foreground hover:border-[var(--brand-cyan)] inline-flex items-center gap-2 transition-colors"
         >
