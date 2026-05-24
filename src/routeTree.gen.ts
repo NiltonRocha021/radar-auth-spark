@@ -26,6 +26,7 @@ import { Route as AuthenticatedCopyTradingRouteImport } from './routes/_authenti
 import { Route as AuthenticatedBot4xRouteImport } from './routes/_authenticated/bot4x'
 import { Route as AuthenticatedApiRouteImport } from './routes/_authenticated/api'
 import { Route as AuthenticatedAlertsRouteImport } from './routes/_authenticated/alerts'
+import { Route as AuthenticatedBot4xOnboardingRouteImport } from './routes/_authenticated/bot4x.onboarding'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -114,13 +115,19 @@ const AuthenticatedAlertsRoute = AuthenticatedAlertsRouteImport.update({
   path: '/alerts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedBot4xOnboardingRoute =
+  AuthenticatedBot4xOnboardingRouteImport.update({
+    id: '/onboarding',
+    path: '/onboarding',
+    getParentRoute: () => AuthenticatedBot4xRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/alerts': typeof AuthenticatedAlertsRoute
   '/api': typeof AuthenticatedApiRoute
-  '/bot4x': typeof AuthenticatedBot4xRoute
+  '/bot4x': typeof AuthenticatedBot4xRouteWithChildren
   '/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -132,13 +139,14 @@ export interface FileRoutesByFullPath {
   '/sentiment': typeof AuthenticatedSentimentRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/signals': typeof AuthenticatedSignalsRoute
+  '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/alerts': typeof AuthenticatedAlertsRoute
   '/api': typeof AuthenticatedApiRoute
-  '/bot4x': typeof AuthenticatedBot4xRoute
+  '/bot4x': typeof AuthenticatedBot4xRouteWithChildren
   '/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -150,6 +158,7 @@ export interface FileRoutesByTo {
   '/sentiment': typeof AuthenticatedSentimentRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/signals': typeof AuthenticatedSignalsRoute
+  '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -158,7 +167,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authenticated/alerts': typeof AuthenticatedAlertsRoute
   '/_authenticated/api': typeof AuthenticatedApiRoute
-  '/_authenticated/bot4x': typeof AuthenticatedBot4xRoute
+  '/_authenticated/bot4x': typeof AuthenticatedBot4xRouteWithChildren
   '/_authenticated/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -170,6 +179,7 @@ export interface FileRoutesById {
   '/_authenticated/sentiment': typeof AuthenticatedSentimentRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/signals': typeof AuthenticatedSignalsRoute
+  '/_authenticated/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/sentiment'
     | '/settings'
     | '/signals'
+    | '/bot4x/onboarding'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/sentiment'
     | '/settings'
     | '/signals'
+    | '/bot4x/onboarding'
   id:
     | '__root__'
     | '/'
@@ -227,6 +239,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sentiment'
     | '/_authenticated/settings'
     | '/_authenticated/signals'
+    | '/_authenticated/bot4x/onboarding'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -356,13 +369,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAlertsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/bot4x/onboarding': {
+      id: '/_authenticated/bot4x/onboarding'
+      path: '/onboarding'
+      fullPath: '/bot4x/onboarding'
+      preLoaderRoute: typeof AuthenticatedBot4xOnboardingRouteImport
+      parentRoute: typeof AuthenticatedBot4xRoute
+    }
   }
 }
+
+interface AuthenticatedBot4xRouteChildren {
+  AuthenticatedBot4xOnboardingRoute: typeof AuthenticatedBot4xOnboardingRoute
+}
+
+const AuthenticatedBot4xRouteChildren: AuthenticatedBot4xRouteChildren = {
+  AuthenticatedBot4xOnboardingRoute: AuthenticatedBot4xOnboardingRoute,
+}
+
+const AuthenticatedBot4xRouteWithChildren =
+  AuthenticatedBot4xRoute._addFileChildren(AuthenticatedBot4xRouteChildren)
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAlertsRoute: typeof AuthenticatedAlertsRoute
   AuthenticatedApiRoute: typeof AuthenticatedApiRoute
-  AuthenticatedBot4xRoute: typeof AuthenticatedBot4xRoute
+  AuthenticatedBot4xRoute: typeof AuthenticatedBot4xRouteWithChildren
   AuthenticatedCopyTradingRoute: typeof AuthenticatedCopyTradingRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDnaTraderRoute: typeof AuthenticatedDnaTraderRoute
@@ -379,7 +410,7 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAlertsRoute: AuthenticatedAlertsRoute,
   AuthenticatedApiRoute: AuthenticatedApiRoute,
-  AuthenticatedBot4xRoute: AuthenticatedBot4xRoute,
+  AuthenticatedBot4xRoute: AuthenticatedBot4xRouteWithChildren,
   AuthenticatedCopyTradingRoute: AuthenticatedCopyTradingRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDnaTraderRoute: AuthenticatedDnaTraderRoute,

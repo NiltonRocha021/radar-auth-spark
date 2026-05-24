@@ -4,7 +4,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun, Monitor, Cpu } from "lucide-react";
+import { useBot4xPrefs } from "@/lib/bot4x-prefs-store";
 
 const THEMES = [
   { id: "dark", label: "Dark", icon: Moon, bg: "bg-zinc-900", fg: "bg-zinc-700" },
@@ -24,6 +25,8 @@ export function SettingsAppearance() {
   const [lang, setLang] = useState("pt-BR");
   const [currency, setCurrency] = useState("USD");
   const [dateFmt, setDateFmt] = useState("DD/MM/YYYY");
+  const compactPill = useBot4xPrefs((s) => s.compactPill);
+  const setCompactPill = useBot4xPrefs((s) => s.setCompactPill);
 
   return (
     <>
@@ -174,6 +177,23 @@ export function SettingsAppearance() {
               </SelectContent>
             </Select>
           </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Bot4x">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card/40 p-3">
+          <div className="flex items-start gap-3">
+            <div className="size-9 rounded-full bg-[var(--brand-blue-deep)] flex items-center justify-center shrink-0">
+              <Cpu className="size-4 text-[var(--brand-cyan)]" />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Modo compacto</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Mostra um pill fixo de 64px no canto inferior esquerdo em todas as páginas com modo e PnL do dia.
+              </p>
+            </div>
+          </div>
+          <Switch checked={compactPill} onCheckedChange={setCompactPill} />
         </div>
       </SectionCard>
     </>
