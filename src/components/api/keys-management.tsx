@@ -3,6 +3,7 @@ import { Copy, Check, Lock, Plus, Trash2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { SAMPLE_KEYS, RATE_LIMITS, type ApiKey } from "@/lib/api-data";
+import { RateGauge } from "./rate-gauge";
 import { cn } from "@/lib/utils";
 
 // Page is public; key generation requires Institutional plan.
@@ -55,7 +56,7 @@ export function KeysManagement() {
               <th className="text-left font-medium px-4 py-2.5">Name</th>
               <th className="text-left font-medium px-4 py-2.5">Key</th>
               <th className="text-left font-medium px-4 py-2.5">Plan</th>
-              <th className="text-right font-medium px-4 py-2.5">Requests today</th>
+              <th className="text-left font-medium px-4 py-2.5">Usage today</th>
               <th className="text-left font-medium px-4 py-2.5">Created</th>
               <th className="text-right font-medium px-4 py-2.5">Actions</th>
             </tr>
@@ -68,7 +69,9 @@ export function KeysManagement() {
                 <td className="px-4 py-3">
                   <span className="text-[11px] px-2 py-0.5 rounded border border-[#378ADD]/30 bg-[#378ADD]/10 text-[#5fa8ff]">{k.plan}</span>
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums">{k.requestsToday.toLocaleString()}</td>
+                <td className="px-4 py-3">
+                  <RateGauge used={k.requestsToday} limit={k.plan === "Institutional" ? null : k.plan === "Pro" ? 5000 : 100} />
+                </td>
                 <td className="px-4 py-3 text-xs text-muted-foreground">{k.createdAt}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1">
