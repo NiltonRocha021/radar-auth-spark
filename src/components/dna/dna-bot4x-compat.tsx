@@ -7,8 +7,8 @@ export function DnaBot4xCompat() {
   const setProfile = useBot4xStore((s) => s.setProfile);
   const currentProfile = useBot4xStore((s) => s.profile);
 
-  // Recommend based on DNA: "Strategic Sniper" → regular
-  const recommended = "regular" as const;
+  // Recommend based on DNA: "Strategic Sniper" → aiscore
+  const recommended = "aiscore" as const;
   const applied = currentProfile === recommended;
 
   return (
