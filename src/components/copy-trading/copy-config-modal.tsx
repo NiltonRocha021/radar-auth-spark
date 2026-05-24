@@ -111,6 +111,50 @@ export function CopyConfigModal({ trader, open, onOpenChange, onConfirm }: Props
             </Select>
           </div>
 
+          {sim && (
+            <div className="rounded-md border border-[#378ADD]/30 bg-gradient-to-br from-[#378ADD]/10 to-transparent p-3 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Calculator className="size-3.5 text-[#5fa8ff]" />
+                  <span className="text-sm font-medium">Simulate with your capital</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">$</span>
+                  <Input
+                    type="number"
+                    min={100}
+                    step={500}
+                    value={capital}
+                    onChange={(e) => setCapital(Math.max(100, Number(e.target.value) || 0))}
+                    className="h-7 w-24 text-xs text-right tabular-nums"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <SimStat
+                  label="Est. monthly"
+                  primary={`${sim.monthlyPct >= 0 ? "+" : ""}${sim.monthlyPct.toFixed(1)}%`}
+                  secondary={`${sim.monthlyPnl >= 0 ? "+" : ""}$${Math.abs(sim.monthlyPnl).toLocaleString()}`}
+                  tone={sim.monthlyPct >= 0 ? "pos" : "neg"}
+                />
+                <SimStat
+                  label="Projected yearly"
+                  primary={`${sim.yearlyPnl >= 0 ? "+" : ""}$${Math.abs(sim.yearlyPnl).toLocaleString()}`}
+                  secondary="compounded"
+                  tone={sim.yearlyPnl >= 0 ? "pos" : "neg"}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11px] pt-2 border-t border-border/60">
+                <span className="text-muted-foreground">Worst-case drawdown</span>
+                <span className="text-red-400 tabular-nums">-${sim.worstCase.toLocaleString()}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
+                Projection based on historical win rate & R/R. Past performance does not guarantee future results.
+              </p>
+            </div>
+          )}
+
+
           <div className="flex items-start gap-3 rounded-md border border-border bg-secondary/30 p-3">
             <Lock className="size-4 text-muted-foreground mt-0.5 shrink-0" />
             <div className="flex-1">
