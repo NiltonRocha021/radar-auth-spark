@@ -291,6 +291,14 @@ function CircuitBreakerLoss() {
         />
       </div>
       <div className="text-[10px] text-muted-foreground mt-1.5">Equivale a 3 stop-losses consecutivos.</div>
+      {IS_DEV && (
+        <button
+          onClick={() => useBot4xStore.setState({ dailyPnlPct: triggered ? -0.42 : -1.6 })}
+          className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-[#FF9B9A] hover:text-white border border-[#E24B4A55] hover:border-[#E24B4A] rounded px-2 py-1 transition-colors"
+        >
+          <Zap className="size-3" /> {triggered ? "Resetar" : "Simular acionamento"} <span className="opacity-50">· dev</span>
+        </button>
+      )}
     </section>
   );
 }
