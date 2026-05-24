@@ -65,6 +65,26 @@ function AlertsPage() {
     }
   };
 
+  const sendTestAlert = () => {
+    const active = Object.entries(s.channels).filter(([, c]) => c.on).map(([k]) => k);
+    if (active.length === 0) {
+      toast.error("No channels enabled", { description: "Turn on at least one delivery channel." });
+      return;
+    }
+    s.pushFeed({
+      id: `test-${Date.now()}`,
+      kind: "signal",
+      type: "Test alert",
+      asset: "BTC/USDT",
+      description: `Sample notification delivered via ${active.join(", ")}.`,
+      at: Date.now(),
+      read: false,
+    });
+    toast.success("Test alert sent", {
+      description: `Delivered to ${active.length} channel${active.length > 1 ? "s" : ""}: ${active.join(", ")}.`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <TopBar />
