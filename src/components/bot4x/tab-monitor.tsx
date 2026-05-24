@@ -517,7 +517,7 @@ function FilterStats() {
   const processed = useBot4xStore((s) => s.ticksProcessed);
 
   const stats = useMemo(() => {
-    let exec = 0, blocked = 0;
+    let exec = 0, blockedCount = 0, ignore = 0;
     const cat: Record<string, number> = {
       "F4 Zona central": 0,
       "F5 RSI": 0,
@@ -526,7 +526,9 @@ function FilterStats() {
       "F6 FOMO": 0,
     };
     for (const t of ticks) {
-      if (t.verdict === "EXECUTE") exec++; else blocked++;
+      if (t.verdict === "EXECUTE") exec++;
+      else if (t.verdict === "IGNORE") ignore++;
+      else blockedCount++;
       if (t.blockedAt === "F4") cat["F4 Zona central"]++;
       else if (t.blockedAt === "F5") {
         if (t.f5Sub === "RSI") cat["F5 RSI"]++;
@@ -543,15 +545,21 @@ function FilterStats() {
     };
     const bars = Object.entries(cat).map(([name, blocks]) => ({ name, blocks, fill: colors[name] }));
     const total = ticks.length;
+    const donut = [
+      { name: "EXECUTE", value: exec, fill: "#1D9E75" },
+      { name: "IGNORE", value: ignore, fill: "#888780" },
+      { name: "BLOCKED", value: blockedCount, fill: "#E24B4A" },
+    ];
     return {
-      bars, exec, blocked, total, processed,
-      blockedPct: total ? Math.round((blocked / total) * 100) : 0,
-      winRate: exec ? Math.round((exec * 0.62) / exec * 100) : 0, // proxy 62% on executed
+      bars, donut, exec, ignore, blocked: blockedCount, total, processed,
+      blockedPct: total ? Math.round((blockedCount / total) * 100) : 0,
+      execPct: total ? Math.round((exec / total) * 100) : 0,
+      ignorePct: total ? Math.round((ignore / total) * 100) : 0,
     };
   }, [ticks, processed]);
 
   return (
-    <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
       <div className="lg:col-span-2 rounded-lg border border-border bg-card p-4">
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Bloqueios por filtro (sessão)</div>
         <div className="h-48">
@@ -570,13 +578,58 @@ function FilterStats() {
           </ResponsiveContainer>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="rounded-lg border border-border bg-card p-4 flex flex-col">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Distribuição hoje</div>
+        <div className="relative h-40">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={stats.donut.every((d) => d.value === 0) ? [{ name: "—", value: 1, fill: "#2a2b30" }] : stats.donut}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={42}
+                outerRadius={62}
+                paddingAngle={2}
+                stroke="none"
+                isAnimationActive
+              >
+                {stats.donut.map((d) => (<Cell key={d.name} fill={d.fill} />))}
+              </Pie>
+              <Tooltip
+                contentStyle={{ background: "#111318", border: "1px solid #1E2028", borderRadius: 6, fontSize: 12 }}
+                formatter={(v: number, n: string) => [`${v} (${stats.total ? Math.round((v / stats.total) * 100) : 0}%)`, n]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <div className="text-[18px] font-semibold tabular-nums text-foreground">{stats.total}</div>
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">ticks</div>
+          </div>
+        </div>
+        <div className="mt-2 space-y-1 text-[10.5px]">
+          <LegendRow color="#1D9E75" label="EXECUTE" value={stats.exec} pct={stats.execPct} />
+          <LegendRow color="#888780" label="IGNORE" value={stats.ignore} pct={stats.ignorePct} />
+          <LegendRow color="#E24B4A" label="BLOCKED" value={stats.blocked} pct={stats.blockedPct} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 content-start">
         <SummaryCard label="Total ticks" value={`${stats.processed.toLocaleString()}`} />
         <SummaryCard label="Bloqueados" value={`${stats.blocked} · ${stats.blockedPct}%`} color="#E24B4A" />
         <SummaryCard label="Executados" value={`${stats.exec}`} color="#1D9E75" />
         <SummaryCard label="Win rate (exec)" value={`~62%`} color="#7AD9B4" />
       </div>
     </section>
+  );
+}
+
+function LegendRow({ color, label, value, pct }: { color: string; label: string; value: number; pct: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="inline-block size-2 rounded-sm" style={{ background: color }} />
+      <span className="text-muted-foreground flex-1">{label}</span>
+      <span className="tabular-nums font-semibold" style={{ color }}>{value}</span>
+      <span className="tabular-nums text-muted-foreground w-9 text-right">{pct}%</span>
+    </div>
   );
 }
 
