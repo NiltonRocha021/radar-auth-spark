@@ -62,7 +62,7 @@ export const useBot4xStore = create<State>((set, get) => ({
 
   init: () => {
     if (get()._ticker) return;
-    const history = genHistory(80);
+    const history = genHistory(183);
     set({ history });
     get().seedOrders();
     const ticker = setInterval(() => {
