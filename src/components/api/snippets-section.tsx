@@ -22,7 +22,7 @@ function buildSnippet(lang: "javascript" | "python" | "curl", endpoint: string, 
   const url = `https://api.aisignalradar.io${endpoint}${qs ? "?" + qs : ""}`;
   if (lang === "javascript") {
     return `const res = await fetch("${url}", {
-  headers: { "Authorization": "Bearer sk_live_8f3a92bc4d1e7f0a" }
+  headers: { "Authorization": "Bearer sk_live_YOUR_API_KEY" }
 });
 const data = await res.json();`;
   }
@@ -31,12 +31,12 @@ const data = await res.json();`;
 
 res = requests.get(
     "${url}",
-    headers={"Authorization": "Bearer sk_live_8f3a92bc4d1e7f0a"}
+    headers={"Authorization": "Bearer sk_live_YOUR_API_KEY"}
 )
 print(res.json())`;
   }
   return `curl -X GET "${url}" \\
-  -H "Authorization: Bearer sk_live_8f3a92bc4d1e7f0a"`;
+  -H "Authorization: Bearer sk_live_YOUR_API_KEY"`;
 }
 
 function mockResponse(endpoint: string, params: Record<string, string>) {

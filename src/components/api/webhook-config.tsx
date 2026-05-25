@@ -8,10 +8,8 @@ import { WEBHOOK_EVENTS, RECENT_DELIVERIES } from "@/lib/api-data";
 import { cn } from "@/lib/utils";
 
 function randomSecret() {
-  const chars = "abcdef0123456789";
-  let s = "whsec_";
-  for (let i = 0; i < 32; i++) s += chars[Math.floor(Math.random() * chars.length)];
-  return s;
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return "whsec_" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export function WebhookConfig() {

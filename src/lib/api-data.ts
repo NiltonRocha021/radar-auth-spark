@@ -22,7 +22,7 @@ export const SNIPPETS = {
   javascript: `// GET /v1/signals — list active signals
 const res = await fetch("https://api.aisignalradar.io/v1/signals?asset=BTC&tf=4h", {
   headers: {
-    "Authorization": "Bearer sk_live_8f3a92bc4d1e7f0a",
+    "Authorization": "Bearer sk_live_YOUR_API_KEY",
     "Content-Type": "application/json"
   }
 });
@@ -34,11 +34,11 @@ import requests
 res = requests.get(
     "https://api.aisignalradar.io/v1/signals",
     params={"asset": "BTC", "tf": "4h"},
-    headers={"Authorization": "Bearer sk_live_8f3a92bc4d1e7f0a"}
+    headers={"Authorization": "Bearer sk_live_YOUR_API_KEY"}
 )
 print(res.json())`,
   curl: `curl -X GET "https://api.aisignalradar.io/v1/signals?asset=BTC&tf=4h" \\
-  -H "Authorization: Bearer sk_live_8f3a92bc4d1e7f0a" \\
+  -H "Authorization: Bearer sk_live_YOUR_API_KEY" \\
   -H "Content-Type: application/json"`,
 };
 
@@ -69,8 +69,8 @@ export type ApiKey = {
 };
 
 export const SAMPLE_KEYS: ApiKey[] = [
-  { id: "k1", name: "Production backend", key: "sk_live_8f3a92bc4d1e7f0a", plan: "Institutional", requestsToday: 12483, createdAt: "2026-03-14" },
-  { id: "k2", name: "Research notebooks", key: "sk_live_2a91cf03e7b8d549", plan: "Institutional", requestsToday: 942, createdAt: "2026-04-02" },
+  { id: "k1", name: "Production backend", key: "sk_live_••••••••••••PROD", plan: "Institutional", requestsToday: 12483, createdAt: "2026-03-14" },
+  { id: "k2", name: "Research notebooks", key: "sk_live_••••••••••••RSCH", plan: "Institutional", requestsToday: 942, createdAt: "2026-04-02" },
 ];
 
 export const RATE_LIMITS = [
