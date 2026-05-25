@@ -1,4 +1,4 @@
-import { Search, LayoutGrid, Table as TableIcon, Radar, SlidersHorizontal, ChevronDown, Play, Pause, Rss } from "lucide-react";
+import { Search, LayoutGrid, Table as TableIcon, Radar, SlidersHorizontal, ChevronDown, Play, Pause, Rss, Cpu } from "lucide-react";
 import { useSignalsStore } from "@/lib/signals-store";
 
 const assetClasses = ["All", "Crypto", "Forex", "Indices", "Stocks"] as const;
@@ -14,6 +14,7 @@ const exchanges = ["Binance", "Bybit", "OKX", "Coinbase"];
 
 export function FilterBar() {
   const { filters, view, sort, live, streamOpen, setView, setSort, setLive, setFilter, toggleAdv, toggleStream, toggleExchange } = useSignalsStore();
+  const bot4xOnly = filters.bot4xOnly;
 
   return (
     <div className="sticky top-12 z-30 bg-background/95 backdrop-blur border-b border-border">
@@ -76,6 +77,21 @@ export function FilterBar() {
         </button>
 
         <div className="flex-1" />
+
+        <button
+          onClick={() => setFilter("bot4xOnly", !bot4xOnly)}
+          title="Mostrar apenas sinais viáveis no Bot4x"
+          className={`h-8 px-3 rounded-md border text-[12px] inline-flex items-center gap-1.5 transition-colors ${
+            bot4xOnly
+              ? "border-[#1D9E75] bg-[color-mix(in_oklab,#1D9E75_18%,transparent)] text-foreground"
+              : "border-border bg-card text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Cpu className="size-3.5" /> Bot4x viáveis
+          <span className={`ml-1 inline-block w-7 h-3.5 rounded-full relative transition-colors ${bot4xOnly ? "bg-[#1D9E75]" : "bg-muted"}`}>
+            <span className={`absolute top-0.5 size-2.5 rounded-full bg-background transition-all ${bot4xOnly ? "left-3.5" : "left-0.5"}`} />
+          </span>
+        </button>
 
         <button
           onClick={toggleStream}

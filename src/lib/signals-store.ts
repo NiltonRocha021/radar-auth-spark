@@ -21,6 +21,7 @@ type Filters = {
   setups: Record<string, boolean>;
   session: "All" | "Asia" | "London" | "NY";
   dnaCompat70: boolean;
+  bot4xOnly: boolean;
 };
 
 type State = {
@@ -71,6 +72,7 @@ export const useSignalsStore = create<State>((set, get) => ({
     setups: {},
     session: "All",
     dnaCompat70: false,
+    bot4xOnly: false,
   },
   view: "cards",
   sort: "score",
