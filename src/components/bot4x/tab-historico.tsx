@@ -290,14 +290,17 @@ function EquityCurve({ history }: { history: Trade[] }) {
               <XAxis dataKey="day" stroke="#888780" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} minTickGap={32} />
               <YAxis stroke="#888780" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} domain={["dataMin - 5", "dataMax + 5"]} />
               <Tooltip
-                contentStyle={{ background: "#111318", border: "1px solid #1E2028", borderRadius: 6, fontSize: 12 }}
-                labelStyle={{ color: "#888780" }}
-                formatter={(v: number, n: string) => [`$${fmt(v)}`, n === "capital" ? "Capital" : n]}
+                cursor={{ stroke: "#378ADD", strokeWidth: 1, strokeDasharray: "3 3" }}
+                content={<LeverageCrosshairTooltip />}
               />
               <ReferenceLine y={start * (1 - 0.015)} stroke="#E24B4A" strokeDasharray="3 3" label={{ value: "Disjuntor -1.5%", fill: "#E24B4A", fontSize: 10, position: "right" }} />
               <ReferenceLine y={start * (1 + 0.03)} stroke="#EF9F27" strokeDasharray="3 3" label={{ value: "Piso +3.0%", fill: "#EF9F27", fontSize: 10, position: "right" }} />
               <ReferenceLine y={start * (1 + 0.04)} stroke="#1D9E75" strokeDasharray="3 3" label={{ value: "Profit lock +4.0%", fill: "#1D9E75", fontSize: 10, position: "right" }} />
               <Area type="monotone" dataKey="capital" stroke="#378ADD" strokeWidth={2} fill="url(#eq)" />
+              <Line type="monotone" dataKey="cap1" stroke="#1D9E75" strokeWidth={1} strokeDasharray="2 3" dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="cap3" stroke="#7AD9B4" strokeWidth={1} strokeDasharray="2 3" dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="cap6" stroke="#EF9F27" strokeWidth={1} strokeDasharray="2 3" dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="cap10" stroke="#E24B4A" strokeWidth={1} strokeDasharray="2 3" dot={false} isAnimationActive={false} />
               {breakerEvents.map((ev) => (
                 <ReferenceDot
                   key={ev.id}
