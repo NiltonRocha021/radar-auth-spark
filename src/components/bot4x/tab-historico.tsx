@@ -164,23 +164,40 @@ function Metrics({ history }: { history: Trade[] }) {
     <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
       <Card
         label="Total PnL"
-        value={`${m.pnl >= 0 ? "+" : ""}$${fmt(m.pnl)} (${m.pnlPct >= 0 ? "+" : ""}${m.pnlPct.toFixed(2)}%)`}
+        n={m.pnl}
+        format={(v) => `${v >= 0 ? "+" : ""}$${fmt(v)} (${m.pnlPct >= 0 ? "+" : ""}${m.pnlPct.toFixed(2)}%)`}
         color={m.pnl >= 0 ? "#1D9E75" : "#E24B4A"}
+        decimals={2}
       />
-      <Card label="Win rate" value={`${m.wr.toFixed(1)}%`} color={wrColor} />
-      <Card label="Total trades" value={`${m.total}`} sub={`${m.wins}W / ${m.losses}L`} />
-      <Card label="Maior drawdown" value={`${m.maxDD.toFixed(2)}%`} color="#E24B4A" />
+      <Card label="Win rate" n={m.wr} format={(v) => `${v.toFixed(1)}%`} color={wrColor} decimals={1} />
+      <Card label="Total trades" n={m.total} format={(v) => `${Math.round(v)}`} sub={`${m.wins}W / ${m.losses}L`} />
+      <Card label="Maior drawdown" n={m.maxDD} format={(v) => `${v.toFixed(2)}%`} color="#E24B4A" decimals={2} />
     </section>
   );
 }
 
-function Card({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
+function Card({
+  label, n, format, color, sub, decimals = 0,
+}: {
+  label: string;
+  n: number;
+  format: (v: number) => string;
+  color?: string;
+  sub?: string;
+  decimals?: number;
+}) {
+  const counted = useCountUp(n, 900, decimals);
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="rounded-lg border border-border bg-card px-4 py-3"
+    >
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-[18px] font-semibold tabular-nums mt-1" style={{ color: color ?? undefined }}>{value}</div>
+      <div className="text-[18px] font-semibold tabular-nums mt-1" style={{ color: color ?? undefined }}>{format(counted)}</div>
       {sub && <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">{sub}</div>}
-    </div>
+    </motion.div>
   );
 }
 
