@@ -345,6 +345,16 @@ function EquityCurve({ history }: { history: Trade[] }) {
           )}
         </ResponsiveContainer>
       </div>
+      {view === "capital" && (
+        <div className="flex flex-wrap items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><span className="w-3 h-0.5 bg-[#378ADD]" /> Capital real</span>
+          <span className="inline-flex items-center gap-1"><span className="w-3 border-t border-dashed border-[#1D9E75]" /> 1:1</span>
+          <span className="inline-flex items-center gap-1"><span className="w-3 border-t border-dashed border-[#7AD9B4]" /> 1:3</span>
+          <span className="inline-flex items-center gap-1"><span className="w-3 border-t border-dashed border-[#EF9F27]" /> 1:6</span>
+          <span className="inline-flex items-center gap-1"><span className="w-3 border-t border-dashed border-[#E24B4A]" /> 1:10</span>
+          <span className="ml-auto">Passe o mouse para ver os 4 cenários de alavancagem</span>
+        </div>
+      )}
     </section>
   );
 }
