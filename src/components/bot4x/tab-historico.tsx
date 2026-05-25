@@ -3,9 +3,11 @@ import {
   AreaChart, Area, LineChart, Line, BarChart, Bar,
   ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine, ReferenceDot, Cell,
 } from "recharts";
-import { Download, Search, Flag, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Download, Search, Flag, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { PROFILES, type CalibProfile, type Trade, fmt } from "@/lib/bot4x-data";
+import { useCountUp } from "@/lib/use-count-up";
 
 type RangeKey = "7d" | "30d" | "90d" | "custom";
 type Filters = {
