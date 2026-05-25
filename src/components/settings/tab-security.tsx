@@ -32,9 +32,12 @@ const LOGINS = [
 ];
 
 function genBackupCodes() {
-  return Array.from({ length: 8 }, () =>
-    Array.from({ length: 4 }, () => Math.random().toString(36).slice(2, 6).toUpperCase()).join("-").slice(0, 14),
-  );
+  const toCode = () => {
+    const bytes = crypto.getRandomValues(new Uint8Array(6));
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("").toUpperCase();
+    return `${hex.slice(0, 4)}-${hex.slice(4, 8)}-${hex.slice(8, 12)}`;
+  };
+  return Array.from({ length: 8 }, toCode);
 }
 
 export function SettingsSecurity() {
