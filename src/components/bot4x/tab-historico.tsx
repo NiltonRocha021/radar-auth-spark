@@ -209,21 +209,37 @@ function EquityCurve({ history }: { history: Trade[] }) {
 
   // Group by day for daily PnL + cumulative WR
   const dailyData = useMemo(() => {
-    const map = new Map<string, { day: string; pnl: number; wins: number; losses: number; lastAcc: number }>();
+    const map = new Map<string, { day: string; pnl: number; wins: number; losses: number; lastAcc: number; trades: Trade[] }>();
     for (const t of history) {
-      const cur = map.get(t.day) ?? { day: t.day, pnl: 0, wins: 0, losses: 0, lastAcc: t.accumulated };
+      const cur = map.get(t.day) ?? { day: t.day, pnl: 0, wins: 0, losses: 0, lastAcc: t.accumulated, trades: [] };
       cur.pnl += t.pnl;
       if (t.result === "WIN") cur.wins++;
       else if (t.result === "LOSS") cur.losses++;
       cur.lastAcc = t.accumulated;
+      cur.trades.push(t);
       map.set(t.day, cur);
     }
     const days = Array.from(map.values()).sort((a, b) => a.day.localeCompare(b.day));
     let cumW = 0, cumL = 0;
+    // Multi-leverage simulation: scale each trade's pnl by (targetLev / actualLev)
+    const startCap = days[0] ? (days[0].lastAcc - days[0].pnl) : 1000;
+    const caps: Record<number, number> = { 1: startCap, 3: startCap, 6: startCap, 10: startCap };
     return days.map((d) => {
       cumW += d.wins; cumL += d.losses;
       const wr = cumW + cumL ? (cumW / (cumW + cumL)) * 100 : 0;
-      return { day: d.day, capital: d.lastAcc, pnlPct: d.lastAcc ? (d.pnl / (d.lastAcc - d.pnl || 1)) * 100 : 0, dailyPnl: d.pnl, wr: +wr.toFixed(2) };
+      for (const lev of [1, 3, 6, 10] as const) {
+        for (const t of d.trades) {
+          const ratio = t.leverage > 0 ? lev / t.leverage : 1;
+          caps[lev] += t.pnl * ratio;
+        }
+      }
+      return {
+        day: d.day, capital: d.lastAcc,
+        cap1: +caps[1].toFixed(2), cap3: +caps[3].toFixed(2),
+        cap6: +caps[6].toFixed(2), cap10: +caps[10].toFixed(2),
+        pnlPct: d.lastAcc ? (d.pnl / (d.lastAcc - d.pnl || 1)) * 100 : 0,
+        dailyPnl: d.pnl, wr: +wr.toFixed(2),
+      };
     });
   }, [history]);
 
