@@ -58,6 +58,7 @@ export function TabHistorico() {
       <Metrics history={filtered} />
       <EquityCurve history={dateFiltered} />
       <TradeSection history={filtered} all={dateFiltered} filters={filters} setFilters={setFilters} />
+      <DailySummaryAccordion history={filtered} />
       <PerformanceTabs history={filtered} />
     </div>
   );
