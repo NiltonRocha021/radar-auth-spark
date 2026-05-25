@@ -21,6 +21,7 @@ type Filters = {
   setups: Record<string, boolean>;
   session: "All" | "Asia" | "London" | "NY";
   dnaCompat70: boolean;
+  bot4xOnly: boolean;
 };
 
 type State = {
