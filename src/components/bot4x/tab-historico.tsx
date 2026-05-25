@@ -3,9 +3,11 @@ import {
   AreaChart, Area, LineChart, Line, BarChart, Bar,
   ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine, ReferenceDot, Cell,
 } from "recharts";
-import { Download, Search, Flag, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Download, Search, Flag, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { PROFILES, type CalibProfile, type Trade, fmt } from "@/lib/bot4x-data";
+import { useCountUp } from "@/lib/use-count-up";
 
 type RangeKey = "7d" | "30d" | "90d" | "custom";
 type Filters = {
@@ -56,6 +58,7 @@ export function TabHistorico() {
       <Metrics history={filtered} />
       <EquityCurve history={dateFiltered} />
       <TradeSection history={filtered} all={dateFiltered} filters={filters} setFilters={setFilters} />
+      <DailySummaryAccordion history={filtered} />
       <PerformanceTabs history={filtered} />
     </div>
   );
@@ -162,23 +165,40 @@ function Metrics({ history }: { history: Trade[] }) {
     <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
       <Card
         label="Total PnL"
-        value={`${m.pnl >= 0 ? "+" : ""}$${fmt(m.pnl)} (${m.pnlPct >= 0 ? "+" : ""}${m.pnlPct.toFixed(2)}%)`}
+        n={m.pnl}
+        format={(v) => `${v >= 0 ? "+" : ""}$${fmt(v)} (${m.pnlPct >= 0 ? "+" : ""}${m.pnlPct.toFixed(2)}%)`}
         color={m.pnl >= 0 ? "#1D9E75" : "#E24B4A"}
+        decimals={2}
       />
-      <Card label="Win rate" value={`${m.wr.toFixed(1)}%`} color={wrColor} />
-      <Card label="Total trades" value={`${m.total}`} sub={`${m.wins}W / ${m.losses}L`} />
-      <Card label="Maior drawdown" value={`${m.maxDD.toFixed(2)}%`} color="#E24B4A" />
+      <Card label="Win rate" n={m.wr} format={(v) => `${v.toFixed(1)}%`} color={wrColor} decimals={1} />
+      <Card label="Total trades" n={m.total} format={(v) => `${Math.round(v)}`} sub={`${m.wins}W / ${m.losses}L`} />
+      <Card label="Maior drawdown" n={m.maxDD} format={(v) => `${v.toFixed(2)}%`} color="#E24B4A" decimals={2} />
     </section>
   );
 }
 
-function Card({ label, value, color, sub }: { label: string; value: string; color?: string; sub?: string }) {
+function Card({
+  label, n, format, color, sub, decimals = 0,
+}: {
+  label: string;
+  n: number;
+  format: (v: number) => string;
+  color?: string;
+  sub?: string;
+  decimals?: number;
+}) {
+  const counted = useCountUp(n, 900, decimals);
   return (
-    <div className="rounded-lg border border-border bg-card px-4 py-3">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="rounded-lg border border-border bg-card px-4 py-3"
+    >
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-[18px] font-semibold tabular-nums mt-1" style={{ color: color ?? undefined }}>{value}</div>
+      <div className="text-[18px] font-semibold tabular-nums mt-1" style={{ color: color ?? undefined }}>{format(counted)}</div>
       {sub && <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">{sub}</div>}
-    </div>
+    </motion.div>
   );
 }
 
@@ -190,21 +210,37 @@ function EquityCurve({ history }: { history: Trade[] }) {
 
   // Group by day for daily PnL + cumulative WR
   const dailyData = useMemo(() => {
-    const map = new Map<string, { day: string; pnl: number; wins: number; losses: number; lastAcc: number }>();
+    const map = new Map<string, { day: string; pnl: number; wins: number; losses: number; lastAcc: number; trades: Trade[] }>();
     for (const t of history) {
-      const cur = map.get(t.day) ?? { day: t.day, pnl: 0, wins: 0, losses: 0, lastAcc: t.accumulated };
+      const cur = map.get(t.day) ?? { day: t.day, pnl: 0, wins: 0, losses: 0, lastAcc: t.accumulated, trades: [] };
       cur.pnl += t.pnl;
       if (t.result === "WIN") cur.wins++;
       else if (t.result === "LOSS") cur.losses++;
       cur.lastAcc = t.accumulated;
+      cur.trades.push(t);
       map.set(t.day, cur);
     }
     const days = Array.from(map.values()).sort((a, b) => a.day.localeCompare(b.day));
     let cumW = 0, cumL = 0;
+    // Multi-leverage simulation: scale each trade's pnl by (targetLev / actualLev)
+    const startCap = days[0] ? (days[0].lastAcc - days[0].pnl) : 1000;
+    const caps: Record<number, number> = { 1: startCap, 3: startCap, 6: startCap, 10: startCap };
     return days.map((d) => {
       cumW += d.wins; cumL += d.losses;
       const wr = cumW + cumL ? (cumW / (cumW + cumL)) * 100 : 0;
-      return { day: d.day, capital: d.lastAcc, pnlPct: d.lastAcc ? (d.pnl / (d.lastAcc - d.pnl || 1)) * 100 : 0, dailyPnl: d.pnl, wr: +wr.toFixed(2) };
+      for (const lev of [1, 3, 6, 10] as const) {
+        for (const t of d.trades) {
+          const ratio = t.leverage > 0 ? lev / t.leverage : 1;
+          caps[lev] += t.pnl * ratio;
+        }
+      }
+      return {
+        day: d.day, capital: d.lastAcc,
+        cap1: +caps[1].toFixed(2), cap3: +caps[3].toFixed(2),
+        cap6: +caps[6].toFixed(2), cap10: +caps[10].toFixed(2),
+        pnlPct: d.lastAcc ? (d.pnl / (d.lastAcc - d.pnl || 1)) * 100 : 0,
+        dailyPnl: d.pnl, wr: +wr.toFixed(2),
+      };
     });
   }, [history]);
 
@@ -255,14 +291,17 @@ function EquityCurve({ history }: { history: Trade[] }) {
               <XAxis dataKey="day" stroke="#888780" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} minTickGap={32} />
               <YAxis stroke="#888780" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} domain={["dataMin - 5", "dataMax + 5"]} />
               <Tooltip
-                contentStyle={{ background: "#111318", border: "1px solid #1E2028", borderRadius: 6, fontSize: 12 }}
-                labelStyle={{ color: "#888780" }}
-                formatter={(v: number, n: string) => [`$${fmt(v)}`, n === "capital" ? "Capital" : n]}
+                cursor={{ stroke: "#378ADD", strokeWidth: 1, strokeDasharray: "3 3" }}
+                content={<LeverageCrosshairTooltip />}
               />
               <ReferenceLine y={start * (1 - 0.015)} stroke="#E24B4A" strokeDasharray="3 3" label={{ value: "Disjuntor -1.5%", fill: "#E24B4A", fontSize: 10, position: "right" }} />
               <ReferenceLine y={start * (1 + 0.03)} stroke="#EF9F27" strokeDasharray="3 3" label={{ value: "Piso +3.0%", fill: "#EF9F27", fontSize: 10, position: "right" }} />
               <ReferenceLine y={start * (1 + 0.04)} stroke="#1D9E75" strokeDasharray="3 3" label={{ value: "Profit lock +4.0%", fill: "#1D9E75", fontSize: 10, position: "right" }} />
               <Area type="monotone" dataKey="capital" stroke="#378ADD" strokeWidth={2} fill="url(#eq)" />
+              <Line type="monotone" dataKey="cap1" stroke="#1D9E75" strokeWidth={1} strokeDasharray="2 3" dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="cap3" stroke="#7AD9B4" strokeWidth={1} strokeDasharray="2 3" dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="cap6" stroke="#EF9F27" strokeWidth={1} strokeDasharray="2 3" dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="cap10" stroke="#E24B4A" strokeWidth={1} strokeDasharray="2 3" dot={false} isAnimationActive={false} />
               {breakerEvents.map((ev) => (
                 <ReferenceDot
                   key={ev.id}
@@ -306,6 +345,16 @@ function EquityCurve({ history }: { history: Trade[] }) {
           )}
         </ResponsiveContainer>
       </div>
+      {view === "capital" && (
+        <div className="flex flex-wrap items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><span className="w-3 h-0.5 bg-[#378ADD]" /> Capital real</span>
+          <span className="inline-flex items-center gap-1"><span className="w-3 border-t border-dashed border-[#1D9E75]" /> 1:1</span>
+          <span className="inline-flex items-center gap-1"><span className="w-3 border-t border-dashed border-[#7AD9B4]" /> 1:3</span>
+          <span className="inline-flex items-center gap-1"><span className="w-3 border-t border-dashed border-[#EF9F27]" /> 1:6</span>
+          <span className="inline-flex items-center gap-1"><span className="w-3 border-t border-dashed border-[#E24B4A]" /> 1:10</span>
+          <span className="ml-auto">Passe o mouse para ver os 4 cenários de alavancagem</span>
+        </div>
+      )}
     </section>
   );
 }
@@ -741,5 +790,183 @@ function HourHeatmap({ history }: { history: Trade[] }) {
         <span>· intensidade = volume</span>
       </div>
     </div>
+  );
+}
+
+// =========== LEVERAGE CROSSHAIR TOOLTIP ===========
+type CrosshairPayloadItem = { dataKey?: string; value?: number; payload?: Record<string, number | string> };
+function LeverageCrosshairTooltip({ active, payload, label }: { active?: boolean; payload?: CrosshairPayloadItem[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as Record<string, number> | undefined;
+  if (!row) return null;
+  const items: { key: string; label: string; color: string; v: number }[] = [
+    { key: "capital", label: "Capital real", color: "#378ADD", v: row.capital },
+    { key: "cap1", label: "1:1", color: "#1D9E75", v: row.cap1 },
+    { key: "cap3", label: "1:3", color: "#7AD9B4", v: row.cap3 },
+    { key: "cap6", label: "1:6", color: "#EF9F27", v: row.cap6 },
+    { key: "cap10", label: "1:10", color: "#E24B4A", v: row.cap10 },
+  ];
+  return (
+    <div className="rounded-md border border-border bg-[#0F1116] px-3 py-2 shadow-xl">
+      <div className="text-[10px] text-muted-foreground tabular-nums mb-1.5">{label}</div>
+      <div className="grid gap-1">
+        {items.map((it) => (
+          <div key={it.key} className="flex items-center gap-3 text-[11px]">
+            <span className="size-2 rounded-sm" style={{ background: it.color }} />
+            <span className="text-muted-foreground w-16">{it.label}</span>
+            <span className="ml-auto tabular-nums font-semibold text-foreground">${fmt(it.v ?? 0)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// =========== DAILY SUMMARY ACCORDION ===========
+function DailySummaryAccordion({ history }: { history: Trade[] }) {
+  const days = useMemo(() => {
+    const map = new Map<string, Trade[]>();
+    for (const t of history) {
+      const arr = map.get(t.day) ?? [];
+      arr.push(t);
+      map.set(t.day, arr);
+    }
+    return Array.from(map.entries())
+      .map(([day, trades]) => {
+        const wins = trades.filter((t) => t.result === "WIN").length;
+        const losses = trades.filter((t) => t.result === "LOSS").length;
+        const pnl = trades.reduce((a, t) => a + t.pnl, 0);
+        const wr = wins + losses ? (wins / (wins + losses)) * 100 : 0;
+        return { day, trades, wins, losses, pnl, wr };
+      })
+      .sort((a, b) => b.day.localeCompare(a.day));
+  }, [history]);
+
+  const [open, setOpen] = useState<Set<string>>(() => new Set(days[0] ? [days[0].day] : []));
+  const toggle = (d: string) => {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(d)) next.delete(d); else next.add(d);
+      return next;
+    });
+  };
+
+  if (!days.length) return null;
+
+  return (
+    <section className="rounded-lg border border-border bg-card">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <div>
+          <h3 className="text-[13px] font-semibold text-foreground">Resumo diário</h3>
+          <p className="text-[11px] text-muted-foreground">Expanda um dia para ver todos os trades</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setOpen(new Set(days.map((d) => d.day)))}
+            className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Expandir tudo
+          </button>
+          <span className="text-border">·</span>
+          <button
+            onClick={() => setOpen(new Set())}
+            className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Recolher
+          </button>
+        </div>
+      </div>
+      <div className="divide-y divide-border">
+        {days.map((d) => {
+          const isOpen = open.has(d.day);
+          const pnlColor = d.pnl >= 0 ? "#1D9E75" : "#E24B4A";
+          const wrColor = d.wr >= 60 ? "#1D9E75" : d.wr >= 45 ? "#EF9F27" : "#E24B4A";
+          return (
+            <div key={d.day}>
+              <button
+                onClick={() => toggle(d.day)}
+                className="w-full px-4 py-2.5 flex items-center gap-4 hover:bg-secondary/30 transition-colors text-left"
+              >
+                <motion.span
+                  animate={{ rotate: isOpen ? 0 : -90 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-muted-foreground"
+                >
+                  <ChevronDown className="size-4" />
+                </motion.span>
+                <span className="text-[12px] font-semibold tabular-nums text-foreground w-24">{d.day}</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {d.trades.length} trade{d.trades.length > 1 ? "s" : ""}
+                </span>
+                <span className="text-[11px] tabular-nums">
+                  <span className="text-[#1D9E75]">{d.wins}W</span>
+                  <span className="text-muted-foreground"> / </span>
+                  <span className="text-[#E24B4A]">{d.losses}L</span>
+                </span>
+                <span className="text-[11px] tabular-nums font-semibold" style={{ color: wrColor }}>
+                  WR {d.wr.toFixed(0)}%
+                </span>
+                <span className="ml-auto text-[12px] tabular-nums font-semibold" style={{ color: pnlColor }}>
+                  {d.pnl >= 0 ? "+" : ""}${fmt(d.pnl)}
+                </span>
+              </button>
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="overflow-hidden bg-background/40"
+                  >
+                    <div className="px-4 py-2 overflow-x-auto">
+                      <table className="w-full text-[11.5px]">
+                        <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          <tr>
+                            <th className="text-left font-medium px-2 py-1">Par</th>
+                            <th className="text-left font-medium px-2 py-1">Lado</th>
+                            <th className="text-left font-medium px-2 py-1">Entrada</th>
+                            <th className="text-left font-medium px-2 py-1">Result</th>
+                            <th className="text-right font-medium px-2 py-1">PnL</th>
+                            <th className="text-right font-medium px-2 py-1">PnL %</th>
+                            <th className="text-left font-medium px-2 py-1">Perfil</th>
+                            <th className="text-right font-medium px-2 py-1">Lev</th>
+                            <th className="text-left font-medium px-2 py-1">Motivo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {d.trades.map((t) => {
+                            const p = PROFILES[t.profile];
+                            const sideColor = t.side === "LONG" ? "#378ADD" : "#EF9F27";
+                            const tPnlColor = t.pnl >= 0 ? "#1D9E75" : t.pnl < 0 ? "#E24B4A" : "#888780";
+                            return (
+                              <tr key={t.id} className="border-t border-border/40">
+                                <td className="px-2 py-1.5 font-semibold">{t.pair}</td>
+                                <td className="px-2 py-1.5">
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: `color-mix(in oklab, ${sideColor} 22%, transparent)`, color: sideColor }}>{t.side}</span>
+                                </td>
+                                <td className="px-2 py-1.5 tabular-nums">{fmt(t.entry)}</td>
+                                <td className="px-2 py-1.5"><ResultBadge r={t.result} /></td>
+                                <td className="px-2 py-1.5 text-right tabular-nums font-semibold" style={{ color: tPnlColor }}>{t.pnl >= 0 ? "+" : ""}{fmt(t.pnl)}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: tPnlColor }}>{t.pnlPct >= 0 ? "+" : ""}{t.pnlPct.toFixed(2)}%</td>
+                                <td className="px-2 py-1.5">
+                                  <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full" style={{ background: p.color }} />{p.name}</span>
+                                </td>
+                                <td className="px-2 py-1.5 text-right tabular-nums">1:{t.leverage}</td>
+                                <td className="px-2 py-1.5 text-muted-foreground">{t.motivo}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
