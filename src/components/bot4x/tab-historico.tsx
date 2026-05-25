@@ -781,3 +781,181 @@ function HourHeatmap({ history }: { history: Trade[] }) {
     </div>
   );
 }
+
+// =========== LEVERAGE CROSSHAIR TOOLTIP ===========
+type CrosshairPayloadItem = { dataKey?: string; value?: number; payload?: Record<string, number | string> };
+function LeverageCrosshairTooltip({ active, payload, label }: { active?: boolean; payload?: CrosshairPayloadItem[]; label?: string }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as Record<string, number> | undefined;
+  if (!row) return null;
+  const items: { key: string; label: string; color: string; v: number }[] = [
+    { key: "capital", label: "Capital real", color: "#378ADD", v: row.capital },
+    { key: "cap1", label: "1:1", color: "#1D9E75", v: row.cap1 },
+    { key: "cap3", label: "1:3", color: "#7AD9B4", v: row.cap3 },
+    { key: "cap6", label: "1:6", color: "#EF9F27", v: row.cap6 },
+    { key: "cap10", label: "1:10", color: "#E24B4A", v: row.cap10 },
+  ];
+  return (
+    <div className="rounded-md border border-border bg-[#0F1116] px-3 py-2 shadow-xl">
+      <div className="text-[10px] text-muted-foreground tabular-nums mb-1.5">{label}</div>
+      <div className="grid gap-1">
+        {items.map((it) => (
+          <div key={it.key} className="flex items-center gap-3 text-[11px]">
+            <span className="size-2 rounded-sm" style={{ background: it.color }} />
+            <span className="text-muted-foreground w-16">{it.label}</span>
+            <span className="ml-auto tabular-nums font-semibold text-foreground">${fmt(it.v ?? 0)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// =========== DAILY SUMMARY ACCORDION ===========
+function DailySummaryAccordion({ history }: { history: Trade[] }) {
+  const days = useMemo(() => {
+    const map = new Map<string, Trade[]>();
+    for (const t of history) {
+      const arr = map.get(t.day) ?? [];
+      arr.push(t);
+      map.set(t.day, arr);
+    }
+    return Array.from(map.entries())
+      .map(([day, trades]) => {
+        const wins = trades.filter((t) => t.result === "WIN").length;
+        const losses = trades.filter((t) => t.result === "LOSS").length;
+        const pnl = trades.reduce((a, t) => a + t.pnl, 0);
+        const wr = wins + losses ? (wins / (wins + losses)) * 100 : 0;
+        return { day, trades, wins, losses, pnl, wr };
+      })
+      .sort((a, b) => b.day.localeCompare(a.day));
+  }, [history]);
+
+  const [open, setOpen] = useState<Set<string>>(() => new Set(days[0] ? [days[0].day] : []));
+  const toggle = (d: string) => {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(d)) next.delete(d); else next.add(d);
+      return next;
+    });
+  };
+
+  if (!days.length) return null;
+
+  return (
+    <section className="rounded-lg border border-border bg-card">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <div>
+          <h3 className="text-[13px] font-semibold text-foreground">Resumo diário</h3>
+          <p className="text-[11px] text-muted-foreground">Expanda um dia para ver todos os trades</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setOpen(new Set(days.map((d) => d.day)))}
+            className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Expandir tudo
+          </button>
+          <span className="text-border">·</span>
+          <button
+            onClick={() => setOpen(new Set())}
+            className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Recolher
+          </button>
+        </div>
+      </div>
+      <div className="divide-y divide-border">
+        {days.map((d) => {
+          const isOpen = open.has(d.day);
+          const pnlColor = d.pnl >= 0 ? "#1D9E75" : "#E24B4A";
+          const wrColor = d.wr >= 60 ? "#1D9E75" : d.wr >= 45 ? "#EF9F27" : "#E24B4A";
+          return (
+            <div key={d.day}>
+              <button
+                onClick={() => toggle(d.day)}
+                className="w-full px-4 py-2.5 flex items-center gap-4 hover:bg-secondary/30 transition-colors text-left"
+              >
+                <motion.span
+                  animate={{ rotate: isOpen ? 0 : -90 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-muted-foreground"
+                >
+                  <ChevronDown className="size-4" />
+                </motion.span>
+                <span className="text-[12px] font-semibold tabular-nums text-foreground w-24">{d.day}</span>
+                <span className="text-[11px] text-muted-foreground tabular-nums">
+                  {d.trades.length} trade{d.trades.length > 1 ? "s" : ""}
+                </span>
+                <span className="text-[11px] tabular-nums">
+                  <span className="text-[#1D9E75]">{d.wins}W</span>
+                  <span className="text-muted-foreground"> / </span>
+                  <span className="text-[#E24B4A]">{d.losses}L</span>
+                </span>
+                <span className="text-[11px] tabular-nums font-semibold" style={{ color: wrColor }}>
+                  WR {d.wr.toFixed(0)}%
+                </span>
+                <span className="ml-auto text-[12px] tabular-nums font-semibold" style={{ color: pnlColor }}>
+                  {d.pnl >= 0 ? "+" : ""}${fmt(d.pnl)}
+                </span>
+              </button>
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="overflow-hidden bg-background/40"
+                  >
+                    <div className="px-4 py-2 overflow-x-auto">
+                      <table className="w-full text-[11.5px]">
+                        <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          <tr>
+                            <th className="text-left font-medium px-2 py-1">Par</th>
+                            <th className="text-left font-medium px-2 py-1">Lado</th>
+                            <th className="text-left font-medium px-2 py-1">Entrada</th>
+                            <th className="text-left font-medium px-2 py-1">Result</th>
+                            <th className="text-right font-medium px-2 py-1">PnL</th>
+                            <th className="text-right font-medium px-2 py-1">PnL %</th>
+                            <th className="text-left font-medium px-2 py-1">Perfil</th>
+                            <th className="text-right font-medium px-2 py-1">Lev</th>
+                            <th className="text-left font-medium px-2 py-1">Motivo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {d.trades.map((t) => {
+                            const p = PROFILES[t.profile];
+                            const sideColor = t.side === "LONG" ? "#378ADD" : "#EF9F27";
+                            const tPnlColor = t.pnl >= 0 ? "#1D9E75" : t.pnl < 0 ? "#E24B4A" : "#888780";
+                            return (
+                              <tr key={t.id} className="border-t border-border/40">
+                                <td className="px-2 py-1.5 font-semibold">{t.pair}</td>
+                                <td className="px-2 py-1.5">
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: `color-mix(in oklab, ${sideColor} 22%, transparent)`, color: sideColor }}>{t.side}</span>
+                                </td>
+                                <td className="px-2 py-1.5 tabular-nums">{fmt(t.entry)}</td>
+                                <td className="px-2 py-1.5"><ResultBadge r={t.result} /></td>
+                                <td className="px-2 py-1.5 text-right tabular-nums font-semibold" style={{ color: tPnlColor }}>{t.pnl >= 0 ? "+" : ""}{fmt(t.pnl)}</td>
+                                <td className="px-2 py-1.5 text-right tabular-nums" style={{ color: tPnlColor }}>{t.pnlPct >= 0 ? "+" : ""}{t.pnlPct.toFixed(2)}%</td>
+                                <td className="px-2 py-1.5">
+                                  <span className="inline-flex items-center gap-1.5"><span className="size-1.5 rounded-full" style={{ background: p.color }} />{p.name}</span>
+                                </td>
+                                <td className="px-2 py-1.5 text-right tabular-nums">1:{t.leverage}</td>
+                                <td className="px-2 py-1.5 text-muted-foreground">{t.motivo}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
