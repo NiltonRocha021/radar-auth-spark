@@ -14,6 +14,7 @@ const exchanges = ["Binance", "Bybit", "OKX", "Coinbase"];
 
 export function FilterBar() {
   const { filters, view, sort, live, streamOpen, setView, setSort, setLive, setFilter, toggleAdv, toggleStream, toggleExchange } = useSignalsStore();
+  const bot4xOnly = filters.bot4xOnly;
 
   return (
     <div className="sticky top-12 z-30 bg-background/95 backdrop-blur border-b border-border">
