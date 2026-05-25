@@ -1,4 +1,4 @@
-import { Search, LayoutGrid, Table as TableIcon, Radar, SlidersHorizontal, ChevronDown, Play, Pause, Rss } from "lucide-react";
+import { Search, LayoutGrid, Table as TableIcon, Radar, SlidersHorizontal, ChevronDown, Play, Pause, Rss, Cpu } from "lucide-react";
 import { useSignalsStore } from "@/lib/signals-store";
 
 const assetClasses = ["All", "Crypto", "Forex", "Indices", "Stocks"] as const;
