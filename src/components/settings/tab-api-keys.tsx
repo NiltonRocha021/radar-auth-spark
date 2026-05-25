@@ -15,7 +15,13 @@ const PERMS = ["read:signals", "read:bot4x", "write:webhooks", "manage:account"]
 const EVENTS = ["signal.created", "bot4x.trade", "alert.fired", "billing.invoice"];
 
 function makeKey() {
-  return "aisr_live_" + Array.from({ length: 32 }, () => Math.random().toString(36)[2] || "0").join("");
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return "aisr_live_" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function makeWebhookSecret() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return "whsec_" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function UsageSparkline({ seed }: { seed: string }) {
@@ -55,7 +61,7 @@ export function SettingsApiKeys() {
   const [revealed, setRevealed] = useState("");
 
   const [webhookUrl, setWebhookUrl] = useState("");
-  const [webhookSecret] = useState("whsec_" + Math.random().toString(36).slice(2, 14));
+  const [webhookSecret] = useState(() => makeWebhookSecret());
   const [webhookEvents, setWebhookEvents] = useState<string[]>(["signal.created"]);
   const [deliveries, setDeliveries] = useState<{ ts: string; status: number; event: string }[]>([]);
 
