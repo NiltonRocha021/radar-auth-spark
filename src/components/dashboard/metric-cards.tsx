@@ -6,15 +6,17 @@ import { useCountUp } from "@/lib/use-count-up";
 export function MetricCards() {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card
-        index={0}
-        icon={<Activity className="size-4" />}
-        iconColor="#378ADD"
-        label="Active Signals"
-        countTo={24}
-        trend={{ text: "+8 vs yesterday", color: "#1D9E75" }}
-        sub="7 high score (≥80)"
-      />
+      <div data-tour="metric-signals">
+        <Card
+          index={0}
+          icon={<Activity className="size-4" />}
+          iconColor="#378ADD"
+          label="Active Signals"
+          countTo={24}
+          trend={{ text: "+8 vs yesterday", color: "#1D9E75" }}
+          sub="7 high score (≥80)"
+        />
+      </div>
       <Card
         index={1}
         icon={<Trophy className="size-4" />}

@@ -20,7 +20,7 @@ export function AssetHeatmap() {
   }, []);
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 h-full">
+    <div data-tour="heatmap" className="rounded-xl border border-border bg-card p-4 h-full">
       <div className="flex items-baseline justify-between mb-3">
         <h3 className="text-[15px] font-medium text-foreground">Asset Heatmap</h3>
         <span className="text-[11px] text-muted-foreground">24h change</span>

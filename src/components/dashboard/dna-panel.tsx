@@ -10,6 +10,7 @@ const colorMap: Record<string, { bg: string; fg: string; dot: string }> = {
 export function DnaPanel() {
   return (
     <div
+      data-tour="dna-panel"
       className="rounded-xl border bg-card p-5 relative overflow-hidden"
       style={{ borderColor: "color-mix(in oklab, #378ADD 35%, var(--border))" }}
     >
