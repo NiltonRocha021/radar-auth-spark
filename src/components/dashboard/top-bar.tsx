@@ -54,7 +54,7 @@ export function TopBar() {
         <span className="text-[14px] md:text-[16px] font-medium text-foreground truncate">{greeting}, {name}</span>
       </div>
 
-      <div className="hidden xl:flex items-center gap-4 mx-auto text-[13px] tabular-nums">
+      <div data-tour="top-bar-prices" className="hidden xl:flex items-center gap-4 mx-auto text-[13px] tabular-nums">
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
           <span className="size-1.5 rounded-full bg-[#1D9E75] animate-pulse" />
           <span className="text-foreground">Markets Open</span>

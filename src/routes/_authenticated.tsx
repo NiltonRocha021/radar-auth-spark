@@ -6,6 +6,7 @@ import { Bot4xFloatingWidget } from "@/components/bot4x/floating-widget";
 import { Bot4xCompactPill } from "@/components/global/bot4x-compact-pill";
 import { Bot4xGlobalNotifier } from "@/components/global/bot4x-notifier";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
+import { TourController } from "@/components/tour/tour-controller";
 import { useBot4xStore } from "@/lib/bot4x-store";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -55,6 +56,7 @@ function AuthGate() {
       <Bot4xCompactPill />
       <MobileBottomNav />
       <Bot4xGlobalNotifier />
+      <TourController />
     </>
   );
 }

@@ -19,7 +19,7 @@ export function FearGreedGauge() {
   const ny = cy - r * Math.sin(rad);
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 h-full flex flex-col">
+    <div data-tour="fear-greed" className="rounded-xl border border-border bg-card p-4 h-full flex flex-col">
       <div className="flex items-baseline justify-between">
         <h3 className="text-[15px] font-medium text-foreground">Fear &amp; Greed Index</h3>
         <span className="text-[11px] text-muted-foreground">Updated 5min ago</span>

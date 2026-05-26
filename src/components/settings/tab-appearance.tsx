@@ -4,8 +4,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { Moon, Sun, Monitor, Cpu } from "lucide-react";
+import { Moon, Sun, Monitor, Cpu, RotateCcw, Check } from "lucide-react";
 import { useBot4xPrefs } from "@/lib/bot4x-prefs-store";
+import { useTourStore } from "@/lib/tour-store";
+import { TOURS } from "@/lib/tour-content";
 
 const THEMES = [
   { id: "dark", label: "Dark", icon: Moon, bg: "bg-zinc-900", fg: "bg-zinc-700" },
@@ -196,6 +198,107 @@ export function SettingsAppearance() {
           <Switch checked={compactPill} onCheckedChange={setCompactPill} />
         </div>
       </SectionCard>
+
+      <TourSection />
     </>
+  );
+}
+
+function TourSection() {
+  const completed = useTourStore((s) => s.completedTours);
+  const resetTour = useTourStore((s) => s.resetTour);
+  const resetAll = useTourStore((s) => s.resetAll);
+  const startTour = useTourStore((s) => s.startTour);
+  const setSkipAll = useTourStore((s) => s.setSkipAll);
+  const skipAll = useTourStore((s) => s.skipAll);
+
+  return (
+    <SectionCard
+      title="Tutoriais e Tour"
+      description="Reveja o tour guiado de qualquer página a qualquer momento."
+    >
+      <div className="space-y-2">
+        {TOURS.map((t) => {
+          const done = completed.includes(t.id);
+          return (
+            <div
+              key={t.id}
+              className="flex items-center justify-between gap-3 rounded-lg border border-border bg-card/40 px-3 py-2"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[13px] text-foreground truncate">{t.label}</span>
+                {done ? (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#1D9E75]/15 text-[#1D9E75] border border-[#1D9E75]/30 inline-flex items-center gap-1">
+                    <Check className="size-2.5" /> Concluído
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 rounded text-[10px] text-muted-foreground border border-border">
+                    Não iniciado
+                  </span>
+                )}
+                {t.steps.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground">{t.steps.length} passos</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {done && (
+                  <button
+                    onClick={() => resetTour(t.id)}
+                    className="px-2 h-7 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary inline-flex items-center gap-1"
+                    title="Marcar como não concluído"
+                  >
+                    <RotateCcw className="size-3" /> Resetar
+                  </button>
+                )}
+                {!t.manualOnly && t.route ? (
+                  <a
+                    href={t.route}
+                    onClick={(e) => {
+                      if (window.location.pathname === t.route) {
+                        e.preventDefault();
+                        resetTour(t.id);
+                        startTour(t.id);
+                      }
+                    }}
+                    className="px-2.5 h-7 rounded-md text-[11px] bg-[var(--brand-blue-deep)] hover:bg-[var(--brand-blue)] text-foreground inline-flex items-center"
+                  >
+                    Iniciar tour →
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => { resetTour(t.id); startTour(t.id); }}
+                    className="px-2.5 h-7 rounded-md text-[11px] bg-[var(--brand-blue-deep)] hover:bg-[var(--brand-blue)] text-foreground"
+                  >
+                    Reiniciar
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="flex items-center justify-between pt-3 mt-2 border-t border-border">
+          <p className="text-[11px] text-muted-foreground">
+            O tour não interfere com suas operações — pode ser pausado a qualquer momento.
+          </p>
+          <div className="flex items-center gap-2">
+            {skipAll && (
+              <button
+                onClick={() => setSkipAll(false)}
+                className="px-2.5 h-7 rounded-md text-[11px] border border-border hover:bg-secondary"
+              >
+                Reativar tours
+              </button>
+            )}
+            <button
+              onClick={resetAll}
+              className="px-2.5 h-7 rounded-md text-[11px] border border-[#E24B4A]/40 text-[#E24B4A] hover:bg-[#E24B4A]/10"
+            >
+              Reiniciar todos
+            </button>
+          </div>
+        </div>
+      </div>
+    </SectionCard>
   );
 }
