@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X, Shield, ShieldAlert, Zap } from "lucide-react";
 import { useBot4xStore, selectActiveCapital, selectSlotSize } from "@/lib/bot4x-store";
 import { leverageRisk, slTpFromLeverage, fmt } from "@/lib/bot4x-data";
+import { useLivePrices } from "@/hooks/useLivePrices";
 
 const IS_DEV = import.meta.env.DEV;
 
@@ -156,6 +157,10 @@ function CapitalConfig() {
   const setTotal = useBot4xStore((s) => s.setTotalCapital);
   const active = useBot4xStore(selectActiveCapital);
   const slot = useBot4xStore(selectSlotSize);
+  const { prices } = useLivePrices();
+  const btcPrice = prices.BTC?.price ?? 0;
+  const btcEq = btcPrice > 0 ? total / btcPrice : 0;
+
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Capital total disponível</div>
@@ -172,6 +177,12 @@ function CapitalConfig() {
         activeCapital = <span className="text-foreground font-semibold">{fmt(active)} USDT</span>
         {" · "}Slot size: <span className="text-foreground font-semibold">{fmt(slot)} USDT</span> (÷3)
       </div>
+      {btcPrice > 0 && (
+        <div className="mt-2 text-[11px] text-muted-foreground tabular-nums">
+          BTC @ <span className="text-foreground font-medium">${fmt(btcPrice)}</span>
+          {" → "}Equivalente: <span className="text-foreground font-medium">{btcEq.toFixed(4)} BTC</span>
+        </div>
+      )}
     </section>
   );
 }

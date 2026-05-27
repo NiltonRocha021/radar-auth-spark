@@ -5,11 +5,12 @@ import { type Signal, formatPrice, formatAge } from "@/lib/signals-data";
 import { useSignalsStore } from "@/lib/signals-store";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { bot4xEligibility, ELIGIBILITY_META } from "@/lib/bot4x-eligibility";
+import { useLivePrices } from "@/hooks/useLivePrices";
 
 const PAGE = 20;
 
 type ColKey =
-  | "select" | "num" | "asset" | "dir" | "score" | "entry" | "stop" | "target"
+  | "select" | "num" | "asset" | "price" | "dir" | "score" | "entry" | "stop" | "target"
   | "rr" | "risk" | "tf" | "exchange" | "setup" | "confirms" | "dna" | "manip" | "bot4x" | "age" | "actions";
 
 type ColDef = {
@@ -31,6 +32,7 @@ const COLUMNS: Record<ColKey, ColDef> = {
   },
   num: { key: "num", label: "#", render: (_s, { idx }) => <span className="text-muted-foreground tabular-nums">{idx + 1}</span> },
   asset: { key: "asset", label: "Asset", render: (s) => <span className="font-semibold text-foreground">{s.asset}</span> },
+  price: { key: "price", label: "Price", render: (s) => <LivePriceCell asset={s.asset} /> },
   dir: {
     key: "dir", label: "Dir",
     render: (s) => {
@@ -76,6 +78,18 @@ function ViewLink({ id }: { id: string }) {
   );
 }
 
+function LivePriceCell({ asset }: { asset: string }) {
+  const { prices } = useLivePrices();
+  const base = asset.split("/")[0];
+  const price = prices[base]?.price;
+  if (!price) return <span className="text-muted-foreground tabular-nums">—</span>;
+  return (
+    <span className="tabular-nums text-foreground">
+      ${price.toLocaleString(undefined, { maximumFractionDigits: price > 100 ? 1 : 3 })}
+    </span>
+  );
+}
+
 function Bot4xCell({ signal }: { signal: Signal }) {
   const mode = useBot4xStore((s) => s.mode);
   const profile = useBot4xStore((s) => s.profile);
@@ -92,7 +106,7 @@ function Bot4xCell({ signal }: { signal: Signal }) {
   );
 }
 
-const DEFAULT_ORDER: ColKey[] = ["select", "num", "asset", "dir", "score", "entry", "stop", "target", "rr", "risk", "tf", "exchange", "setup", "confirms", "dna", "manip", "bot4x", "age", "actions"];
+const DEFAULT_ORDER: ColKey[] = ["select", "num", "asset", "price", "dir", "score", "entry", "stop", "target", "rr", "risk", "tf", "exchange", "setup", "confirms", "dna", "manip", "bot4x", "age", "actions"];
 const STORAGE_KEY = "signals.table.cols.v1";
 
 type ColState = { order: ColKey[]; hidden: ColKey[]; pinned: ColKey[] };
@@ -105,7 +119,6 @@ function loadColState(): ColState {
     const p = JSON.parse(raw);
     const valid = (k: string): k is ColKey => k in COLUMNS;
     const order = (Array.isArray(p.order) ? p.order : DEFAULT_ORDER).filter(valid) as ColKey[];
-    // ensure missing ones get appended (e.g., new columns added later)
     for (const k of DEFAULT_ORDER) if (!order.includes(k)) order.push(k);
     return {
       order,
@@ -147,7 +160,6 @@ export function TableView({ signals }: { signals: Signal[] }) {
     const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n;
   });
 
-  // Build visible column list: pinned first (in pin order), then rest in order, skipping hidden
   const visibleKeys: ColKey[] = (() => {
     const hidden = new Set(cols.hidden);
     const pinned = cols.pinned.filter((k) => !hidden.has(k));

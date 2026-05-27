@@ -1,7 +1,13 @@
 import { Area, AreaChart, ResponsiveContainer, YAxis, Tooltip } from "recharts";
 import { btcDomSeries } from "@/lib/dashboard-data";
+import { useLivePrices } from "@/hooks/useLivePrices";
 
 export function BtcDominance() {
+  const { global } = useLivePrices();
+  const dom = global?.btcDominance ?? 52.4;
+  const change = dom - 52.4; // reference baseline for display
+  const up = change >= 0;
+
   return (
     <div className="rounded-xl border border-border bg-card p-4 h-full flex flex-col">
       <div className="flex items-baseline justify-between">
@@ -10,8 +16,10 @@ export function BtcDominance() {
           <p className="text-[11px] text-muted-foreground">Last 30 days</p>
         </div>
         <div className="text-right">
-          <div className="text-[22px] font-semibold tabular-nums text-foreground">52.4%</div>
-          <div className="text-[11px] font-medium" style={{ color: "#1D9E75" }}>↑ +1.2% this week</div>
+          <div className="text-[22px] font-semibold tabular-nums text-foreground">{dom.toFixed(1)}%</div>
+          <div className="text-[11px] font-medium" style={{ color: up ? "#1D9E75" : "#E24B4A" }}>
+            {up ? "↑" : "↓"} {Math.abs(change).toFixed(1)}% this week
+          </div>
         </div>
       </div>
       <div className="flex-1 min-h-[180px] mt-2 -mx-2">
