@@ -5,11 +5,12 @@ import { type Signal, formatPrice, formatAge } from "@/lib/signals-data";
 import { useSignalsStore } from "@/lib/signals-store";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { bot4xEligibility, ELIGIBILITY_META } from "@/lib/bot4x-eligibility";
+import { useLivePrices } from "@/hooks/useLivePrices";
 
 const PAGE = 20;
 
 type ColKey =
-  | "select" | "num" | "asset" | "dir" | "score" | "entry" | "stop" | "target"
+  | "select" | "num" | "asset" | "price" | "dir" | "score" | "entry" | "stop" | "target"
   | "rr" | "risk" | "tf" | "exchange" | "setup" | "confirms" | "dna" | "manip" | "bot4x" | "age" | "actions";
 
 type ColDef = {
@@ -92,7 +93,7 @@ function Bot4xCell({ signal }: { signal: Signal }) {
   );
 }
 
-const DEFAULT_ORDER: ColKey[] = ["select", "num", "asset", "dir", "score", "entry", "stop", "target", "rr", "risk", "tf", "exchange", "setup", "confirms", "dna", "manip", "bot4x", "age", "actions"];
+const DEFAULT_ORDER: ColKey[] = ["select", "num", "asset", "price", "dir", "score", "entry", "stop", "target", "rr", "risk", "tf", "exchange", "setup", "confirms", "dna", "manip", "bot4x", "age", "actions"];
 const STORAGE_KEY = "signals.table.cols.v1";
 
 type ColState = { order: ColKey[]; hidden: ColKey[]; pinned: ColKey[] };
