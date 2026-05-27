@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { useNotificationsStore, type NotifType } from "@/lib/notifications-store";
+import { useLivePrices } from "@/hooks/useLivePrices";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useRef, useEffect } from "react";
 

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { useDashboardStore } from "@/lib/dashboard-store";
-import { type HeatmapAsset } from "@/lib/dashboard-data";
+import { useLivePrices } from "@/hooks/useLivePrices";
 
 function colorFor(change: number) {
   if (change > 3) return "#0E5F44";
@@ -11,13 +10,21 @@ function colorFor(change: number) {
 }
 
 export function AssetHeatmap() {
-  const heatmap = useDashboardStore((s) => s.heatmap);
+  const { prices } = useLivePrices();
   const [pulseTick, setPulseTick] = useState(0);
 
   useEffect(() => {
     const id = setInterval(() => setPulseTick((t) => t + 1), 8000);
     return () => clearInterval(id);
   }, []);
+
+  const assets = Object.values(prices).map((p) => ({
+    symbol: p.symbol,
+    name: p.name,
+    price: p.price,
+    change: p.change24h ?? 0,
+    volume: p.volume24h ?? 0,
+  }));
 
   return (
     <div data-tour="heatmap" className="rounded-xl border border-border bg-card p-4 h-full">
@@ -26,7 +33,7 @@ export function AssetHeatmap() {
         <span className="text-[11px] text-muted-foreground">24h change</span>
       </div>
       <div className="grid grid-cols-4 gap-2">
-        {heatmap.map((a, i) => (
+        {assets.map((a, i) => (
           <Cell key={a.symbol} asset={a} pulseTick={pulseTick} index={i} />
         ))}
       </div>
@@ -34,7 +41,7 @@ export function AssetHeatmap() {
   );
 }
 
-function Cell({ asset, pulseTick, index }: { asset: HeatmapAsset; pulseTick: number; index: number }) {
+function Cell({ asset, pulseTick, index }: { asset: { symbol: string; name: string; price: number; change: number; volume: number }; pulseTick: number; index: number }) {
   const bg = colorFor(asset.change);
   const up = asset.change >= 0;
   const [bright, setBright] = useState(false);
@@ -49,6 +56,12 @@ function Cell({ asset, pulseTick, index }: { asset: HeatmapAsset; pulseTick: num
       clearTimeout(offT);
     };
   }, [pulseTick, index]);
+
+  const volFormatted = asset.volume >= 1e9
+    ? `$${(asset.volume / 1e9).toFixed(1)}B`
+    : asset.volume >= 1e6
+      ? `$${(asset.volume / 1e6).toFixed(1)}M`
+      : `$${asset.volume.toLocaleString()}`;
 
   return (
     <div
@@ -66,7 +79,7 @@ function Cell({ asset, pulseTick, index }: { asset: HeatmapAsset; pulseTick: num
       <div className="absolute z-20 hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg border border-border bg-card p-2.5 shadow-xl text-left">
         <div className="text-[12px] font-medium text-foreground">{asset.name}</div>
         <div className="text-[11px] text-muted-foreground">Price <span className="text-foreground tabular-nums">${asset.price.toLocaleString(undefined, { maximumFractionDigits: asset.price > 100 ? 1 : 3 })}</span></div>
-        <div className="text-[11px] text-muted-foreground">24h Vol <span className="text-foreground">{asset.volume}</span></div>
+        <div className="text-[11px] text-muted-foreground">24h Vol <span className="text-foreground">{volFormatted}</span></div>
       </div>
     </div>
   );

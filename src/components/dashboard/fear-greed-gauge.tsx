@@ -1,7 +1,7 @@
 import { fearGreed7d } from "@/lib/dashboard-data";
 import { LineChart, Line, ResponsiveContainer } from "recharts";
+import { useLivePrices } from "@/hooks/useLivePrices";
 
-const VALUE = 68;
 const zones = [
   { label: "Extreme Fear", color: "#E24B4A", from: 0, to: 20 },
   { label: "Fear", color: "#EF9F27", from: 20, to: 40 },
@@ -11,6 +11,10 @@ const zones = [
 ];
 
 export function FearGreedGauge() {
+  const { fearGreed, loading } = useLivePrices();
+  const VALUE = fearGreed?.value ?? 68;
+  const LABEL = fearGreed?.label ?? "Greed";
+
   // semicircle 180° → angle = (value/100)*180 from the left
   const angle = (VALUE / 100) * 180;
   const rad = ((180 - angle) * Math.PI) / 180;
@@ -18,11 +22,13 @@ export function FearGreedGauge() {
   const nx = cx + r * Math.cos(rad);
   const ny = cy - r * Math.sin(rad);
 
+  const zoneColor = zones.find((z) => VALUE >= z.from && VALUE < z.to)?.color ?? "#1D9E75";
+
   return (
     <div data-tour="fear-greed" className="rounded-xl border border-border bg-card p-4 h-full flex flex-col">
       <div className="flex items-baseline justify-between">
         <h3 className="text-[15px] font-medium text-foreground">Fear &amp; Greed Index</h3>
-        <span className="text-[11px] text-muted-foreground">Updated 5min ago</span>
+        <span className="text-[11px] text-muted-foreground">{loading ? "Loading…" : "Updated live"}</span>
       </div>
       <div className="relative flex-1 flex items-center justify-center mt-2">
         <svg viewBox="0 0 220 130" className="w-full max-w-[260px]">
@@ -36,8 +42,8 @@ export function FearGreedGauge() {
           <circle cx={cx} cy={cy} r="6" fill="#0A0B0E" stroke="#E6F1FB" strokeWidth="2" />
         </svg>
         <div className="absolute bottom-2 flex flex-col items-center">
-          <div className="text-[32px] font-semibold leading-none" style={{ color: "#1D9E75" }}>{VALUE}</div>
-          <div className="text-[12px] text-muted-foreground mt-0.5">Greed</div>
+          <div className="text-[32px] font-semibold leading-none" style={{ color: zoneColor }}>{VALUE}</div>
+          <div className="text-[12px] text-muted-foreground mt-0.5">{LABEL}</div>
         </div>
       </div>
       <div className="mt-3">
