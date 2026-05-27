@@ -2,8 +2,17 @@ import { Activity, Trophy, TrendingUp, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
 import { ScoreBadge } from "./score-badge";
 import { useCountUp } from "@/lib/use-count-up";
+import { useLivePrices } from "@/hooks/useLivePrices";
 
 export function MetricCards() {
+  const { prices, global } = useLivePrices();
+
+  const trendingUp = Object.values(prices).filter((p) => (p.change24h ?? 0) > 0).length;
+  const totalTracked = Object.keys(prices).length || 20;
+  const marketTrend = global?.marketCapChange24h ?? 0;
+  const trendLabel = marketTrend >= 1 ? "Bullish" : marketTrend <= -1 ? "Bearish" : "Neutral";
+  const trendColor = marketTrend >= 1 ? "#1D9E75" : marketTrend <= -1 ? "#E24B4A" : "#888780";
+
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div data-tour="metric-signals">
@@ -29,11 +38,11 @@ export function MetricCards() {
       <Card
         index={2}
         icon={<TrendingUp className="size-4" />}
-        iconColor="#1D9E75"
+        iconColor={trendColor}
         label="Market Trend"
-        value="Bullish"
-        valueColor="#1D9E75"
-        sub="14 of 20 assets trending up"
+        value={trendLabel}
+        valueColor={trendColor}
+        sub={`${trendingUp} of ${totalTracked} assets trending up`}
       />
       <Card
         index={3}

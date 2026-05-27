@@ -26,10 +26,11 @@ const NOTIF_META: Record<NotifType, { icon: typeof Cpu; color: string }> = {
 
 export function TopBar() {
   const { user } = useAuth();
-  const prices = useDashboardStore((s) => s.prices);
   const setCmdkOpen = useDashboardStore((s) => s.setCmdkOpen);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const { prices, global, fearGreed, loading } = useLivePrices();
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -45,8 +46,11 @@ export function TopBar() {
     ?? user?.email?.split("@")[0]
     ?? "Trader";
 
-  const btc = prices.BTC ?? { price: 43240, change: 1.8 };
-  const eth = prices.ETH ?? { price: 2251, change: -0.4 };
+  const btc = prices.BTC ?? { price: 43240, change24h: 1.8 };
+  const eth = prices.ETH ?? { price: 2251, change24h: -0.4 };
+  const btcDom = global?.btcDominance ?? 52.4;
+  const fgValue = fearGreed?.value ?? 68;
+  const fgLabel = fearGreed?.label ?? "Greed";
 
   return (
     <header className="h-12 sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur flex items-center px-4 gap-3 md:gap-6">
@@ -57,18 +61,18 @@ export function TopBar() {
 
       <div data-tour="top-bar-prices" className="hidden xl:flex items-center gap-4 mx-auto text-[13px] tabular-nums">
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
-          <span className="size-1.5 rounded-full bg-[#1D9E75] animate-pulse" />
-          <span className="text-foreground">Markets Open</span>
+          <span className={`size-1.5 rounded-full animate-pulse ${loading ? "bg-[#EF9F27]" : "bg-[#1D9E75]"}`} />
+          <span className="text-foreground">{loading ? "Syncing…" : "Markets Open"}</span>
         </span>
-        <Ticker symbol="BTC" price={btc.price} change={btc.change} />
-        <Ticker symbol="ETH" price={eth.price} change={eth.change} />
-        <span className="text-muted-foreground">BTC Dom <span className="text-foreground">52.4%</span></span>
+        <Ticker symbol="BTC" price={btc.price} change={btc.change24h ?? 1.8} />
+        <Ticker symbol="ETH" price={eth.price} change={eth.change24h ?? -0.4} />
+        <span className="text-muted-foreground">BTC Dom <span className="text-foreground">{btcDom.toFixed(1)}%</span></span>
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
         <span className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium"
           style={{ background: "color-mix(in oklab, #1D9E75 18%, transparent)", color: "#1D9E75", border: "1px solid color-mix(in oklab, #1D9E75 35%, transparent)" }}>
-          68 · Greed
+          {fgValue} · {fgLabel}
         </span>
 
         <Bot4xPill />
