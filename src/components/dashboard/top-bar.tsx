@@ -1,4 +1,4 @@
-import { Bell, Search, ChevronDown, LogOut, Settings, User, Cpu, Activity, ShieldAlert, Sparkles, TrendingUp } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, Settings, User, Cpu, Activity, ShieldAlert, Sparkles, TrendingUp, Clock, AlertTriangle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,13 +24,53 @@ const NOTIF_META: Record<NotifType, { icon: typeof Cpu; color: string }> = {
   INFO: { icon: Sparkles, color: "#7F77DD" },
 };
 
+/* ── Price flash animation ── */
+function usePriceFlash(price: number) {
+  const [flash, setFlash] = useState<"up" | "down" | null>(null);
+  const prev = useRef(price);
+
+  useEffect(() => {
+    if (prev.current !== price && prev.current !== 0) {
+      setFlash(price > prev.current ? "up" : "down");
+      const t = setTimeout(() => setFlash(null), 400);
+      prev.current = price;
+      return () => clearTimeout(t);
+    }
+    prev.current = price;
+  }, [price]);
+
+  return flash;
+}
+
+function fmtPrice(p: number) {
+  if (p >= 1000) return "$" + p.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (p >= 1) return "$" + p.toFixed(4);
+  return "$" + p.toFixed(6);
+}
+
+/* ── Skeleton ── */
+function SkeletonBar({ className }: { className?: string }) {
+  return (
+    <span className={`inline-block rounded-md bg-secondary animate-pulse ${className ?? ""}`} />
+  );
+}
+
 export function TopBar() {
   const { user } = useAuth();
   const setCmdkOpen = useDashboardStore((s) => s.setCmdkOpen);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const { prices, global, fearGreed, loading } = useLivePrices();
+  const { prices, global, fearGreed, loading, error, lastUpdate } = useLivePrices();
+
+  /* UTC clock */
+  const [utcTime, setUtcTime] = useState("");
+  useEffect(() => {
+    const tick = () => setUtcTime(new Date().toUTCString().slice(17, 22) + " UTC");
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -46,34 +86,127 @@ export function TopBar() {
     ?? user?.email?.split("@")[0]
     ?? "Trader";
 
-  const btc = prices.BTC ?? { price: 43240, change24h: 1.8 };
-  const eth = prices.ETH ?? { price: 2251, change24h: -0.4 };
-  const btcDom = global?.btcDominance ?? 52.4;
-  const fgValue = fearGreed?.value ?? 68;
-  const fgLabel = fearGreed?.label ?? "Greed";
+  const btc = prices.BTC;
+  const eth = prices.ETH;
+  const btcDom = global?.btcDominance;
+  const fg = fearGreed;
+
+  /* Fear & Greed color */
+  const fgColor = !fg
+    ? "#888780"
+    : fg.value >= 75
+      ? "#E24B4A"
+      : fg.value >= 55
+        ? "#EF9F27"
+        : fg.value >= 45
+          ? "#888780"
+          : fg.value >= 25
+            ? "#378ADD"
+            : "#185FA5";
+
+  /* Live dot color */
+  const isLive = !loading && !error;
 
   return (
     <header className="h-12 sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur flex items-center px-4 gap-3 md:gap-6">
+      {/* Left: greeting */}
       <div className="flex items-baseline gap-2 min-w-0">
         <span className="hidden sm:inline text-[14px] text-muted-foreground">Dashboard</span>
         <span className="text-[14px] md:text-[16px] font-medium text-foreground truncate">{greeting}, {name}</span>
       </div>
 
+      {/* Center: live prices */}
       <div data-tour="top-bar-prices" className="hidden xl:flex items-center gap-4 mx-auto text-[13px] tabular-nums">
+        {/* Market status */}
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
-          <span className={`size-1.5 rounded-full animate-pulse ${loading ? "bg-[#EF9F27]" : "bg-[#1D9E75]"}`} />
+          <span className={`size-1.5 rounded-full animate-pulse ${isLive ? "bg-[#1D9E75]" : "bg-[#EF9F27]"}`} />
           <span className="text-foreground">{loading ? "Syncing…" : "Markets Open"}</span>
         </span>
-        <Ticker symbol="BTC" price={btc.price} change={btc.change24h ?? 1.8} />
-        <Ticker symbol="ETH" price={eth.price} change={eth.change24h ?? -0.4} />
-        <span className="text-muted-foreground">BTC Dom <span className="text-foreground">{btcDom.toFixed(1)}%</span></span>
+
+        {/* BTC */}
+        {loading ? (
+          <span className="flex items-center gap-1.5">
+            <SkeletonBar className="w-8 h-4" />
+            <SkeletonBar className="w-16 h-4" />
+            <SkeletonBar className="w-10 h-4" />
+          </span>
+        ) : (
+          btc && <PriceItem symbol="BTC" price={btc.price} change24h={btc.change24h} />
+        )}
+
+        {/* ETH */}
+        {loading ? (
+          <span className="flex items-center gap-1.5">
+            <SkeletonBar className="w-8 h-4" />
+            <SkeletonBar className="w-16 h-4" />
+            <SkeletonBar className="w-10 h-4" />
+          </span>
+        ) : (
+          eth && <PriceItem symbol="ETH" price={eth.price} change24h={eth.change24h} />
+        )}
+
+        {/* BTC Dominance */}
+        {loading ? (
+          <SkeletonBar className="w-24 h-4" />
+        ) : (
+          btcDom !== undefined && (
+            <span className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">BTC.D</span>
+              <span className="text-foreground">{btcDom.toFixed(1)}%</span>
+            </span>
+          )
+        )}
       </div>
 
+      {/* Right */}
       <div className="flex items-center gap-2 ml-auto">
-        <span className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium"
-          style={{ background: "color-mix(in oklab, #1D9E75 18%, transparent)", color: "#1D9E75", border: "1px solid color-mix(in oklab, #1D9E75 35%, transparent)" }}>
-          {fgValue} · {fgLabel}
+        {/* Error badge */}
+        {error && (
+          <span
+            className="hidden md:flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium"
+            style={{
+              background: "color-mix(in oklab, #EF9F27 18%, transparent)",
+              color: "#EF9F27",
+              border: "1px solid color-mix(in oklab, #EF9F27 35%, transparent)",
+            }}
+            title={error}
+          >
+            <AlertTriangle className="size-3" />
+            API error
+          </span>
+        )}
+
+        {/* Fear & Greed */}
+        {loading ? (
+          <SkeletonBar className="hidden md:inline-block w-20 h-6" />
+        ) : (
+          fg && (
+            <span
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[12px] font-medium"
+              style={{
+                background: `color-mix(in oklab, ${fgColor} 18%, transparent)`,
+                color: fgColor,
+                border: `1px solid color-mix(in oklab, ${fgColor} 35%, transparent)`,
+              }}
+            >
+              <span className="tabular-nums">{fg.value}</span>
+              <span>·</span>
+              <span>{fg.label}</span>
+            </span>
+          )
+        )}
+
+        {/* UTC + Live */}
+        <span className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <Clock className="size-3" />
+          <span className="tabular-nums">{utcTime}</span>
         </span>
+        {lastUpdate && (
+          <span className="hidden lg:flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="size-1.5 rounded-full bg-[#1D9E75] animate-pulse" />
+            <span>Live</span>
+          </span>
+        )}
 
         <Bot4xPill />
 
@@ -121,6 +254,31 @@ export function TopBar() {
         </div>
       </div>
     </header>
+  );
+}
+
+/* ── PriceItem with flash animation ── */
+function PriceItem({ symbol, price, change24h }: { symbol: string; price: number; change24h: number }) {
+  const flash = usePriceFlash(price);
+  const up = change24h >= 0;
+
+  const flashBg = flash === "up"
+    ? "color-mix(in oklab, #1D9E75 14%, transparent)"
+    : flash === "down"
+      ? "color-mix(in oklab, #E24B4A 14%, transparent)"
+      : "transparent";
+
+  return (
+    <span
+      className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md transition-colors duration-400"
+      style={{ background: flashBg }}
+    >
+      <span className="text-muted-foreground">{symbol}</span>
+      <span className="text-foreground tabular-nums">{fmtPrice(price)}</span>
+      <span style={{ color: up ? "#1D9E75" : "#E24B4A" }}>
+        {up ? "+" : ""}{change24h.toFixed(1)}%
+      </span>
+    </span>
   );
 }
 
@@ -265,12 +423,13 @@ function relativeTime(ts: number) {
   return `${Math.floor(diff / 86400)}d atrás`;
 }
 
+/* ── legacy Ticker kept for safety ── */
 function Ticker({ symbol, price, change }: { symbol: string; price: number; change: number }) {
   const up = change >= 0;
   return (
     <span className="flex items-center gap-1.5">
       <span className="text-muted-foreground">{symbol}</span>
-      <span className="text-foreground">${price.toLocaleString(undefined, { maximumFractionDigits: price > 100 ? 0 : 2 })}</span>
+      <span className="text-foreground tabular-nums">${price.toLocaleString(undefined, { maximumFractionDigits: price > 100 ? 0 : 2 })}</span>
       <span style={{ color: up ? "#1D9E75" : "#E24B4A" }}>{up ? "+" : ""}{change.toFixed(1)}%</span>
     </span>
   );
