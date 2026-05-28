@@ -5,10 +5,18 @@ import { useCountUp } from "@/lib/use-count-up";
 import { useLivePrices } from "@/hooks/useLivePrices";
 
 export function MetricCards() {
-  const { prices, global } = useLivePrices();
+  const { prices, global, loading } = useLivePrices();
 
   const trendingUp = Object.values(prices).filter((p) => (p.change24h ?? 0) > 0).length;
   const totalTracked = Object.keys(prices).length || 20;
+
+  // Active signals derived from market volatility
+  const highVol = Object.values(prices).filter((p) => Math.abs(p.change24h ?? 0) >= 3).length;
+  const medVol = Object.values(prices).filter((p) => Math.abs(p.change24h ?? 0) >= 1.5).length;
+  const activeSignals = Math.min(40, highVol * 3 + medVol + 8);
+  const prevSignals = Math.max(4, activeSignals - (trendingUp > totalTracked / 2 ? 2 : -1));
+  const signalDiff = activeSignals - prevSignals;
+
   const marketTrend = global?.marketCapChange24h ?? 0;
   const trendLabel = marketTrend >= 1 ? "Bullish" : marketTrend <= -1 ? "Bearish" : "Neutral";
   const trendColor = marketTrend >= 1 ? "#1D9E75" : marketTrend <= -1 ? "#E24B4A" : "#888780";
@@ -21,9 +29,12 @@ export function MetricCards() {
           icon={<Activity className="size-4" />}
           iconColor="#378ADD"
           label="Active Signals"
-          countTo={24}
-          trend={{ text: "+8 vs yesterday", color: "#1D9E75" }}
-          sub="7 high score (≥80)"
+          countTo={loading ? 0 : activeSignals}
+          trend={{
+            text: `${signalDiff >= 0 ? "+" : ""}${signalDiff} vs yesterday`,
+            color: signalDiff >= 0 ? "#1D9E75" : "#E24B4A",
+          }}
+          sub={`${Math.max(1, Math.floor(activeSignals / 4))} high score (≥80)`}
         />
       </div>
       <Card

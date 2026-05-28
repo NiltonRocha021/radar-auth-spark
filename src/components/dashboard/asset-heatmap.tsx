@@ -1,16 +1,30 @@
 import { useEffect, useState } from "react";
 import { useLivePrices } from "@/hooks/useLivePrices";
+import { Skeleton } from "@/components/ui/skeleton";
 
-function colorFor(change: number) {
-  if (change > 3) return "#0E5F44";
-  if (change > 1) return "#1D9E75";
-  if (change > -1) return "#3A3D47";
-  if (change > -3) return "#A6383A";
-  return "#6B1F22";
+function colorFor(change: number): { bg: string; text: string } {
+  if (change >= 5) return { bg: "#0F3020", text: "#1D9E75" };
+  if (change >= 2) return { bg: "#1A4A2A", text: "#2EBD88" };
+  if (change >= 0.5) return { bg: "#1D3320", text: "#3CCF8E" };
+  if (change >= -0.5) return { bg: "#1E2028", text: "#888780" };
+  if (change >= -2) return { bg: "#3B1212", text: "#E24B4A" };
+  if (change >= -5) return { bg: "#4A1515", text: "#F06060" };
+  return { bg: "#5A1818", text: "#FF8080" };
 }
 
+function fmtPrice(price: number): string {
+  if (price >= 1000) return "$" + price.toLocaleString("en-US", { maximumFractionDigits: 0 });
+  if (price >= 1) return "$" + price.toFixed(2);
+  return "$" + price.toFixed(5);
+}
+
+const HEATMAP_SYMBOLS = [
+  "BTC", "ETH", "SOL", "BNB", "XRP", "AVAX",
+  "LINK", "MATIC", "DOT", "UNI", "ADA", "NEAR",
+];
+
 export function AssetHeatmap() {
-  const { prices } = useLivePrices();
+  const { prices, loading } = useLivePrices();
   const [pulseTick, setPulseTick] = useState(0);
 
   useEffect(() => {
@@ -18,13 +32,17 @@ export function AssetHeatmap() {
     return () => clearInterval(id);
   }, []);
 
-  const assets = Object.values(prices).map((p) => ({
-    symbol: p.symbol,
-    name: p.name,
-    price: p.price,
-    change: p.change24h ?? 0,
-    volume: p.volume24h ?? 0,
-  }));
+  const assets = HEATMAP_SYMBOLS.map((sym) => {
+    const p = prices[sym];
+    return {
+      symbol: sym,
+      name: p?.name ?? sym,
+      price: p?.price ?? 0,
+      change: p?.change24h ?? 0,
+      volume: p?.volume24h ?? 0,
+      loaded: !!p,
+    };
+  });
 
   return (
     <div data-tour="heatmap" className="rounded-xl border border-border bg-card p-4 h-full">
@@ -34,15 +52,25 @@ export function AssetHeatmap() {
       </div>
       <div className="grid grid-cols-4 gap-2">
         {assets.map((a, i) => (
-          <Cell key={a.symbol} asset={a} pulseTick={pulseTick} index={i} />
+          <Cell key={a.symbol} asset={a} pulseTick={pulseTick} index={i} loading={loading && !a.loaded} />
         ))}
       </div>
     </div>
   );
 }
 
-function Cell({ asset, pulseTick, index }: { asset: { symbol: string; name: string; price: number; change: number; volume: number }; pulseTick: number; index: number }) {
-  const bg = colorFor(asset.change);
+function Cell({
+  asset,
+  pulseTick,
+  index,
+  loading,
+}: {
+  asset: { symbol: string; name: string; price: number; change: number; volume: number; loaded: boolean };
+  pulseTick: number;
+  index: number;
+  loading: boolean;
+}) {
+  const { bg, text } = colorFor(asset.change);
   const up = asset.change >= 0;
   const [bright, setBright] = useState(false);
 
@@ -63,6 +91,16 @@ function Cell({ asset, pulseTick, index }: { asset: { symbol: string; name: stri
       ? `$${(asset.volume / 1e6).toFixed(1)}M`
       : `$${asset.volume.toLocaleString()}`;
 
+  if (loading) {
+    return (
+      <div className="relative rounded-lg p-2.5 bg-muted/40 animate-pulse">
+        <Skeleton className="h-4 w-10 mb-1" />
+        <Skeleton className="h-3 w-14 mb-1" />
+        <Skeleton className="h-3 w-12" />
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative group rounded-lg p-2.5 transition-all duration-500 hover:scale-[1.03] cursor-pointer"
@@ -72,13 +110,16 @@ function Cell({ asset, pulseTick, index }: { asset: { symbol: string; name: stri
         boxShadow: bright ? `0 0 16px color-mix(in oklab, ${bg} 70%, transparent)` : "none",
       }}
     >
-      <div className="text-[13px] font-semibold text-foreground">{asset.symbol}</div>
-      <div className="text-[11px] text-foreground/80 tabular-nums mt-0.5">
-        {up ? "+" : ""}{asset.change.toFixed(1)}%
+      <div className="text-[13px] font-semibold" style={{ color: text }}>{asset.symbol}</div>
+      <div className="text-[11px] tabular-nums mt-0.5" style={{ color: text }}>
+        {up ? "+" : ""}{asset.change.toFixed(2)}%
+      </div>
+      <div className="text-[10px] text-foreground/60 tabular-nums mt-0.5">
+        {fmtPrice(asset.price)}
       </div>
       <div className="absolute z-20 hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg border border-border bg-card p-2.5 shadow-xl text-left">
         <div className="text-[12px] font-medium text-foreground">{asset.name}</div>
-        <div className="text-[11px] text-muted-foreground">Price <span className="text-foreground tabular-nums">${asset.price.toLocaleString(undefined, { maximumFractionDigits: asset.price > 100 ? 1 : 3 })}</span></div>
+        <div className="text-[11px] text-muted-foreground">Price <span className="text-foreground tabular-nums">{fmtPrice(asset.price)}</span></div>
         <div className="text-[11px] text-muted-foreground">24h Vol <span className="text-foreground">{volFormatted}</span></div>
       </div>
     </div>
