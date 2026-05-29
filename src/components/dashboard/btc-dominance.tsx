@@ -18,7 +18,7 @@ export function BtcDominance() {
         <div className="text-right">
           <div className="text-[22px] font-semibold tabular-nums text-foreground">{dom.toFixed(1)}%</div>
           <div className="text-[11px] font-medium" style={{ color: up ? "#1D9E75" : "#E24B4A" }}>
-            {up ? "↑" : "↓"} {Math.abs(change).toFixed(1)}% this week
+            {up ? "↑" : "↓"} {Math.abs(change).toFixed(2)}% market cap 24h
           </div>
         </div>
       </div>
