@@ -5,7 +5,7 @@ import { useLivePrices } from "@/hooks/useLivePrices";
 export function BtcDominance() {
   const { global } = useLivePrices();
   const dom = global?.btcDominance ?? 52.4;
-  const change = dom - 52.4; // reference baseline for display
+  const change = global?.marketCapChange24h ?? 0;
   const up = change >= 0;
 
   return (
@@ -18,7 +18,7 @@ export function BtcDominance() {
         <div className="text-right">
           <div className="text-[22px] font-semibold tabular-nums text-foreground">{dom.toFixed(1)}%</div>
           <div className="text-[11px] font-medium" style={{ color: up ? "#1D9E75" : "#E24B4A" }}>
-            {up ? "↑" : "↓"} {Math.abs(change).toFixed(1)}% this week
+            {up ? "↑" : "↓"} {Math.abs(change).toFixed(2)}% market cap 24h
           </div>
         </div>
       </div>
