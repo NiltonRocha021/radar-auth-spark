@@ -5,7 +5,7 @@ import { useLivePrices } from "@/hooks/useLivePrices";
 export function BtcDominance() {
   const { global } = useLivePrices();
   const dom = global?.btcDominance ?? 52.4;
-  const change = dom - 52.4; // reference baseline for display
+  const change = global?.marketCapChange24h ?? 0;
   const up = change >= 0;
 
   return (
