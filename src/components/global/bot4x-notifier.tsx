@@ -59,7 +59,8 @@ export function Bot4xGlobalNotifier() {
       });
       toast.error("Bot4x — DISJUNTOR ATIVADO", {
         description: `Drawdown diário ${dailyPnl.toFixed(2)}%`,
-        duration: Infinity,
+        duration: 10000,
+        dismissible: true,
       });
     }
     lastBreaker.current = breaker;
