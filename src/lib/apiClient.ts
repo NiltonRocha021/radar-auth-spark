@@ -1,52 +1,48 @@
+import axios from "axios";
 import { supabase } from "@/integrations/supabase/client";
 
-const BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
 
-async function request(path: string, options: RequestInit = {}) {
+export const apiClient = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+  withCredentials: true,
+});
+
+// Anexa o token JWT do Supabase em cada requisição
+apiClient.interceptors.request.use(async (config) => {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
-
-  if (res.status === 401) {
-    console.warn("Sessão expirada, tentando refresh...");
-    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError || !refreshData.session) {
-      console.error("Falha ao renovar sessão", refreshError);
-      throw new Error("Sessão expirada. Faça login novamente.");
+// Tenta renovar a sessão em caso de 401
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config;
+    if (error.response?.status === 401 && !original._retry) {
+      original._retry = true;
+      const { data, error: refreshError } = await supabase.auth.refreshSession();
+      if (!refreshError && data.session) {
+        original.headers.Authorization = `Bearer ${data.session.access_token}`;
+        return apiClient(original);
+      }
     }
-    const retryRes = await fetch(`${BASE}${path}`, {
-      ...options,
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${refreshData.session.access_token}`,
-        ...options.headers,
-      },
-    });
-    return retryRes.json();
+    return Promise.reject(error);
   }
+);
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || `Erro ${res.status}`);
-  }
-
-  return res.json();
-}
-
+// Helper compatível com o uso anterior (api.get/post/...)
 export const api = {
-  get: (path: string) => request(path),
-  post: (path: string, body: unknown) => request(path, { method: "POST", body: JSON.stringify(body) }),
-  patch: (path: string, body: unknown) => request(path, { method: "PATCH", body: JSON.stringify(body) }),
-  put: (path: string, body: unknown) => request(path, { method: "PUT", body: JSON.stringify(body) }),
-  delete: (path: string) => request(path, { method: "DELETE" }),
+  get: <T = unknown>(path: string) => apiClient.get<T>(path).then((r) => r.data),
+  post: <T = unknown>(path: string, body: unknown) => apiClient.post<T>(path, body).then((r) => r.data),
+  patch: <T = unknown>(path: string, body: unknown) => apiClient.patch<T>(path, body).then((r) => r.data),
+  put: <T = unknown>(path: string, body: unknown) => apiClient.put<T>(path, body).then((r) => r.data),
+  delete: <T = unknown>(path: string) => apiClient.delete<T>(path).then((r) => r.data),
 };
