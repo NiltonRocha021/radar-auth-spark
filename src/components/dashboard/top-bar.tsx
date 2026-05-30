@@ -8,6 +8,7 @@ import { useNotificationsStore, type NotifType } from "@/lib/notifications-store
 import { useLivePrices } from "@/hooks/useLivePrices";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useRef, useEffect } from "react";
+import { TourHelpButton } from "@/components/tour/help-button";
 
 const PROFILE_INITIAL: Record<string, string> = {
   conservador: "C",
