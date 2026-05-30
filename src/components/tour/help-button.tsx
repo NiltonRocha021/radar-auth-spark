@@ -16,7 +16,7 @@ export function TourHelpButton() {
   return (
     <button
       onClick={() => startTour(tour.id)}
-      className="fixed bottom-4 right-4 z-[120] size-11 rounded-full flex items-center justify-center bg-[#111318] border-[1.5px] transition-all hover:scale-105 hover:shadow-[0_0_24px_rgba(24,95,165,0.5)]"
+      className="fixed bottom-4 left-4 z-[120] size-11 rounded-full flex items-center justify-center bg-[#111318] border-[1.5px] transition-all hover:scale-105 hover:shadow-[0_0_24px_rgba(24,95,165,0.5)]"
       style={{ borderColor: isDone ? "#1D9E75" : "#185FA5" }}
       title={isDone ? "Tour concluído — clique para rever" : `Rever tour: ${tour.label}`}
       aria-label={isDone ? "Tour concluído" : "Iniciar tour"}
