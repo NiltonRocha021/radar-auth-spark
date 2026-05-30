@@ -219,6 +219,8 @@ export function TopBar() {
           <Search className="size-4" />
         </button>
 
+        <TourHelpButton />
+
         <NotificationsBell />
 
         <div className="relative" ref={ref}>
