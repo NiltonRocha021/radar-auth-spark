@@ -1,4 +1,4 @@
-import { Bell, Search, ChevronDown, LogOut, Settings, User, Cpu, Activity, ShieldAlert, Sparkles, TrendingUp, Clock, AlertTriangle, HelpCircle } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, Settings, User, Cpu, Activity, ShieldAlert, Sparkles, TrendingUp, Clock, AlertTriangle } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
