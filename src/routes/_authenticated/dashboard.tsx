@@ -45,7 +45,6 @@ function Dashboard() {
         <LeftSidebar />
         <main className="flex-1 min-w-0 p-5 space-y-5">
           <IntegrationWidgets />
-          <LiveBackendPanel />
           <MetricCards />
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
