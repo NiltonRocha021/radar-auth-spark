@@ -19,7 +19,7 @@ import { SignalDrawer } from "@/components/dashboard/signal-drawer";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { AnnouncementBanner } from "@/components/dashboard/announcement-banner";
 import { IntegrationWidgets } from "@/components/dashboard/integration-widgets";
-import { LiveBackendPanel } from "@/components/dashboard/live-backend-panel";
+
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
