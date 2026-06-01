@@ -58,6 +58,11 @@ function AuthGate() {
       <MobileBottomNav />
       <Bot4xGlobalNotifier />
       <TourController />
+      <CopilotPanel
+        userId={session.user.id}
+        token={session.access_token}
+        mode="float"
+      />
     </>
   );
 }
