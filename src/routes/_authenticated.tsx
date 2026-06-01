@@ -8,6 +8,7 @@ import { Bot4xGlobalNotifier } from "@/components/global/bot4x-notifier";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { TourController } from "@/components/tour/tour-controller";
 import { useBot4xStore } from "@/lib/bot4x-store";
+import { CopilotPanel } from "@/components/copilot/CopilotPanel";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthGate,
@@ -57,6 +58,11 @@ function AuthGate() {
       <MobileBottomNav />
       <Bot4xGlobalNotifier />
       <TourController />
+      <CopilotPanel
+        userId={session.user.id}
+        token={session.access_token}
+        mode="float"
+      />
     </>
   );
 }
