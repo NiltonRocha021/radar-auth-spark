@@ -14,6 +14,105 @@ export type Database = {
   }
   public: {
     Tables: {
+      bot4x_configs: {
+        Row: {
+          active: boolean
+          active_capital: number | null
+          ai_score_min: number | null
+          api_key_set: boolean | null
+          circuit_breaker: string
+          created_at: string
+          daily_pnl: number | null
+          emergency_triggered_at: string | null
+          exchange: string | null
+          fomo_limit: number | null
+          id: string
+          leverage: number | null
+          open_slots: number | null
+          profile: string
+          profit_lock_triggered_at: string | null
+          rsi_threshold_high: number | null
+          rsi_threshold_low: number | null
+          total_trades_today: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          active_capital?: number | null
+          ai_score_min?: number | null
+          api_key_set?: boolean | null
+          circuit_breaker?: string
+          created_at?: string
+          daily_pnl?: number | null
+          emergency_triggered_at?: string | null
+          exchange?: string | null
+          fomo_limit?: number | null
+          id?: string
+          leverage?: number | null
+          open_slots?: number | null
+          profile?: string
+          profit_lock_triggered_at?: string | null
+          rsi_threshold_high?: number | null
+          rsi_threshold_low?: number | null
+          total_trades_today?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          active_capital?: number | null
+          ai_score_min?: number | null
+          api_key_set?: boolean | null
+          circuit_breaker?: string
+          created_at?: string
+          daily_pnl?: number | null
+          emergency_triggered_at?: string | null
+          exchange?: string | null
+          fomo_limit?: number | null
+          id?: string
+          leverage?: number | null
+          open_slots?: number | null
+          profile?: string
+          profit_lock_triggered_at?: string | null
+          rsi_threshold_high?: number | null
+          rsi_threshold_low?: number | null
+          total_trades_today?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      copilot_history: {
+        Row: {
+          agent: string | null
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          agent?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          agent?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -103,7 +202,16 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avg_win_rate: number | null
+          best_session: string | null
           created_at: string
+          dna_consistency: number | null
+          dna_discipline: number | null
+          dna_emotional_control: number | null
+          dna_risk_control: number | null
+          dna_timing: number | null
+          dna_updated_at: string | null
+          drawdown_today: number | null
           email: string | null
           experience: string | null
           full_name: string | null
@@ -111,10 +219,24 @@ export type Database = {
           id: string
           markets: string[] | null
           onboarding_completed: boolean
+          operations_today: number | null
+          overtrading_risk: boolean | null
+          plan_tier: string | null
+          trading_style: string | null
           updated_at: string
+          worst_session: string | null
         }
         Insert: {
+          avg_win_rate?: number | null
+          best_session?: string | null
           created_at?: string
+          dna_consistency?: number | null
+          dna_discipline?: number | null
+          dna_emotional_control?: number | null
+          dna_risk_control?: number | null
+          dna_timing?: number | null
+          dna_updated_at?: string | null
+          drawdown_today?: number | null
           email?: string | null
           experience?: string | null
           full_name?: string | null
@@ -122,10 +244,24 @@ export type Database = {
           id: string
           markets?: string[] | null
           onboarding_completed?: boolean
+          operations_today?: number | null
+          overtrading_risk?: boolean | null
+          plan_tier?: string | null
+          trading_style?: string | null
           updated_at?: string
+          worst_session?: string | null
         }
         Update: {
+          avg_win_rate?: number | null
+          best_session?: string | null
           created_at?: string
+          dna_consistency?: number | null
+          dna_discipline?: number | null
+          dna_emotional_control?: number | null
+          dna_risk_control?: number | null
+          dna_timing?: number | null
+          dna_updated_at?: string | null
+          drawdown_today?: number | null
           email?: string | null
           experience?: string | null
           full_name?: string | null
@@ -133,7 +269,84 @@ export type Database = {
           id?: string
           markets?: string[] | null
           onboarding_completed?: boolean
+          operations_today?: number | null
+          overtrading_risk?: boolean | null
+          plan_tier?: string | null
+          trading_style?: string | null
           updated_at?: string
+          worst_session?: string | null
+        }
+        Relationships: []
+      }
+      signals: {
+        Row: {
+          ai_reasoning: string | null
+          ai_score: number | null
+          channel_zone: string | null
+          confirmations: string | null
+          created_at: string
+          entry_price: number
+          expires_at: string | null
+          id: string
+          invalidations: string | null
+          liquidity_grab: boolean | null
+          pair: string
+          rsi: number | null
+          score: number
+          side: string
+          status: string
+          stop_loss: number | null
+          take_profit1: number | null
+          take_profit2: number | null
+          timeframe: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          ai_reasoning?: string | null
+          ai_score?: number | null
+          channel_zone?: string | null
+          confirmations?: string | null
+          created_at?: string
+          entry_price: number
+          expires_at?: string | null
+          id?: string
+          invalidations?: string | null
+          liquidity_grab?: boolean | null
+          pair: string
+          rsi?: number | null
+          score: number
+          side: string
+          status?: string
+          stop_loss?: number | null
+          take_profit1?: number | null
+          take_profit2?: number | null
+          timeframe?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          ai_reasoning?: string | null
+          ai_score?: number | null
+          channel_zone?: string | null
+          confirmations?: string | null
+          created_at?: string
+          entry_price?: number
+          expires_at?: string | null
+          id?: string
+          invalidations?: string | null
+          liquidity_grab?: boolean | null
+          pair?: string
+          rsi?: number | null
+          score?: number
+          side?: string
+          status?: string
+          stop_loss?: number | null
+          take_profit1?: number | null
+          take_profit2?: number | null
+          timeframe?: string | null
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
