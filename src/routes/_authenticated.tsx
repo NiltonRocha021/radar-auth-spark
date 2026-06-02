@@ -9,6 +9,8 @@ import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { TourController } from "@/components/tour/tour-controller";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { CopilotPanel } from "@/components/copilot/CopilotPanel";
+import { useTraderProfile } from "@/hooks/useTraderProfile";
+import { useMarketContext } from "@/hooks/useMarketContext";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthGate,
@@ -17,6 +19,8 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthGate() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
+  const { profile } = useTraderProfile(session?.user?.id);
+  const { marketContext } = useMarketContext(session?.user?.id);
   const initBot4x = useBot4xStore((s) => s.init);
 
   useEffect(() => {
@@ -62,6 +66,8 @@ function AuthGate() {
         userId={session.user.id}
         token={session.access_token}
         mode="float"
+        traderProfile={profile}
+        marketContext={marketContext}
       />
     </>
   );
