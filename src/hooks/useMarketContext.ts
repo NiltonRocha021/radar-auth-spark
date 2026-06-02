@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface MarketContextData {
   asset?: string;
@@ -23,11 +24,6 @@ export interface MarketContextData {
   topSignalDirection?: 'BUY' | 'SELL';
 }
 
-/**
- * Stub: as tabelas `signals` e `bot4x_configs` ainda não existem no Supabase.
- * Quando forem criadas (ou quando o backend NestJS expuser endpoints REST/WS),
- * este hook deve ser preenchido com os reads correspondentes.
- */
 export function useMarketContext(userId: string | undefined): {
   marketContext: MarketContextData;
   loading: boolean;
@@ -40,8 +36,53 @@ export function useMarketContext(userId: string | undefined): {
       setLoading(false);
       return;
     }
-    setMarketContext({});
-    setLoading(false);
+
+    let cancelled = false;
+
+    async function fetchContext() {
+      try {
+        const [{ data: signal }, { data: bot4x }] = await Promise.all([
+          supabase
+            .from('signals')
+            .select('pair, side, score, ai_score')
+            .eq('status', 'active')
+            .order('score', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('bot4x_configs')
+            .select('active, profile, daily_pnl, open_slots, circuit_breaker')
+            .eq('user_id', userId!)
+            .maybeSingle(),
+        ]);
+
+        if (cancelled) return;
+
+        setMarketContext({
+          topSignalAsset: signal?.pair ?? undefined,
+          topSignalDirection: (signal?.side as MarketContextData['topSignalDirection']) ?? undefined,
+          topSignalScore: signal?.score ?? undefined,
+          aiScore: signal?.ai_score ?? undefined,
+          bot4xActive: bot4x?.active ?? undefined,
+          bot4xProfile: (bot4x?.profile as MarketContextData['bot4xProfile']) ?? undefined,
+          bot4xDailyPnl: bot4x?.daily_pnl ?? undefined,
+          bot4xOpenSlots: bot4x?.open_slots ?? undefined,
+          bot4xCircuitBreaker:
+            (bot4x?.circuit_breaker as MarketContextData['bot4xCircuitBreaker']) ?? 'none',
+        });
+      } catch (err) {
+        console.warn('[useMarketContext] erro ao buscar contexto:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchContext();
+    const interval = setInterval(fetchContext, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [userId]);
 
   return { marketContext, loading };
