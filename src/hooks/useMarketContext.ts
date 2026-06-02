@@ -13,7 +13,7 @@ export interface MarketContextData {
   macroScore?: number;
   manipulationScore?: number;
   bot4xActive?: boolean;
-  bot4xProfile?: string;
+  bot4xProfile?: 'conservador' | 'calibradoRSI' | 'calibradoAiScore' | 'agressivo';
   bot4xDailyPnl?: number;
   bot4xOpenSlots?: number;
   bot4xCircuitBreaker?: 'none' | 'emergency' | 'profitLock';
