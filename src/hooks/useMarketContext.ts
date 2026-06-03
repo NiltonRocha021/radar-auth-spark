@@ -77,7 +77,7 @@ export function useMarketContext(userId: string | undefined): {
           activeSignals: count,
 
           bot4xActive: bot4x?.active ?? undefined,
-          bot4xProfile: bot4x?.profile ?? undefined,
+          bot4xProfile: (bot4x?.profile as MarketContextData['bot4xProfile']) ?? undefined,
           bot4xDailyPnl: bot4x?.daily_pnl ?? undefined,
           bot4xOpenSlots: bot4x?.open_slots ?? undefined,
           bot4xCircuitBreaker:
