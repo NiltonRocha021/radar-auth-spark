@@ -21,9 +21,13 @@ export interface TraderProfileData {
 export function useTraderProfile(userId: string | undefined): {
   profile: TraderProfileData;
   loading: boolean;
+  refetch: () => void;
 } {
   const [profile, setProfile] = useState<TraderProfileData>({});
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
+
+  const refetch = () => setTick((t) => t + 1);
 
   useEffect(() => {
     if (!userId) {
@@ -31,8 +35,9 @@ export function useTraderProfile(userId: string | undefined): {
       return;
     }
 
-    let cancelled = false;
-    async function run() {
+    let active = true;
+
+    async function fetchProfile() {
       setLoading(true);
       try {
         const { data, error } = await supabase
@@ -43,37 +48,50 @@ export function useTraderProfile(userId: string | undefined): {
           .eq('id', userId!)
           .maybeSingle();
 
-        if (error) throw error;
-        if (cancelled || !data) return;
+        if (error) {
+          console.warn('[useTraderProfile]', error.message);
+          return;
+        }
 
-        setProfile({
-          name: data.full_name ?? undefined,
-          planTier: (data.plan_tier as TraderProfileData['planTier']) ?? undefined,
-          style: (data.trading_style as TraderProfileData['style']) ?? undefined,
-          operationsToday: data.operations_today ?? undefined,
-          drawdownToday: data.drawdown_today ?? undefined,
-          bestSession: data.best_session ?? undefined,
-          worstSession: data.worst_session ?? undefined,
-          avgWinRate: data.avg_win_rate ?? undefined,
-          overtradingRisk: data.overtrading_risk ?? undefined,
-          dnaConsistency: data.dna_consistency ?? undefined,
-          dnaDiscipline: data.dna_discipline ?? undefined,
-          dnaRiskControl: data.dna_risk_control ?? undefined,
-          dnaTiming: data.dna_timing ?? undefined,
-          dnaEmotionalControl: data.dna_emotional_control ?? undefined,
-        });
-      } catch (err) {
-        console.warn('[useTraderProfile] erro ao buscar perfil:', err);
+        if (active && data) {
+          setProfile({
+            name: data.full_name ?? undefined,
+            planTier: (data.plan_tier as TraderProfileData['planTier']) ?? undefined,
+            style: (data.trading_style as TraderProfileData['style']) ?? undefined,
+            operationsToday: data.operations_today ?? undefined,
+            drawdownToday: data.drawdown_today ?? undefined,
+            bestSession: data.best_session ?? undefined,
+            worstSession: data.worst_session ?? undefined,
+            avgWinRate: data.avg_win_rate ?? undefined,
+            overtradingRisk: data.overtrading_risk ?? undefined,
+            dnaConsistency: data.dna_consistency ?? undefined,
+            dnaDiscipline: data.dna_discipline ?? undefined,
+            dnaRiskControl: data.dna_risk_control ?? undefined,
+            dnaTiming: data.dna_timing ?? undefined,
+            dnaEmotionalControl: data.dna_emotional_control ?? undefined,
+          });
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
+    fetchProfile();
 
-  return { profile, loading };
+    const channel = supabase
+      .channel(`profile:${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${userId}` },
+        () => fetchProfile(),
+      )
+      .subscribe();
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [userId, tick]);
+
+  return { profile, loading, refetch };
 }
