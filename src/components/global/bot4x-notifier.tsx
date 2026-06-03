@@ -59,7 +59,7 @@ export function Bot4xGlobalNotifier() {
       });
       toast.error("Bot4x — DISJUNTOR ATIVADO", {
         description: `Drawdown diário ${dailyPnl.toFixed(2)}%`,
-        duration: 10000,
+        duration: 3500,
         dismissible: true,
       });
     }
@@ -78,7 +78,7 @@ export function Bot4xGlobalNotifier() {
       });
       toast.success("Bot4x — Lucro preservado", {
         description: `+${trailingPeak.toFixed(1)}% travados`,
-        duration: 10000,
+        duration: 3500,
         dismissible: true,
       });
       burstProfitConfetti();
@@ -101,9 +101,18 @@ export function Bot4xGlobalNotifier() {
           title: `Bot4x executou ${o.pair}`,
           body: `${o.side} @ ${o.entry}`,
         });
-        toast(`Bot4x executou: ${o.pair} ${o.side}`, {
-          description: `Entry ${o.entry}`,
-          duration: 8000,
+        const isBuy = o.side === "LONG";
+        const accent = isBuy ? "#1D9E75" : "#E24B4A";
+        toast(`Bot4x · ${o.pair}`, {
+          description: `${o.side} @ ${o.entry}`,
+          duration: 2500,
+          dismissible: true,
+          style: {
+            background: "#111318",
+            border: `1px solid ${accent}66`,
+            borderLeft: `3px solid ${accent}`,
+            color: "#E6F1FB",
+          },
         });
       }
     }
