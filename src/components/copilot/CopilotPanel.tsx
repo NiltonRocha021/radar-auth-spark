@@ -6,6 +6,7 @@ import { CopilotMessageBubble } from './CopilotMessage';
 import { CopilotScoreBar } from './CopilotScoreBar';
 import { CopilotBot4xStatus } from './CopilotBot4xStatus';
 import { CopilotDNAStrip } from './CopilotDNAStrip';
+import { useCopilotUI } from '@/lib/copilot-ui-store';
 
 export interface CopilotPanelProps {
   userId: string;
