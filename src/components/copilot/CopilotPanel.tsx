@@ -59,28 +59,7 @@ export function CopilotPanel({
   }
 
   if (mode === 'float' && !isExpanded) {
-    return (
-      <>
-        <CopilotStyles />
-        <button
-          onClick={() => setIsExpanded(true)}
-          className="hover:scale-105 transition-transform"
-          style={{
-            position: 'fixed', top: 8, right: 12,
-            width: 32, height: 32, borderRadius: 6,
-            border: '1.5px solid #00e5a055',
-            background: 'radial-gradient(circle, #00e5a015, #0a0a0a)',
-            boxShadow: '0 0 12px #00e5a022',
-            cursor: 'pointer', display: 'flex',
-            alignItems: 'center', justifyContent: 'center', zIndex: 50,
-          }}
-          aria-label="Open AI Copilot"
-          title="AI Copilot"
-        >
-          <CopilotOrb state={orbState} size={20} />
-        </button>
-      </>
-    );
+    return <CopilotStyles />;
   }
 
   const isFloat = mode === 'float';
