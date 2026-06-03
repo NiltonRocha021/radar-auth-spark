@@ -220,6 +220,8 @@ export function TopBar() {
           <Search className="size-4" />
         </button>
 
+        <CopilotTopBarButton />
+
         <TourHelpButton />
 
         <NotificationsBell />
