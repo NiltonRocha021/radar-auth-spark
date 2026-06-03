@@ -101,7 +101,7 @@ export function Bot4xGlobalNotifier() {
           title: `Bot4x executou ${o.pair}`,
           body: `${o.side} @ ${o.entry}`,
         });
-        const isBuy = o.side === "BUY" || o.side === "LONG";
+        const isBuy = o.side === "LONG";
         const accent = isBuy ? "#1D9E75" : "#E24B4A";
         toast(`Bot4x · ${o.pair}`, {
           description: `${o.side} @ ${o.entry}`,
