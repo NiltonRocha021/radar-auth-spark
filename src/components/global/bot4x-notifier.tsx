@@ -101,9 +101,18 @@ export function Bot4xGlobalNotifier() {
           title: `Bot4x executou ${o.pair}`,
           body: `${o.side} @ ${o.entry}`,
         });
-        toast(`Bot4x executou: ${o.pair} ${o.side}`, {
-          description: `Entry ${o.entry}`,
-          duration: 8000,
+        const isBuy = o.side === "BUY" || o.side === "LONG";
+        const accent = isBuy ? "#1D9E75" : "#E24B4A";
+        toast(`Bot4x · ${o.pair}`, {
+          description: `${o.side} @ ${o.entry}`,
+          duration: 2500,
+          dismissible: true,
+          style: {
+            background: "#111318",
+            border: `1px solid ${accent}66`,
+            borderLeft: `3px solid ${accent}`,
+            color: "#E6F1FB",
+          },
         });
       }
     }
