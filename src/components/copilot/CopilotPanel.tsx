@@ -83,10 +83,11 @@ export function CopilotPanel({
 
   const containerStyle: React.CSSProperties = isFloat
     ? {
-        position: 'fixed', bottom: 28, right: 28,
-        width: 380, height: 560, zIndex: 9999,
+        position: 'fixed', top: 52, right: 12,
+        width: 380, height: 'min(560px, calc(100vh - 72px))', zIndex: 50,
         display: 'flex', flexDirection: 'column',
         background: '#050505', border: '1px solid #141414',
+        borderRadius: 8,
         boxShadow: '0 12px 48px rgba(0,0,0,0.6)',
       }
     : {
