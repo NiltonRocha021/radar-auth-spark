@@ -464,3 +464,4 @@ function CopilotTopBarButton() {
       />
     </button>
   );
+}
