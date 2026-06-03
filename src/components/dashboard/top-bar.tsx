@@ -9,6 +9,7 @@ import { useLivePrices } from "@/hooks/useLivePrices";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useRef, useEffect } from "react";
 import { TourHelpButton } from "@/components/tour/help-button";
+import { useCopilotUI } from "@/lib/copilot-ui-store";
 
 const PROFILE_INITIAL: Record<string, string> = {
   conservador: "C",
@@ -218,6 +219,8 @@ export function TopBar() {
         >
           <Search className="size-4" />
         </button>
+
+        <CopilotTopBarButton />
 
         <TourHelpButton />
 
@@ -435,5 +438,30 @@ function Ticker({ symbol, price, change }: { symbol: string; price: number; chan
       <span className="text-foreground tabular-nums">${price.toLocaleString(undefined, { maximumFractionDigits: price > 100 ? 0 : 2 })}</span>
       <span style={{ color: up ? "#1D9E75" : "#E24B4A" }}>{up ? "+" : ""}{change.toFixed(1)}%</span>
     </span>
+  );
+}
+
+function CopilotTopBarButton() {
+  const open = useCopilotUI((s) => s.open);
+  const toggle = useCopilotUI((s) => s.toggle);
+  return (
+    <button
+      onClick={toggle}
+      className="hidden sm:flex size-8 rounded-md items-center justify-center transition-all hover:scale-105"
+      style={{
+        border: `1.5px solid ${open ? "#00e5a0" : "#00e5a055"}`,
+        background: open ? "#00e5a015" : "transparent",
+      }}
+      title="AI Copilot"
+      aria-label="AI Copilot"
+    >
+      <span
+        className="size-2 rounded-full"
+        style={{
+          background: "#00e5a0",
+          boxShadow: "0 0 8px #00e5a088",
+        }}
+      />
+    </button>
   );
 }
