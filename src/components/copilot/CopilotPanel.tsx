@@ -23,7 +23,10 @@ export function CopilotPanel({
   mode = 'panel', onAlert, className,
 }: CopilotPanelProps) {
   const [input, setInput] = useState('');
-  const [isExpanded, setIsExpanded] = useState(mode === 'panel');
+  const uiOpen = useCopilotUI((s) => s.open);
+  const setUiOpen = useCopilotUI((s) => s.setOpen);
+  const isExpanded = mode === 'panel' ? true : uiOpen;
+  const setIsExpanded = (v: boolean) => setUiOpen(v);
   const [isRecordingActive, setIsRecordingActive] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
