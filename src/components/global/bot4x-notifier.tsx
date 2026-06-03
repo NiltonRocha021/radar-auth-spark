@@ -78,7 +78,7 @@ export function Bot4xGlobalNotifier() {
       });
       toast.success("Bot4x — Lucro preservado", {
         description: `+${trailingPeak.toFixed(1)}% travados`,
-        duration: 10000,
+        duration: 3500,
         dismissible: true,
       });
       burstProfitConfetti();
