@@ -1,7 +1,8 @@
 // Hook que conecta o CopilotPanel ao backend NestJS real via ws.client.ts.
 // Mantém EXATAMENTE a mesma API pública de useCopilot — não muda layout/estados.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { backendWs } from '@/adapters/backend/ws.client';
+import { backendWs, type WsStatus } from '@/adapters/backend/ws.client';
+import { supabase } from '@/integrations/supabase/client';
 import {
   buildChatMessage,
   buildInit,
@@ -34,10 +35,12 @@ export function useCopilotWs(config: CopilotConfig) {
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [orbState, setOrbState] = useState<OrbState>('idle');
   const [isConnected, setIsConnected] = useState(false);
+  const [wsStatus, setWsStatus] = useState<WsStatus>('idle');
   const [isRecording, setIsRecording] = useState(false);
   const [latency, setLatency] = useState(0);
 
   const addMessage = (m: CopilotMessage) => setMessages((p) => [...p, m]);
+  const hasShownAuthMsgRef = useRef(false);
 
   function playAudio(base64: string) {
     const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
@@ -48,21 +51,51 @@ export function useCopilotWs(config: CopilotConfig) {
 
   // Conecta e escuta o canal copilot:message
   useEffect(() => {
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
 
-    backendWs.connect('/copilot').then(() => {
-      if (!initSentRef.current) {
-        backendWs.send('chat_message', { __init: true });
-        backendWs.send('copilot:init', buildInit(userId, marketContext as Record<string, unknown>, traderProfile as Record<string, unknown>));
+    const offStatus = backendWs.onStatus((s) => {
+      if (cancelled) return;
+      setWsStatus(s);
+      setIsConnected(s === 'open');
+      if (s === 'open' && !initSentRef.current) {
+        backendWs.send(
+          'copilot:init',
+          buildInit(
+            userId,
+            marketContext as Record<string, unknown>,
+            traderProfile as Record<string, unknown>,
+          ),
+        );
         initSentRef.current = true;
+      }
+      if (s === 'unauthenticated' && !hasShownAuthMsgRef.current) {
+        addMessage(
+          newMsg(
+            'system',
+            'Você precisa estar autenticado para usar o Copilot. Faça login para continuar.',
+          ),
+        );
+        hasShownAuthMsgRef.current = true;
+        setOrbState('idle');
+      }
+      if (s === 'open') {
+        hasShownAuthMsgRef.current = false;
       }
     });
 
-    // Heurística de "conectado" — refletir status do socket interno
-    pollTimer = setInterval(() => {
-      // backendWs não expõe estado; consideramos conectado se um init já foi enviado
-      setIsConnected(initSentRef.current);
-    }, 1000);
+    backendWs.connect('/copilot');
+
+    // Reconecta automaticamente quando o usuário faz login/logout
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        initSentRef.current = false;
+        backendWs.connect('/copilot');
+      }
+      if (event === 'SIGNED_OUT') {
+        initSentRef.current = false;
+        backendWs.close();
+      }
+    });
 
     const off = backendWs.on('copilot:message', (payload) => {
       const data = normalizeInbound(payload);
@@ -100,8 +133,10 @@ export function useCopilotWs(config: CopilotConfig) {
     });
 
     return () => {
+      cancelled = true;
       off();
-      if (pollTimer) clearInterval(pollTimer);
+      offStatus();
+      sub.subscription.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
