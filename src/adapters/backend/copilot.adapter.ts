@@ -52,5 +52,5 @@ export function normalizeInbound(raw: unknown): CopilotInbound | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
   if (typeof obj.type !== "string") return null;
-  return obj as CopilotInbound;
+  return obj as unknown as CopilotInbound;
 }
