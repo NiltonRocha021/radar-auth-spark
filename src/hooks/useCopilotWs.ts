@@ -79,17 +79,39 @@ export function useCopilotWs(config: CopilotConfig) {
         initSentRef.current = true;
       }
       if (s === 'unauthenticated' && !hasShownAuthMsgRef.current) {
-        addMessage(
-          newMsg(
-            'system',
-            'Você precisa estar autenticado para usar o Copilot. Faça login para continuar.',
-          ),
+        const m = newMsg(
+          'system',
+          'Você precisa estar autenticado para usar o Copilot. Clique em Reconectar para tentar novamente ou faça login.',
+          { metadata: { action: 'reconnect' } },
         );
+        authMsgIdRef.current = m.id;
+        addMessage(m);
         hasShownAuthMsgRef.current = true;
         setOrbState('idle');
       }
       if (s === 'open') {
+        // Reconexão bem-sucedida: remove aviso e reenvia mensagem pendente
+        if (authMsgIdRef.current) {
+          const id = authMsgIdRef.current;
+          setMessages((p) => p.filter((mm) => mm.id !== id));
+          authMsgIdRef.current = null;
+        }
         hasShownAuthMsgRef.current = false;
+        const pending = pendingMessageRef.current;
+        pendingMessageRef.current = null;
+        if (pending) {
+          backendWs.send(
+            'chat_message',
+            buildChatMessage(
+              userId,
+              pending,
+              marketContext as Record<string, unknown>,
+              traderProfile as Record<string, unknown>,
+            ),
+          );
+          addMessage(newMsg('user', pending));
+          setOrbState('thinking');
+        }
       }
     });
 
