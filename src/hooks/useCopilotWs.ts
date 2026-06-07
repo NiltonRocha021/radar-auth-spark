@@ -327,5 +327,6 @@ export function useCopilotWs(config: CopilotConfig) {
     startRecording,
     stopRecording,
     clearHistory,
+    reconnect,
   };
 }
