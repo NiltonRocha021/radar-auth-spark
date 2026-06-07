@@ -153,37 +153,28 @@ export function useCopilotWs(config: CopilotConfig) {
 
   const showUnauthMessage = useCallback(() => {
     if (hasShownAuthMsgRef.current) return;
-    addMessage(
-      newMsg(
-        'system',
-        'Sua sessão expirou. Faça login novamente para continuar usando o Copilot.',
-      ),
+    const m = newMsg(
+      'system',
+      'Sua sessão expirou. Faça login novamente ou clique em Reconectar para tentar novamente.',
+      { metadata: { action: 'reconnect' } },
     );
+    authMsgIdRef.current = m.id;
+    addMessage(m);
     hasShownAuthMsgRef.current = true;
     setOrbState('idle');
   }, []);
 
-  const sendMessage = useCallback(
-    async (text: string) => {
-      if (!text.trim()) return;
+  // Tenta refrescar o token Supabase e reabrir o WS.
+  // Se vier do botão "Reconectar" e houver mensagem pendente, reenvia.
+  const tryRefreshAndReconnect = useCallback(async (): Promise<WsStatus> => {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session?.access_token) return 'unauthenticated';
+    initSentRef.current = false;
+    return backendWs.connect('/copilot');
+  }, []);
 
-      // Revalida token antes de enviar — pega expiração silenciosa entre mensagens
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) {
-        showUnauthMessage();
-        return;
-      }
-
-      if (!backendWs.isAuthenticatedOpen()) {
-        // socket caiu (ex.: 4401 por token expirado) — tenta reconectar
-        const status = await backendWs.connect('/copilot');
-        if (status !== 'open') {
-          if (status === 'unauthenticated') showUnauthMessage();
-          return;
-        }
-      }
-
+  const doSend = useCallback(
+    (text: string) => {
       addMessage(newMsg('user', text));
       setOrbState('thinking');
       const sent = backendWs.send(
@@ -195,10 +186,66 @@ export function useCopilotWs(config: CopilotConfig) {
           traderProfile as Record<string, unknown>,
         ),
       );
-      if (!sent) showUnauthMessage();
+      return sent;
     },
-    [userId, marketContext, traderProfile, showUnauthMessage],
+    [userId, marketContext, traderProfile],
   );
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+
+      // Revalida token; se ausente/expirado, tenta refresh antes de desistir.
+      const { data } = await supabase.auth.getSession();
+      let token = data.session?.access_token;
+      if (!token) {
+        const status = await tryRefreshAndReconnect();
+        if (status !== 'open') {
+          pendingMessageRef.current = trimmed;
+          showUnauthMessage();
+          return;
+        }
+        token = (await supabase.auth.getSession()).data.session?.access_token;
+      }
+
+      if (!backendWs.isAuthenticatedOpen()) {
+        const status = await backendWs.connect('/copilot');
+        if (status !== 'open') {
+          // Última tentativa: refresh + reconectar
+          const refreshed = await tryRefreshAndReconnect();
+          if (refreshed !== 'open') {
+            pendingMessageRef.current = trimmed;
+            showUnauthMessage();
+            return;
+          }
+        }
+      }
+
+      const sent = doSend(trimmed);
+      if (!sent) {
+        pendingMessageRef.current = trimmed;
+        showUnauthMessage();
+      }
+    },
+    [doSend, showUnauthMessage, tryRefreshAndReconnect],
+  );
+
+  // Acionado pelo botão "Reconectar" na bolha de sessão expirada.
+  const reconnect = useCallback(async () => {
+    setOrbState('thinking');
+    const status = await tryRefreshAndReconnect();
+    if (status === 'open') {
+      clearUnauthMessage();
+      const pending = pendingMessageRef.current;
+      pendingMessageRef.current = null;
+      if (pending) doSend(pending);
+      else setOrbState('idle');
+    } else {
+      setOrbState('idle');
+      // mantém a mensagem de auth; nada a fazer
+    }
+  }, [tryRefreshAndReconnect, clearUnauthMessage, doSend]);
 
   function sendVoice(blob: Blob, mimeType: string) {
     const reader = new FileReader();
