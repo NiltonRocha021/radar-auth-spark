@@ -31,7 +31,7 @@ export function CopilotPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages, orbState, isConnected, isRecording, latency,
-    sendMessage, startRecording, stopRecording, clearHistory } =
+    sendMessage, startRecording, stopRecording, clearHistory, reconnect } =
     useCopilotWs({ userId, token, marketContext, traderProfile, onAlert });
 
   useEffect(() => {
@@ -125,7 +125,7 @@ export function CopilotPanel({
               <span style={{ fontSize: 9, fontFamily: 'monospace', letterSpacing: 1, color: '#2a2a2a' }}>AGUARDANDO</span>
             </div>
           )}
-          {messages.map(msg => <CopilotMessageBubble key={msg.id} msg={msg} />)}
+          {messages.map(msg => <CopilotMessageBubble key={msg.id} msg={msg} onReconnect={reconnect} />)}
           <div ref={messagesEndRef} />
         </div>
 

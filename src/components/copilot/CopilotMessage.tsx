@@ -17,7 +17,7 @@ const AGENT_COLORS: Record<string, string> = {
   'Macro Context':       '#f5b800',
 };
 
-export function CopilotMessageBubble({ msg }: { msg: CopilotMessage }) {
+export function CopilotMessageBubble({ msg, onReconnect }: { msg: CopilotMessage; onReconnect?: () => void }) {
   const isUser   = msg.role === 'user';
   const isAlert  = msg.role === 'alert';
   const isSystem = msg.role === 'system';
@@ -27,11 +27,33 @@ export function CopilotMessageBubble({ msg }: { msg: CopilotMessage }) {
   });
 
   if (isSystem) {
+    const showReconnect = (msg.metadata as { action?: string } | undefined)?.action === 'reconnect' && !!onReconnect;
     return (
       <div style={{ textAlign: 'center', padding: '6px 0' }}>
         <span style={{ fontSize: 10, color: '#5F5E5A', fontFamily: 'monospace', letterSpacing: 0.5 }}>
           — {msg.content} —
         </span>
+        {showReconnect && (
+          <div style={{ marginTop: 6 }}>
+            <button
+              onClick={onReconnect}
+              style={{
+                fontSize: 10,
+                fontFamily: 'monospace',
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+                color: '#00e5a0',
+                background: 'transparent',
+                border: '1px solid #00e5a044',
+                padding: '4px 10px',
+                borderRadius: 2,
+                cursor: 'pointer',
+              }}
+            >
+              ↻ Reconectar
+            </button>
+          </div>
+        )}
       </div>
     );
   }
