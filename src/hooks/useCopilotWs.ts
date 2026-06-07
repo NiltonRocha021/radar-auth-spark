@@ -1,7 +1,7 @@
 // Hook que conecta o CopilotPanel ao backend NestJS real via ws.client.ts.
 // Mantém EXATAMENTE a mesma API pública de useCopilot — não muda layout/estados.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { backendWs, type WsStatus } from '@/adapters/backend/ws.client';
+import { backendWs, type WsStatus } from '@/adapters/backend/ws-client';
 import { supabase } from '@/integrations/supabase/client';
 import {
   buildChatMessage,

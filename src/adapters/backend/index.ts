@@ -4,4 +4,4 @@ export * from "./dna.adapter";
 export * from "./bot4x.adapter";
 export * from "./copilot.adapter";
 export * from "./auth.adapter";
-export * from "./ws.client";
+export * from "./ws-client";
