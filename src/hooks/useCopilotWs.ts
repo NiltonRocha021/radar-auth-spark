@@ -141,12 +141,42 @@ export function useCopilotWs(config: CopilotConfig) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  const showUnauthMessage = useCallback(() => {
+    if (hasShownAuthMsgRef.current) return;
+    addMessage(
+      newMsg(
+        'system',
+        'Sua sessão expirou. Faça login novamente para continuar usando o Copilot.',
+      ),
+    );
+    hasShownAuthMsgRef.current = true;
+    setOrbState('idle');
+  }, []);
+
   const sendMessage = useCallback(
-    (text: string) => {
+    async (text: string) => {
       if (!text.trim()) return;
+
+      // Revalida token antes de enviar — pega expiração silenciosa entre mensagens
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) {
+        showUnauthMessage();
+        return;
+      }
+
+      if (!backendWs.isAuthenticatedOpen()) {
+        // socket caiu (ex.: 4401 por token expirado) — tenta reconectar
+        const status = await backendWs.connect('/copilot');
+        if (status !== 'open') {
+          if (status === 'unauthenticated') showUnauthMessage();
+          return;
+        }
+      }
+
       addMessage(newMsg('user', text));
       setOrbState('thinking');
-      backendWs.send(
+      const sent = backendWs.send(
         'chat_message',
         buildChatMessage(
           userId,
@@ -155,8 +185,9 @@ export function useCopilotWs(config: CopilotConfig) {
           traderProfile as Record<string, unknown>,
         ),
       );
+      if (!sent) showUnauthMessage();
     },
-    [userId, marketContext, traderProfile],
+    [userId, marketContext, traderProfile, showUnauthMessage],
   );
 
   function sendVoice(blob: Blob, mimeType: string) {
