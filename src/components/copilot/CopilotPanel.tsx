@@ -31,7 +31,7 @@ export function CopilotPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages, orbState, isConnected, isRecording, latency,
-    sendMessage, startRecording, stopRecording, clearHistory } =
+    sendMessage, startRecording, stopRecording, clearHistory, reconnect } =
     useCopilotWs({ userId, token, marketContext, traderProfile, onAlert });
 
   useEffect(() => {
