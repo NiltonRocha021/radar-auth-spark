@@ -125,7 +125,7 @@ export function CopilotPanel({
               <span style={{ fontSize: 9, fontFamily: 'monospace', letterSpacing: 1, color: '#2a2a2a' }}>AGUARDANDO</span>
             </div>
           )}
-          {messages.map(msg => <CopilotMessageBubble key={msg.id} msg={msg} />)}
+          {messages.map(msg => <CopilotMessageBubble key={msg.id} msg={msg} onReconnect={reconnect} />)}
           <div ref={messagesEndRef} />
         </div>
 
