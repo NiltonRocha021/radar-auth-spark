@@ -41,6 +41,16 @@ export function useCopilotWs(config: CopilotConfig) {
 
   const addMessage = (m: CopilotMessage) => setMessages((p) => [...p, m]);
   const hasShownAuthMsgRef = useRef(false);
+  const pendingMessageRef = useRef<string | null>(null);
+  const authMsgIdRef = useRef<string | null>(null);
+
+  // Remove a system-message de "sessão expirada" do histórico (após reconectar).
+  const clearUnauthMessage = useCallback(() => {
+    const id = authMsgIdRef.current;
+    if (id) setMessages((p) => p.filter((m) => m.id !== id));
+    authMsgIdRef.current = null;
+    hasShownAuthMsgRef.current = false;
+  }, []);
 
   function playAudio(base64: string) {
     const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
