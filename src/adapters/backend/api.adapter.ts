@@ -36,6 +36,11 @@ export const endpoints = {
   copilot: {
     history: "/copilot/history",
   },
+  calibrator: {
+    state: (userId: string) => `/calibrator/state/${userId}`,
+    feedback: (userId: string) => `/calibrator/feedback/${userId}`,
+  },
 } as const;
+
 
 export { api, apiClient };
