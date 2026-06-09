@@ -19,8 +19,10 @@ export type WsEvent =
   | "signal:update"
   | "bot4x:update"
   | "copilot:message"
+  | "calibrator:state"
   | "price:update"
   | string;
+
 
 const WS_URL =
   (typeof window !== "undefined" && (import.meta as any).env?.VITE_API_WS_URL) ||
