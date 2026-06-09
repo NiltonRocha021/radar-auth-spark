@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp,
@@ -6,6 +6,9 @@ import {
 import { toast } from "sonner";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { PROFILES, type CalibProfile, type ProfileSpec } from "@/lib/bot4x-data";
+import { useCalibratorState } from "@/hooks/useCalibratorState";
+import { useAuth } from "@/lib/auth";
+
 
 const ICONS: Record<CalibProfile, typeof Sliders> = {
   conservador: ShieldCheck,
@@ -17,6 +20,17 @@ const ICONS: Record<CalibProfile, typeof Sliders> = {
 const ORDER: CalibProfile[] = ["conservador", "rsi", "aiscore", "agressivo"];
 
 export function TabCalibrador() {
+  // Ponte com o backend (BCE): sincroniza perfil ativo quando o Calibrador emite estado.
+  const { user } = useAuth();
+  const setProfile = useBot4xStore((s) => s.setProfile);
+  const { data: calibrator } = useCalibratorState(user?.id);
+
+  useEffect(() => {
+    if (calibrator?.profile && calibrator.profile !== useBot4xStore.getState().profile) {
+      setProfile(calibrator.profile);
+    }
+  }, [calibrator?.profile, setProfile]);
+
   return (
     <div className="space-y-5">
       <SectionHeader />
@@ -27,6 +41,7 @@ export function TabCalibrador() {
     </div>
   );
 }
+
 
 // ----- Header -----
 function SectionHeader() {
