@@ -149,4 +149,11 @@ export const calibratorAdapter = {
   async sendFeedback(userId: string, payload: Record<string, unknown>) {
     return api.post(calibratorEndpoints.feedback(userId), payload);
   },
+  async simulate(userId: string, req: BackendSimulationRequest): Promise<SimulationResultUI> {
+    const data = await api.post<BackendSimulationResponse>(
+      calibratorEndpoints.simulate(userId),
+      req,
+    );
+    return mapSimulationResult(data);
+  },
 };
