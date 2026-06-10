@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { Card } from "@/components/ui/card";
@@ -13,15 +13,40 @@ import {
   type SimulationProfile,
   type SimulationResultUI,
 } from "@/adapters/backend/calibrator.adapter";
-import { FlaskConical, Loader2, TrendingUp, TrendingDown, Activity, AlertCircle } from "lucide-react";
+import { recordSimulation } from "@/lib/calibrator-history-store";
+import { FlaskConical, Loader2, TrendingUp, TrendingDown, Activity, AlertCircle, History } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/calibrator")({
+const VALID_PROFILES: SimulationProfile[] = ["conservador", "rsi", "aiscore", "agressivo"];
+
+type CalibratorSearch = {
+  profile?: SimulationProfile;
+  symbol?: string;
+  period_days?: number;
+  initial_balance?: number;
+  autorun?: number;
+};
+
+export const Route = createFileRoute("/_authenticated/calibrator/")({
   head: () => ({
     meta: [
       { title: "Calibrator — AISignalRadar" },
       { name: "description", content: "Run historical backtests to calibrate your trading DNA via the Bot4x Calibration Engine." },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>): CalibratorSearch => {
+    const rawProfile = typeof search.profile === "string" ? search.profile : undefined;
+    const profile = rawProfile && (VALID_PROFILES as string[]).includes(rawProfile)
+      ? (rawProfile as SimulationProfile)
+      : undefined;
+    const symbol = typeof search.symbol === "string" ? search.symbol : undefined;
+    const periodDaysNum = Number(search.period_days);
+    const period_days = Number.isFinite(periodDaysNum) && periodDaysNum > 0 ? periodDaysNum : undefined;
+    const balanceNum = Number(search.initial_balance);
+    const initial_balance = Number.isFinite(balanceNum) && balanceNum > 0 ? balanceNum : undefined;
+    const autorunNum = Number(search.autorun);
+    const autorun = Number.isFinite(autorunNum) && autorunNum > 0 ? 1 : undefined;
+    return { profile, symbol, period_days, initial_balance, autorun };
+  },
   component: CalibratorPage,
 });
 
@@ -34,13 +59,16 @@ const PROFILES: { value: SimulationProfile; label: string }[] = [
 
 function CalibratorPage() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<SimulationProfile>("rsi");
-  const [symbol, setSymbol] = useState("BTCUSDT");
-  const [periodDays, setPeriodDays] = useState(30);
-  const [initialBalance, setInitialBalance] = useState(10000);
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<SimulationProfile>(search.profile ?? "rsi");
+  const [symbol, setSymbol] = useState(search.symbol ?? "BTCUSDT");
+  const [periodDays, setPeriodDays] = useState(search.period_days ?? 30);
+  const [initialBalance, setInitialBalance] = useState(search.initial_balance ?? 10000);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SimulationResultUI | null>(null);
+  const autorunHandledRef = useRef(false);
 
   async function runSimulation() {
     if (!user?.id) {
@@ -49,14 +77,21 @@ function CalibratorPage() {
     }
     setLoading(true);
     setError(null);
+    const params = {
+      profile,
+      symbol: symbol.trim().toUpperCase(),
+      periodDays,
+      initialBalance,
+    };
     try {
       const res = await calibratorAdapter.simulate(user.id, {
-        profile,
-        symbol: symbol.trim().toUpperCase(),
-        period_days: periodDays,
-        initial_balance: initialBalance,
+        profile: params.profile,
+        symbol: params.symbol,
+        period_days: params.periodDays,
+        initial_balance: params.initialBalance,
       });
       setResult(res);
+      recordSimulation(user.id, params, res);
     } catch (e: any) {
       setError(e?.response?.data?.message ?? e?.message ?? "Falha ao executar simulação.");
     } finally {
@@ -64,20 +99,47 @@ function CalibratorPage() {
     }
   }
 
+  useEffect(() => {
+    if (autorunHandledRef.current) return;
+    if (search.autorun && user?.id) {
+      autorunHandledRef.current = true;
+      runSimulation();
+      // limpa a flag da URL para não reexecutar em refresh
+      navigate({
+        to: "/calibrator",
+        search: {
+          profile: search.profile,
+          symbol: search.symbol,
+          period_days: search.period_days,
+          initial_balance: search.initial_balance,
+        },
+        replace: true,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.autorun, user?.id]);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <TopBar />
       <div className="flex">
         <LeftSidebar />
         <main className="flex-1 min-w-0 p-5 space-y-5">
-          <header className="flex items-center gap-3">
-            <FlaskConical className="size-6 text-primary" />
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">Calibrator</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Backtest histórico de perfis para calibrar o DNA via Bot4x Calibration Engine.
-              </p>
+          <header className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <FlaskConical className="size-6 text-primary" />
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight">Calibrator</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Backtest histórico de perfis para calibrar o DNA via Bot4x Calibration Engine.
+                </p>
+              </div>
             </div>
+            <Link to="/calibrator/history">
+              <Button variant="outline" size="sm">
+                <History className="size-4 mr-2" /> Histórico
+              </Button>
+            </Link>
           </header>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
