@@ -8,6 +8,7 @@ const items = [
   { icon: Activity, label: "Signals", to: "/signals" as const },
   { icon: Bot, label: "Bot4x", to: "/bot4x" as const },
   { icon: Brain, label: "DNA Trader", to: "/dna-trader" as const },
+  { icon: FlaskConical, label: "Calibrator", to: "/calibrator" as const },
   { icon: Radar, label: "Manipulation", to: "/manipulation" as const },
   { icon: Sparkles, label: "Sentiment", to: "/sentiment" as const },
   { icon: Bell, label: "Alerts", to: "/alerts" as const },
