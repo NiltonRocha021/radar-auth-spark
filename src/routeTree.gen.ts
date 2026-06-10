@@ -27,6 +27,7 @@ import { Route as AuthenticatedCalibratorRouteImport } from './routes/_authentic
 import { Route as AuthenticatedBot4xRouteImport } from './routes/_authenticated/bot4x'
 import { Route as AuthenticatedApiRouteImport } from './routes/_authenticated/api'
 import { Route as AuthenticatedAlertsRouteImport } from './routes/_authenticated/alerts'
+import { Route as AuthenticatedCalibratorHistoryRouteImport } from './routes/_authenticated/calibrator.history'
 import { Route as AuthenticatedBot4xOnboardingRouteImport } from './routes/_authenticated/bot4x.onboarding'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
@@ -122,6 +123,12 @@ const AuthenticatedAlertsRoute = AuthenticatedAlertsRouteImport.update({
   path: '/alerts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedCalibratorHistoryRoute =
+  AuthenticatedCalibratorHistoryRouteImport.update({
+    id: '/history',
+    path: '/history',
+    getParentRoute: () => AuthenticatedCalibratorRoute,
+  } as any)
 const AuthenticatedBot4xOnboardingRoute =
   AuthenticatedBot4xOnboardingRouteImport.update({
     id: '/onboarding',
@@ -141,7 +148,7 @@ export interface FileRoutesByFullPath {
   '/alerts': typeof AuthenticatedAlertsRoute
   '/api': typeof AuthenticatedApiRoute
   '/bot4x': typeof AuthenticatedBot4xRouteWithChildren
-  '/calibrator': typeof AuthenticatedCalibratorRoute
+  '/calibrator': typeof AuthenticatedCalibratorRouteWithChildren
   '/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/signals': typeof AuthenticatedSignalsRoute
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
+  '/calibrator/history': typeof AuthenticatedCalibratorHistoryRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
@@ -162,7 +170,7 @@ export interface FileRoutesByTo {
   '/alerts': typeof AuthenticatedAlertsRoute
   '/api': typeof AuthenticatedApiRoute
   '/bot4x': typeof AuthenticatedBot4xRouteWithChildren
-  '/calibrator': typeof AuthenticatedCalibratorRoute
+  '/calibrator': typeof AuthenticatedCalibratorRouteWithChildren
   '/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -175,6 +183,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/signals': typeof AuthenticatedSignalsRoute
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
+  '/calibrator/history': typeof AuthenticatedCalibratorHistoryRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
@@ -185,7 +194,7 @@ export interface FileRoutesById {
   '/_authenticated/alerts': typeof AuthenticatedAlertsRoute
   '/_authenticated/api': typeof AuthenticatedApiRoute
   '/_authenticated/bot4x': typeof AuthenticatedBot4xRouteWithChildren
-  '/_authenticated/calibrator': typeof AuthenticatedCalibratorRoute
+  '/_authenticated/calibrator': typeof AuthenticatedCalibratorRouteWithChildren
   '/_authenticated/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -198,6 +207,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/signals': typeof AuthenticatedSignalsRoute
   '/_authenticated/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
+  '/_authenticated/calibrator/history': typeof AuthenticatedCalibratorHistoryRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signals'
     | '/bot4x/onboarding'
+    | '/calibrator/history'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/signals'
     | '/bot4x/onboarding'
+    | '/calibrator/history'
     | '/lovable/email/queue/process'
   id:
     | '__root__'
@@ -264,6 +276,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/signals'
     | '/_authenticated/bot4x/onboarding'
+    | '/_authenticated/calibrator/history'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
@@ -402,6 +415,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAlertsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/calibrator/history': {
+      id: '/_authenticated/calibrator/history'
+      path: '/history'
+      fullPath: '/calibrator/history'
+      preLoaderRoute: typeof AuthenticatedCalibratorHistoryRouteImport
+      parentRoute: typeof AuthenticatedCalibratorRoute
+    }
     '/_authenticated/bot4x/onboarding': {
       id: '/_authenticated/bot4x/onboarding'
       path: '/onboarding'
@@ -430,11 +450,25 @@ const AuthenticatedBot4xRouteChildren: AuthenticatedBot4xRouteChildren = {
 const AuthenticatedBot4xRouteWithChildren =
   AuthenticatedBot4xRoute._addFileChildren(AuthenticatedBot4xRouteChildren)
 
+interface AuthenticatedCalibratorRouteChildren {
+  AuthenticatedCalibratorHistoryRoute: typeof AuthenticatedCalibratorHistoryRoute
+}
+
+const AuthenticatedCalibratorRouteChildren: AuthenticatedCalibratorRouteChildren =
+  {
+    AuthenticatedCalibratorHistoryRoute: AuthenticatedCalibratorHistoryRoute,
+  }
+
+const AuthenticatedCalibratorRouteWithChildren =
+  AuthenticatedCalibratorRoute._addFileChildren(
+    AuthenticatedCalibratorRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
   AuthenticatedAlertsRoute: typeof AuthenticatedAlertsRoute
   AuthenticatedApiRoute: typeof AuthenticatedApiRoute
   AuthenticatedBot4xRoute: typeof AuthenticatedBot4xRouteWithChildren
-  AuthenticatedCalibratorRoute: typeof AuthenticatedCalibratorRoute
+  AuthenticatedCalibratorRoute: typeof AuthenticatedCalibratorRouteWithChildren
   AuthenticatedCopyTradingRoute: typeof AuthenticatedCopyTradingRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDnaTraderRoute: typeof AuthenticatedDnaTraderRoute
@@ -452,7 +486,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAlertsRoute: AuthenticatedAlertsRoute,
   AuthenticatedApiRoute: AuthenticatedApiRoute,
   AuthenticatedBot4xRoute: AuthenticatedBot4xRouteWithChildren,
-  AuthenticatedCalibratorRoute: AuthenticatedCalibratorRoute,
+  AuthenticatedCalibratorRoute: AuthenticatedCalibratorRouteWithChildren,
   AuthenticatedCopyTradingRoute: AuthenticatedCopyTradingRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDnaTraderRoute: AuthenticatedDnaTraderRoute,
