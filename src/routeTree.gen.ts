@@ -23,6 +23,7 @@ import { Route as AuthenticatedManipulationRouteImport } from './routes/_authent
 import { Route as AuthenticatedDnaTraderRouteImport } from './routes/_authenticated/dna-trader'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCopyTradingRouteImport } from './routes/_authenticated/copy-trading'
+import { Route as AuthenticatedCalibratorRouteImport } from './routes/_authenticated/calibrator'
 import { Route as AuthenticatedBot4xRouteImport } from './routes/_authenticated/bot4x'
 import { Route as AuthenticatedApiRouteImport } from './routes/_authenticated/api'
 import { Route as AuthenticatedAlertsRouteImport } from './routes/_authenticated/alerts'
@@ -101,6 +102,11 @@ const AuthenticatedCopyTradingRoute =
     path: '/copy-trading',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedCalibratorRoute = AuthenticatedCalibratorRouteImport.update({
+  id: '/calibrator',
+  path: '/calibrator',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedBot4xRoute = AuthenticatedBot4xRouteImport.update({
   id: '/bot4x',
   path: '/bot4x',
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/alerts': typeof AuthenticatedAlertsRoute
   '/api': typeof AuthenticatedApiRoute
   '/bot4x': typeof AuthenticatedBot4xRouteWithChildren
+  '/calibrator': typeof AuthenticatedCalibratorRoute
   '/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/alerts': typeof AuthenticatedAlertsRoute
   '/api': typeof AuthenticatedApiRoute
   '/bot4x': typeof AuthenticatedBot4xRouteWithChildren
+  '/calibrator': typeof AuthenticatedCalibratorRoute
   '/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   '/_authenticated/alerts': typeof AuthenticatedAlertsRoute
   '/_authenticated/api': typeof AuthenticatedApiRoute
   '/_authenticated/bot4x': typeof AuthenticatedBot4xRouteWithChildren
+  '/_authenticated/calibrator': typeof AuthenticatedCalibratorRoute
   '/_authenticated/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -199,6 +208,7 @@ export interface FileRouteTypes {
     | '/alerts'
     | '/api'
     | '/bot4x'
+    | '/calibrator'
     | '/copy-trading'
     | '/dashboard'
     | '/dna-trader'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/alerts'
     | '/api'
     | '/bot4x'
+    | '/calibrator'
     | '/copy-trading'
     | '/dashboard'
     | '/dna-trader'
@@ -240,6 +251,7 @@ export interface FileRouteTypes {
     | '/_authenticated/alerts'
     | '/_authenticated/api'
     | '/_authenticated/bot4x'
+    | '/_authenticated/calibrator'
     | '/_authenticated/copy-trading'
     | '/_authenticated/dashboard'
     | '/_authenticated/dna-trader'
@@ -362,6 +374,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCopyTradingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/calibrator': {
+      id: '/_authenticated/calibrator'
+      path: '/calibrator'
+      fullPath: '/calibrator'
+      preLoaderRoute: typeof AuthenticatedCalibratorRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/bot4x': {
       id: '/_authenticated/bot4x'
       path: '/bot4x'
@@ -415,6 +434,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAlertsRoute: typeof AuthenticatedAlertsRoute
   AuthenticatedApiRoute: typeof AuthenticatedApiRoute
   AuthenticatedBot4xRoute: typeof AuthenticatedBot4xRouteWithChildren
+  AuthenticatedCalibratorRoute: typeof AuthenticatedCalibratorRoute
   AuthenticatedCopyTradingRoute: typeof AuthenticatedCopyTradingRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDnaTraderRoute: typeof AuthenticatedDnaTraderRoute
@@ -432,6 +452,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAlertsRoute: AuthenticatedAlertsRoute,
   AuthenticatedApiRoute: AuthenticatedApiRoute,
   AuthenticatedBot4xRoute: AuthenticatedBot4xRouteWithChildren,
+  AuthenticatedCalibratorRoute: AuthenticatedCalibratorRoute,
   AuthenticatedCopyTradingRoute: AuthenticatedCopyTradingRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDnaTraderRoute: AuthenticatedDnaTraderRoute,
@@ -458,3 +479,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
