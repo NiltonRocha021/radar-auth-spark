@@ -68,7 +68,76 @@ export function mapCalibratorState(p: BackendCalibratorPayload): CalibratorState
 export const calibratorEndpoints = {
   state: (userId: string) => `/calibrator/state/${userId}`,
   feedback: (userId: string) => `/calibrator/feedback/${userId}`,
+  simulate: (userId: string) => `/calibrator/simulate/${userId}`,
 } as const;
+
+export type SimulationProfile = "conservador" | "rsi" | "aiscore" | "agressivo";
+
+export interface BackendSimulationRequest {
+  profile: SimulationProfile;
+  symbol: string;
+  period_days: number;
+  initial_balance?: number;
+}
+
+export interface BackendSimulationPoint {
+  t: string;
+  equity: number;
+}
+
+export interface BackendSimulationResponse {
+  trades: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  pnl: number;
+  pnl_pct: number;
+  max_drawdown: number;
+  sharpe?: number;
+  equity_curve: BackendSimulationPoint[];
+  dna_feedback?: BackendCalibratorPayload["dna_feedback"];
+  commentary?: string;
+}
+
+export interface SimulationResultUI {
+  trades: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  pnl: number;
+  pnlPct: number;
+  maxDrawdown: number;
+  sharpe: number;
+  equityCurve: { t: string; equity: number }[];
+  dnaFeedback: {
+    patternDetected: string;
+    correction: string;
+    expectedImprovement: string;
+  };
+  commentary: string;
+  raw?: BackendSimulationResponse;
+}
+
+export function mapSimulationResult(r: BackendSimulationResponse): SimulationResultUI {
+  return {
+    trades: r.trades,
+    wins: r.wins,
+    losses: r.losses,
+    winRate: r.win_rate,
+    pnl: r.pnl,
+    pnlPct: r.pnl_pct,
+    maxDrawdown: r.max_drawdown,
+    sharpe: r.sharpe ?? 0,
+    equityCurve: r.equity_curve ?? [],
+    dnaFeedback: {
+      patternDetected: r.dna_feedback?.pattern_detected ?? "",
+      correction: r.dna_feedback?.correction ?? "",
+      expectedImprovement: r.dna_feedback?.expected_improvement ?? "",
+    },
+    commentary: r.commentary ?? "",
+    raw: r,
+  };
+}
 
 export const calibratorAdapter = {
   async getState(userId: string): Promise<CalibratorStateUI | null> {
@@ -79,5 +148,12 @@ export const calibratorAdapter = {
   },
   async sendFeedback(userId: string, payload: Record<string, unknown>) {
     return api.post(calibratorEndpoints.feedback(userId), payload);
+  },
+  async simulate(userId: string, req: BackendSimulationRequest): Promise<SimulationResultUI> {
+    const data = await api.post<BackendSimulationResponse>(
+      calibratorEndpoints.simulate(userId),
+      req,
+    );
+    return mapSimulationResult(data);
   },
 };

@@ -39,6 +39,7 @@ export const endpoints = {
   calibrator: {
     state: (userId: string) => `/calibrator/state/${userId}`,
     feedback: (userId: string) => `/calibrator/feedback/${userId}`,
+    simulate: (userId: string) => `/calibrator/simulate/${userId}`,
   },
 } as const;
 
