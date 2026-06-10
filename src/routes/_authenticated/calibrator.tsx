@@ -26,7 +26,7 @@ type CalibratorSearch = {
   autorun?: number;
 };
 
-export const Route = createFileRoute("/_authenticated/calibrator/")({
+export const Route = createFileRoute("/_authenticated/calibrator")({
   head: () => ({
     meta: [
       { title: "Calibrator — AISignalRadar" },
