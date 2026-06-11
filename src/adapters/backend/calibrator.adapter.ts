@@ -150,10 +150,22 @@ export const calibratorAdapter = {
     return api.post(calibratorEndpoints.feedback(userId), payload);
   },
   async simulate(userId: string, req: BackendSimulationRequest): Promise<SimulationResultUI> {
-    const data = await api.post<BackendSimulationResponse>(
-      calibratorEndpoints.simulate(userId),
-      req,
-    );
-    return mapSimulationResult(data);
+    try {
+      const data = await api.post<BackendSimulationResponse>(
+        calibratorEndpoints.simulate(userId),
+        req,
+      );
+      return mapSimulationResult(data);
+    } catch (e: any) {
+      // Fallback determinístico quando o BCE não está acessível (preview/local sem backend).
+      // Não substitui o backend: apenas evita travar a UI quando a rede falha.
+      const isNetwork =
+        !e?.response ||
+        e?.code === "ERR_NETWORK" ||
+        e?.message === "Network Error";
+      if (!isNetwork) throw e;
+      const mock = generateMockSimulation(req);
+      return { ...mapSimulationResult(mock), commentary: `[offline mock] ${mock.commentary ?? ""}`.trim() };
+    }
   },
 };
