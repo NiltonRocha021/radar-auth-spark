@@ -71,10 +71,14 @@ export const calibratorHistoryStore = {
       userId: entry.userId,
       params: entry.params,
       result: entry.result,
+      fullResult: entry.fullResult,
     };
     const next = [full, ...read()];
     write(next);
     return full;
+  },
+  get(id: string): CalibratorHistoryEntry | undefined {
+    return read().find((e) => e.id === id);
   },
   remove(id: string) {
     write(read().filter((e) => e.id !== id));
