@@ -14,6 +14,7 @@ export interface CalibratorHistoryEntry {
     symbol: string;
     periodDays: number;
     initialBalance: number;
+    leverage?: number;
   };
   result: {
     trades: number;
