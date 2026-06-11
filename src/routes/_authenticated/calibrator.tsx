@@ -69,6 +69,7 @@ function CalibratorPage() {
   const [symbol, setSymbol] = useState(search.symbol ?? "BTCUSDT");
   const [periodDays, setPeriodDays] = useState(search.period_days ?? 30);
   const [initialBalance, setInitialBalance] = useState(search.initial_balance ?? 10000);
+  const [leverage, setLeverage] = useState(search.leverage ?? 1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SimulationResultUI | null>(null);
@@ -86,6 +87,7 @@ function CalibratorPage() {
       symbol: symbol.trim().toUpperCase(),
       periodDays,
       initialBalance,
+      leverage,
     };
     try {
       const res = await calibratorAdapter.simulate(user.id, {
@@ -93,6 +95,7 @@ function CalibratorPage() {
         symbol: params.symbol,
         period_days: params.periodDays,
         initial_balance: params.initialBalance,
+        leverage: params.leverage,
       });
       setResult(res);
       recordSimulation(user.id, params, res);
@@ -116,6 +119,7 @@ function CalibratorPage() {
           symbol: search.symbol,
           period_days: search.period_days,
           initial_balance: search.initial_balance,
+          leverage: search.leverage,
         },
         replace: true,
       });
@@ -166,13 +170,17 @@ function CalibratorPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="symbol">Símbolo</Label>
-                <Input
-                  id="symbol"
-                  value={symbol}
-                  onChange={(e) => setSymbol(e.target.value)}
-                  placeholder="BTCUSDT"
-                />
+                <Label htmlFor="symbol">Par (Top 20 vs USDT)</Label>
+                <Select value={symbol} onValueChange={setSymbol}>
+                  <SelectTrigger id="symbol">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TOP_20_USDT_PAIRS.map((p) => (
+                      <SelectItem key={p.symbol} value={p.symbol}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -197,6 +205,25 @@ function CalibratorPage() {
                   onChange={(e) => setInitialBalance(Number(e.target.value) || 100)}
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="leverage" className="flex items-center gap-1.5">
+                  <Zap className="size-3.5 text-amber-500" /> Alavancagem ({leverage}×)
+                </Label>
+                <Input
+                  id="leverage"
+                  type="number"
+                  min={1}
+                  max={125}
+                  step={1}
+                  value={leverage}
+                  onChange={(e) => setLeverage(Math.max(1, Math.min(125, Number(e.target.value) || 1)))}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  1× a 125×. Alavancagem alta = liquidação possível.
+                </p>
+              </div>
+
 
               <Button onClick={runSimulation} disabled={loading} className="w-full">
                 {loading ? (
