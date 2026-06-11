@@ -17,12 +17,16 @@ export interface CalibratorHistoryEntry {
   };
   result: {
     trades: number;
+    wins?: number;
+    losses?: number;
     winRate: number;
     pnl: number;
     pnlPct: number;
     maxDrawdown: number;
     sharpe: number;
   };
+  /** Snapshot completo do resultado para visualização detalhada. */
+  fullResult?: SimulationResultUI;
 }
 
 const KEY = "calibrator.history.v1";
