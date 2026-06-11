@@ -102,11 +102,14 @@ export function recordSimulation(
     params,
     result: {
       trades: result.trades,
+      wins: result.wins,
+      losses: result.losses,
       winRate: result.winRate,
       pnl: result.pnl,
       pnlPct: result.pnlPct,
       maxDrawdown: result.maxDrawdown,
       sharpe: result.sharpe,
     },
+    fullResult: result,
   });
 }
