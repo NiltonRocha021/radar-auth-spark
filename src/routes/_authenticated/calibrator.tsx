@@ -13,8 +13,9 @@ import {
   type SimulationProfile,
   type SimulationResultUI,
 } from "@/adapters/backend/calibrator.adapter";
+import { TOP_20_USDT_PAIRS } from "@/lib/market-data";
 import { recordSimulation } from "@/lib/calibrator-history-store";
-import { FlaskConical, Loader2, TrendingUp, TrendingDown, Activity, AlertCircle, History } from "lucide-react";
+import { FlaskConical, Loader2, TrendingUp, TrendingDown, Activity, AlertCircle, History, Zap } from "lucide-react";
 
 const VALID_PROFILES: SimulationProfile[] = ["conservador", "rsi", "aiscore", "agressivo"];
 
@@ -23,6 +24,7 @@ type CalibratorSearch = {
   symbol?: string;
   period_days?: number;
   initial_balance?: number;
+  leverage?: number;
   autorun?: number;
 };
 
@@ -43,9 +45,11 @@ export const Route = createFileRoute("/_authenticated/calibrator")({
     const period_days = Number.isFinite(periodDaysNum) && periodDaysNum > 0 ? periodDaysNum : undefined;
     const balanceNum = Number(search.initial_balance);
     const initial_balance = Number.isFinite(balanceNum) && balanceNum > 0 ? balanceNum : undefined;
+    const leverageNum = Number(search.leverage);
+    const leverage = Number.isFinite(leverageNum) && leverageNum >= 1 ? leverageNum : undefined;
     const autorunNum = Number(search.autorun);
     const autorun = Number.isFinite(autorunNum) && autorunNum > 0 ? 1 : undefined;
-    return { profile, symbol, period_days, initial_balance, autorun };
+    return { profile, symbol, period_days, initial_balance, leverage, autorun };
   },
   component: CalibratorPage,
 });
