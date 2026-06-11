@@ -90,6 +90,7 @@ function CalibratorHistoryDetailPage() {
         symbol: entry!.params.symbol,
         period_days: entry!.params.periodDays,
         initial_balance: entry!.params.initialBalance,
+        leverage: entry!.params.leverage,
         autorun: 1,
       },
     });
