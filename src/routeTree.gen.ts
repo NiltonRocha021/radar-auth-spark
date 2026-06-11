@@ -30,6 +30,7 @@ import { Route as AuthenticatedAlertsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedCalibratorHistoryRouteImport } from './routes/_authenticated/calibrator.history'
 import { Route as AuthenticatedBot4xOnboardingRouteImport } from './routes/_authenticated/bot4x.onboarding'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
+import { Route as AuthenticatedCalibratorHistoryIdRouteImport } from './routes/_authenticated/calibrator.history.$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -141,6 +142,12 @@ const LovableEmailQueueProcessRoute =
     path: '/lovable/email/queue/process',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedCalibratorHistoryIdRoute =
+  AuthenticatedCalibratorHistoryIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedCalibratorHistoryRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -161,7 +168,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/signals': typeof AuthenticatedSignalsRoute
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
-  '/calibrator/history': typeof AuthenticatedCalibratorHistoryRoute
+  '/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
+  '/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
@@ -183,7 +191,8 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/signals': typeof AuthenticatedSignalsRoute
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
-  '/calibrator/history': typeof AuthenticatedCalibratorHistoryRoute
+  '/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
+  '/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
@@ -207,7 +216,8 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/signals': typeof AuthenticatedSignalsRoute
   '/_authenticated/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
-  '/_authenticated/calibrator/history': typeof AuthenticatedCalibratorHistoryRoute
+  '/_authenticated/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
+  '/_authenticated/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/signals'
     | '/bot4x/onboarding'
     | '/calibrator/history'
+    | '/calibrator/history/$id'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/signals'
     | '/bot4x/onboarding'
     | '/calibrator/history'
+    | '/calibrator/history/$id'
     | '/lovable/email/queue/process'
   id:
     | '__root__'
@@ -277,6 +289,7 @@ export interface FileRouteTypes {
     | '/_authenticated/signals'
     | '/_authenticated/bot4x/onboarding'
     | '/_authenticated/calibrator/history'
+    | '/_authenticated/calibrator/history/$id'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
@@ -436,6 +449,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/calibrator/history/$id': {
+      id: '/_authenticated/calibrator/history/$id'
+      path: '/$id'
+      fullPath: '/calibrator/history/$id'
+      preLoaderRoute: typeof AuthenticatedCalibratorHistoryIdRouteImport
+      parentRoute: typeof AuthenticatedCalibratorHistoryRoute
+    }
   }
 }
 
@@ -450,13 +470,29 @@ const AuthenticatedBot4xRouteChildren: AuthenticatedBot4xRouteChildren = {
 const AuthenticatedBot4xRouteWithChildren =
   AuthenticatedBot4xRoute._addFileChildren(AuthenticatedBot4xRouteChildren)
 
+interface AuthenticatedCalibratorHistoryRouteChildren {
+  AuthenticatedCalibratorHistoryIdRoute: typeof AuthenticatedCalibratorHistoryIdRoute
+}
+
+const AuthenticatedCalibratorHistoryRouteChildren: AuthenticatedCalibratorHistoryRouteChildren =
+  {
+    AuthenticatedCalibratorHistoryIdRoute:
+      AuthenticatedCalibratorHistoryIdRoute,
+  }
+
+const AuthenticatedCalibratorHistoryRouteWithChildren =
+  AuthenticatedCalibratorHistoryRoute._addFileChildren(
+    AuthenticatedCalibratorHistoryRouteChildren,
+  )
+
 interface AuthenticatedCalibratorRouteChildren {
-  AuthenticatedCalibratorHistoryRoute: typeof AuthenticatedCalibratorHistoryRoute
+  AuthenticatedCalibratorHistoryRoute: typeof AuthenticatedCalibratorHistoryRouteWithChildren
 }
 
 const AuthenticatedCalibratorRouteChildren: AuthenticatedCalibratorRouteChildren =
   {
-    AuthenticatedCalibratorHistoryRoute: AuthenticatedCalibratorHistoryRoute,
+    AuthenticatedCalibratorHistoryRoute:
+      AuthenticatedCalibratorHistoryRouteWithChildren,
   }
 
 const AuthenticatedCalibratorRouteWithChildren =

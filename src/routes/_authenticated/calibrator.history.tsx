@@ -200,7 +200,13 @@ function CalibratorHistoryPage() {
                       return (
                         <tr
                           key={e.id}
-                          className="border-t border-border hover:bg-muted/20"
+                          className="border-t border-border hover:bg-muted/30 cursor-pointer"
+                          onClick={() =>
+                            navigate({
+                              to: "/calibrator/history/$id",
+                              params: { id: e.id },
+                            })
+                          }
                         >
                           <td className="px-3 py-2 whitespace-nowrap text-xs text-muted-foreground">
                             {new Date(e.createdAt).toLocaleString()}
@@ -233,7 +239,10 @@ function CalibratorHistoryPage() {
                           <td className="px-3 py-2 text-right text-rose-500">
                             {(e.result.maxDrawdown * 100).toFixed(2)}%
                           </td>
-                          <td className="px-3 py-2 text-right whitespace-nowrap">
+                          <td
+                            className="px-3 py-2 text-right whitespace-nowrap"
+                            onClick={(ev) => ev.stopPropagation()}
+                          >
                             <Button
                               size="sm"
                               variant="outline"

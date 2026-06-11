@@ -17,12 +17,16 @@ export interface CalibratorHistoryEntry {
   };
   result: {
     trades: number;
+    wins?: number;
+    losses?: number;
     winRate: number;
     pnl: number;
     pnlPct: number;
     maxDrawdown: number;
     sharpe: number;
   };
+  /** Snapshot completo do resultado para visualização detalhada. */
+  fullResult?: SimulationResultUI;
 }
 
 const KEY = "calibrator.history.v1";
@@ -67,10 +71,14 @@ export const calibratorHistoryStore = {
       userId: entry.userId,
       params: entry.params,
       result: entry.result,
+      fullResult: entry.fullResult,
     };
     const next = [full, ...read()];
     write(next);
     return full;
+  },
+  get(id: string): CalibratorHistoryEntry | undefined {
+    return read().find((e) => e.id === id);
   },
   remove(id: string) {
     write(read().filter((e) => e.id !== id));
@@ -94,11 +102,14 @@ export function recordSimulation(
     params,
     result: {
       trades: result.trades,
+      wins: result.wins,
+      losses: result.losses,
       winRate: result.winRate,
       pnl: result.pnl,
       pnlPct: result.pnlPct,
       maxDrawdown: result.maxDrawdown,
       sharpe: result.sharpe,
     },
+    fullResult: result,
   });
 }
