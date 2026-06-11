@@ -239,7 +239,10 @@ function CalibratorHistoryPage() {
                           <td className="px-3 py-2 text-right text-rose-500">
                             {(e.result.maxDrawdown * 100).toFixed(2)}%
                           </td>
-                          <td className="px-3 py-2 text-right whitespace-nowrap">
+                          <td
+                            className="px-3 py-2 text-right whitespace-nowrap"
+                            onClick={(ev) => ev.stopPropagation()}
+                          >
                             <Button
                               size="sm"
                               variant="outline"
