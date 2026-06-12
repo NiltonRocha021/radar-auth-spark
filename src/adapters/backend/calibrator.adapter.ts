@@ -80,6 +80,10 @@ export interface BackendSimulationRequest {
   initial_balance?: number;
   /** Alavancagem aplicada por trade (1× a 125×). */
   leverage?: number;
+  /** ISO date (YYYY-MM-DD) — fim da janela do backtest (inclusivo). */
+  end_date?: string;
+  /** ISO date (YYYY-MM-DD) — início da janela do backtest. */
+  start_date?: string;
 }
 
 export interface BackendSimulationPoint {
