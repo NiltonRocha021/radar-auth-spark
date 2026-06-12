@@ -89,10 +89,25 @@ function CalibratorPage() {
     }
     setLoading(true);
     setError(null);
+    let effectivePeriodDays = periodDays;
+    let startDate: string | undefined;
+    let endDate: string | undefined;
+    if (timeframeMode === "custom") {
+      const s = Date.parse(`${customStart}T00:00:00Z`);
+      const e = Date.parse(`${customEnd}T23:59:59Z`);
+      if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) {
+        setError("Intervalo customizado inválido: a data final deve ser posterior à inicial.");
+        setLoading(false);
+        return;
+      }
+      effectivePeriodDays = Math.max(1, Math.ceil((e - s) / 86400000));
+      startDate = customStart;
+      endDate = customEnd;
+    }
     const params = {
       profile,
       symbol: symbol.trim().toUpperCase(),
-      periodDays,
+      periodDays: effectivePeriodDays,
       initialBalance,
       leverage,
     };
@@ -103,6 +118,8 @@ function CalibratorPage() {
         period_days: params.periodDays,
         initial_balance: params.initialBalance,
         leverage: params.leverage,
+        start_date: startDate,
+        end_date: endDate,
       });
       setResult(res);
       recordSimulation(user.id, params, res);
