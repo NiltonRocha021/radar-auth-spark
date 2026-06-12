@@ -444,10 +444,14 @@ function CalibratorPage() {
 
             {/* Results */}
             <div className="lg:col-span-2 space-y-5">
-              {!result && !loading && (
+              {!result && !multiResults && !loading && (
                 <Card className="p-10 text-center text-sm text-muted-foreground">
                   Configure os parâmetros à esquerda e execute uma simulação para visualizar os resultados.
                 </Card>
+              )}
+
+              {multiResults && !loading && (
+                <MultiPairPanel rows={multiResults} initialBalance={initialBalance} />
               )}
 
               {loading && (
