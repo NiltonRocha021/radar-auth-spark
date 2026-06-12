@@ -461,7 +461,7 @@ function CalibratorPage() {
                 </Card>
               )}
 
-              {result && !loading && (
+              {result && !multiResults && !loading && (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <Metric label="Trades" value={String(result.trades)} icon={<Activity className="size-4" />} />
