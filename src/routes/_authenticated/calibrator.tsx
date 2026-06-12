@@ -89,6 +89,8 @@ function CalibratorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SimulationResultUI | null>(null);
+  const [multiPair, setMultiPair] = useState(false);
+  const [multiResults, setMultiResults] = useState<MultiPairRow[] | null>(null);
   const autorunHandledRef = useRef(false);
 
   async function runSimulation() {
