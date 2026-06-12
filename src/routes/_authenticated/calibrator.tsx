@@ -115,6 +115,58 @@ function CalibratorPage() {
       startDate = customStart;
       endDate = customEnd;
     }
+    const baseReq = {
+      profile,
+      period_days: effectivePeriodDays,
+      initial_balance: initialBalance,
+      leverage,
+      start_date: startDate,
+      end_date: endDate,
+    };
+
+    if (multiPair) {
+      setResult(null);
+      const initialRows: MultiPairRow[] = TOP_20_USDT_PAIRS.map((p) => ({
+        symbol: p.symbol,
+        label: p.label,
+        status: "pending",
+      }));
+      setMultiResults(initialRows);
+      try {
+        const settled = await Promise.all(
+          TOP_20_USDT_PAIRS.map(async (p) => {
+            try {
+              const res = await calibratorAdapter.simulate(user.id!, {
+                ...baseReq,
+                symbol: p.symbol,
+              });
+              recordSimulation(user.id, {
+                profile,
+                symbol: p.symbol,
+                periodDays: effectivePeriodDays,
+                initialBalance,
+                leverage,
+              }, res);
+              return { symbol: p.symbol, label: p.label, status: "ok" as const, result: res };
+            } catch (err: any) {
+              return {
+                symbol: p.symbol,
+                label: p.label,
+                status: "error" as const,
+                error: err?.message ?? "Falha",
+              };
+            }
+          }),
+        );
+        setMultiResults(settled);
+      } catch (e: any) {
+        setError(e?.message ?? "Falha ao executar simulação multi-par.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     const params = {
       profile,
       symbol: symbol.trim().toUpperCase(),
@@ -123,14 +175,10 @@ function CalibratorPage() {
       leverage,
     };
     try {
+      setMultiResults(null);
       const res = await calibratorAdapter.simulate(user.id, {
-        profile: params.profile,
+        ...baseReq,
         symbol: params.symbol,
-        period_days: params.periodDays,
-        initial_balance: params.initialBalance,
-        leverage: params.leverage,
-        start_date: startDate,
-        end_date: endDate,
       });
       setResult(res);
       recordSimulation(user.id, params, res);
