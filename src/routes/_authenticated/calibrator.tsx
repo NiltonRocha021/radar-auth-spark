@@ -208,15 +208,79 @@ function CalibratorPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="period">Período (dias)</Label>
-                <Input
-                  id="period"
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={periodDays}
-                  onChange={(e) => setPeriodDays(Number(e.target.value) || 1)}
-                />
+                <Label>Janela do backtest</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[7, 30, 90, 180, 365].map((d) => {
+                    const active = timeframeMode === "preset" && periodDays === d;
+                    return (
+                      <Button
+                        key={d}
+                        type="button"
+                        size="sm"
+                        variant={active ? "default" : "outline"}
+                        className="h-7 px-2.5 text-xs"
+                        onClick={() => {
+                          setTimeframeMode("preset");
+                          setPeriodDays(d);
+                        }}
+                      >
+                        {d}d
+                      </Button>
+                    );
+                  })}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={timeframeMode === "custom" ? "default" : "outline"}
+                    className="h-7 px-2.5 text-xs"
+                    onClick={() => setTimeframeMode("custom")}
+                  >
+                    Custom
+                  </Button>
+                </div>
+
+                {timeframeMode === "preset" ? (
+                  <div className="space-y-1.5 pt-1">
+                    <Label htmlFor="period" className="text-[11px] text-muted-foreground">
+                      Ou informe outro valor (dias)
+                    </Label>
+                    <Input
+                      id="period"
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={periodDays}
+                      onChange={(e) => setPeriodDays(Math.max(1, Math.min(365, Number(e.target.value) || 1)))}
+                    />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div className="space-y-1">
+                      <Label htmlFor="dstart" className="text-[11px] text-muted-foreground">Início</Label>
+                      <Input
+                        id="dstart"
+                        type="date"
+                        max={customEnd || todayIso}
+                        value={customStart}
+                        onChange={(e) => setCustomStart(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="dend" className="text-[11px] text-muted-foreground">Fim</Label>
+                      <Input
+                        id="dend"
+                        type="date"
+                        min={customStart}
+                        max={todayIso}
+                        value={customEnd}
+                        onChange={(e) => setCustomEnd(e.target.value)}
+                      />
+                    </div>
+                    <p className="col-span-2 text-[11px] text-muted-foreground">
+                      Janela: {Math.max(1, Math.ceil((Date.parse(`${customEnd}T23:59:59Z`) - Date.parse(`${customStart}T00:00:00Z`)) / 86400000)) || 0} dia(s).
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
