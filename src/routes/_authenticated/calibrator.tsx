@@ -568,3 +568,96 @@ function EquitySparkline({ points }: { points: { t: string; equity: number }[] }
     </svg>
   );
 }
+
+function MultiPairPanel({ rows, initialBalance }: { rows: MultiPairRow[]; initialBalance: number }) {
+  const done = rows.filter((r) => r.status === "ok" && r.result);
+  const errors = rows.filter((r) => r.status === "error");
+  const pending = rows.filter((r) => r.status === "pending");
+
+  const totalTrades = done.reduce((a, r) => a + (r.result?.trades ?? 0), 0);
+  const totalPnl = done.reduce((a, r) => a + (r.result?.pnl ?? 0), 0);
+  const totalInvested = done.length * initialBalance;
+  const aggPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
+  const avgWinRate = done.length
+    ? done.reduce((a, r) => a + (r.result?.winRate ?? 0), 0) / done.length
+    : 0;
+  const worstDd = done.reduce((a, r) => Math.max(a, r.result?.maxDrawdown ?? 0), 0);
+  const winners = done.filter((r) => (r.result?.pnl ?? 0) > 0).length;
+
+  const sorted = [...done].sort(
+    (a, b) => (b.result?.pnlPct ?? 0) - (a.result?.pnlPct ?? 0),
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Metric label="Pares OK" value={`${done.length}/${rows.length}`} icon={<Layers className="size-4" />} />
+        <Metric
+          label="PnL agregado"
+          value={`${totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)} (${aggPnlPct.toFixed(2)}%)`}
+          tone={totalPnl >= 0 ? "pos" : "neg"}
+          icon={totalPnl >= 0 ? <TrendingUp className="size-4" /> : <TrendingDown className="size-4" />}
+        />
+        <Metric label="Win rate médio" value={`${(avgWinRate * 100).toFixed(1)}%`} tone={avgWinRate >= 0.5 ? "pos" : "neg"} />
+        <Metric label="Pior drawdown" value={`${(worstDd * 100).toFixed(2)}%`} tone="neg" />
+      </div>
+
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold">Resultados por par</h3>
+          <span className="text-xs text-muted-foreground">
+            {winners} vencedores · {totalTrades} trades · {pending.length > 0 && `${pending.length} pendentes · `}{errors.length} erros
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="text-left py-2 font-medium">Par</th>
+                <th className="text-right py-2 font-medium">Trades</th>
+                <th className="text-right py-2 font-medium">Win rate</th>
+                <th className="text-right py-2 font-medium">PnL</th>
+                <th className="text-right py-2 font-medium">PnL %</th>
+                <th className="text-right py-2 font-medium">Max DD</th>
+                <th className="text-right py-2 font-medium">Sharpe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r) => (
+                <tr key={r.symbol} className="border-b border-border/50 hover:bg-muted/30">
+                  <td className="py-2">{r.label}</td>
+                  <td className="text-right tabular-nums">{r.result?.trades ?? 0}</td>
+                  <td className="text-right tabular-nums">{((r.result?.winRate ?? 0) * 100).toFixed(1)}%</td>
+                  <td className={`text-right tabular-nums ${(r.result?.pnl ?? 0) >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                    {(r.result?.pnl ?? 0) >= 0 ? "+" : ""}{(r.result?.pnl ?? 0).toFixed(2)}
+                  </td>
+                  <td className={`text-right tabular-nums ${(r.result?.pnlPct ?? 0) >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                    {(r.result?.pnlPct ?? 0).toFixed(2)}%
+                  </td>
+                  <td className="text-right tabular-nums text-rose-500">
+                    {((r.result?.maxDrawdown ?? 0) * 100).toFixed(2)}%
+                  </td>
+                  <td className="text-right tabular-nums">{r.result?.sharpe?.toFixed(2) ?? "0.00"}</td>
+                </tr>
+              ))}
+              {errors.map((r) => (
+                <tr key={r.symbol} className="border-b border-border/50">
+                  <td className="py-2">{r.label}</td>
+                  <td colSpan={6} className="text-right text-destructive">{r.error}</td>
+                </tr>
+              ))}
+              {pending.map((r) => (
+                <tr key={r.symbol} className="border-b border-border/50 text-muted-foreground">
+                  <td className="py-2">{r.label}</td>
+                  <td colSpan={6} className="text-right">
+                    <Loader2 className="size-3 inline animate-spin mr-1" /> processando…
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
