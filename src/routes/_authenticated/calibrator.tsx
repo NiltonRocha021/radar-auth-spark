@@ -252,19 +252,33 @@ function CalibratorPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="symbol">Par (Top 20 vs USDT)</Label>
-                <Select value={symbol} onValueChange={setSymbol}>
-                  <SelectTrigger id="symbol">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TOP_20_USDT_PAIRS.map((p) => (
-                      <SelectItem key={p.symbol} value={p.symbol}>{p.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex items-start justify-between gap-3 rounded-md border border-border bg-muted/30 p-2.5">
+                <div className="space-y-0.5">
+                  <Label htmlFor="multi" className="flex items-center gap-1.5 text-xs font-medium">
+                    <Layers className="size-3.5 text-primary" /> Calibrar 20 pares simultâneos
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Executa o backtest em paralelo no Top 20 USDT.
+                  </p>
+                </div>
+                <Switch id="multi" checked={multiPair} onCheckedChange={setMultiPair} />
               </div>
+
+              {!multiPair && (
+                <div className="space-y-2">
+                  <Label htmlFor="symbol">Par (Top 20 vs USDT)</Label>
+                  <Select value={symbol} onValueChange={setSymbol}>
+                    <SelectTrigger id="symbol">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TOP_20_USDT_PAIRS.map((p) => (
+                        <SelectItem key={p.symbol} value={p.symbol}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Janela do backtest</Label>
