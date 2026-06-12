@@ -13,7 +13,7 @@ import {
   type SimulationProfile,
   type SimulationResultUI,
 } from "@/adapters/backend/calibrator.adapter";
-import { TOP_20_USDT_PAIRS } from "@/lib/market-data";
+import { TOP_20_USDT_PAIRS, planFetch } from "@/lib/market-data";
 import { recordSimulation } from "@/lib/calibrator-history-store";
 import { FlaskConical, Loader2, TrendingUp, TrendingDown, Activity, AlertCircle, History, Zap } from "lucide-react";
 
