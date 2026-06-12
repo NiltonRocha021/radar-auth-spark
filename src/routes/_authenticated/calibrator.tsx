@@ -15,7 +15,16 @@ import {
 } from "@/adapters/backend/calibrator.adapter";
 import { TOP_20_USDT_PAIRS, planFetch } from "@/lib/market-data";
 import { recordSimulation } from "@/lib/calibrator-history-store";
-import { FlaskConical, Loader2, TrendingUp, TrendingDown, Activity, AlertCircle, History, Zap } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { FlaskConical, Loader2, TrendingUp, TrendingDown, Activity, AlertCircle, History, Zap, Layers } from "lucide-react";
+
+interface MultiPairRow {
+  symbol: string;
+  label: string;
+  status: "pending" | "ok" | "error";
+  result?: SimulationResultUI;
+  error?: string;
+}
 
 const VALID_PROFILES: SimulationProfile[] = ["conservador", "rsi", "aiscore", "agressivo"];
 
@@ -80,6 +89,8 @@ function CalibratorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SimulationResultUI | null>(null);
+  const [multiPair, setMultiPair] = useState(false);
+  const [multiResults, setMultiResults] = useState<MultiPairRow[] | null>(null);
   const autorunHandledRef = useRef(false);
 
   async function runSimulation() {
@@ -104,6 +115,58 @@ function CalibratorPage() {
       startDate = customStart;
       endDate = customEnd;
     }
+    const baseReq = {
+      profile,
+      period_days: effectivePeriodDays,
+      initial_balance: initialBalance,
+      leverage,
+      start_date: startDate,
+      end_date: endDate,
+    };
+
+    if (multiPair) {
+      setResult(null);
+      const initialRows: MultiPairRow[] = TOP_20_USDT_PAIRS.map((p) => ({
+        symbol: p.symbol,
+        label: p.label,
+        status: "pending",
+      }));
+      setMultiResults(initialRows);
+      try {
+        const settled = await Promise.all(
+          TOP_20_USDT_PAIRS.map(async (p) => {
+            try {
+              const res = await calibratorAdapter.simulate(user.id!, {
+                ...baseReq,
+                symbol: p.symbol,
+              });
+              recordSimulation(user.id, {
+                profile,
+                symbol: p.symbol,
+                periodDays: effectivePeriodDays,
+                initialBalance,
+                leverage,
+              }, res);
+              return { symbol: p.symbol, label: p.label, status: "ok" as const, result: res };
+            } catch (err: any) {
+              return {
+                symbol: p.symbol,
+                label: p.label,
+                status: "error" as const,
+                error: err?.message ?? "Falha",
+              };
+            }
+          }),
+        );
+        setMultiResults(settled);
+      } catch (e: any) {
+        setError(e?.message ?? "Falha ao executar simulação multi-par.");
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     const params = {
       profile,
       symbol: symbol.trim().toUpperCase(),
@@ -112,14 +175,10 @@ function CalibratorPage() {
       leverage,
     };
     try {
+      setMultiResults(null);
       const res = await calibratorAdapter.simulate(user.id, {
-        profile: params.profile,
+        ...baseReq,
         symbol: params.symbol,
-        period_days: params.periodDays,
-        initial_balance: params.initialBalance,
-        leverage: params.leverage,
-        start_date: startDate,
-        end_date: endDate,
       });
       setResult(res);
       recordSimulation(user.id, params, res);
@@ -193,19 +252,33 @@ function CalibratorPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="symbol">Par (Top 20 vs USDT)</Label>
-                <Select value={symbol} onValueChange={setSymbol}>
-                  <SelectTrigger id="symbol">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TOP_20_USDT_PAIRS.map((p) => (
-                      <SelectItem key={p.symbol} value={p.symbol}>{p.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex items-start justify-between gap-3 rounded-md border border-border bg-muted/30 p-2.5">
+                <div className="space-y-0.5">
+                  <Label htmlFor="multi" className="flex items-center gap-1.5 text-xs font-medium">
+                    <Layers className="size-3.5 text-primary" /> Calibrar 20 pares simultâneos
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Executa o backtest em paralelo no Top 20 USDT.
+                  </p>
+                </div>
+                <Switch id="multi" checked={multiPair} onCheckedChange={setMultiPair} />
               </div>
+
+              {!multiPair && (
+                <div className="space-y-2">
+                  <Label htmlFor="symbol">Par (Top 20 vs USDT)</Label>
+                  <Select value={symbol} onValueChange={setSymbol}>
+                    <SelectTrigger id="symbol">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TOP_20_USDT_PAIRS.map((p) => (
+                        <SelectItem key={p.symbol} value={p.symbol}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Janela do backtest</Label>
@@ -371,10 +444,14 @@ function CalibratorPage() {
 
             {/* Results */}
             <div className="lg:col-span-2 space-y-5">
-              {!result && !loading && (
+              {!result && !multiResults && !loading && (
                 <Card className="p-10 text-center text-sm text-muted-foreground">
                   Configure os parâmetros à esquerda e execute uma simulação para visualizar os resultados.
                 </Card>
+              )}
+
+              {multiResults && !loading && (
+                <MultiPairPanel rows={multiResults} initialBalance={initialBalance} />
               )}
 
               {loading && (
@@ -384,7 +461,7 @@ function CalibratorPage() {
                 </Card>
               )}
 
-              {result && !loading && (
+              {result && !multiResults && !loading && (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <Metric label="Trades" value={String(result.trades)} icon={<Activity className="size-4" />} />
@@ -489,5 +566,98 @@ function EquitySparkline({ points }: { points: { t: string; equity: number }[] }
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-36">
       <path d={path} fill="none" stroke={stroke} strokeWidth={1.5} />
     </svg>
+  );
+}
+
+function MultiPairPanel({ rows, initialBalance }: { rows: MultiPairRow[]; initialBalance: number }) {
+  const done = rows.filter((r) => r.status === "ok" && r.result);
+  const errors = rows.filter((r) => r.status === "error");
+  const pending = rows.filter((r) => r.status === "pending");
+
+  const totalTrades = done.reduce((a, r) => a + (r.result?.trades ?? 0), 0);
+  const totalPnl = done.reduce((a, r) => a + (r.result?.pnl ?? 0), 0);
+  const totalInvested = done.length * initialBalance;
+  const aggPnlPct = totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
+  const avgWinRate = done.length
+    ? done.reduce((a, r) => a + (r.result?.winRate ?? 0), 0) / done.length
+    : 0;
+  const worstDd = done.reduce((a, r) => Math.max(a, r.result?.maxDrawdown ?? 0), 0);
+  const winners = done.filter((r) => (r.result?.pnl ?? 0) > 0).length;
+
+  const sorted = [...done].sort(
+    (a, b) => (b.result?.pnlPct ?? 0) - (a.result?.pnlPct ?? 0),
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Metric label="Pares OK" value={`${done.length}/${rows.length}`} icon={<Layers className="size-4" />} />
+        <Metric
+          label="PnL agregado"
+          value={`${totalPnl >= 0 ? "+" : ""}${totalPnl.toFixed(2)} (${aggPnlPct.toFixed(2)}%)`}
+          tone={totalPnl >= 0 ? "pos" : "neg"}
+          icon={totalPnl >= 0 ? <TrendingUp className="size-4" /> : <TrendingDown className="size-4" />}
+        />
+        <Metric label="Win rate médio" value={`${(avgWinRate * 100).toFixed(1)}%`} tone={avgWinRate >= 0.5 ? "pos" : "neg"} />
+        <Metric label="Pior drawdown" value={`${(worstDd * 100).toFixed(2)}%`} tone="neg" />
+      </div>
+
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold">Resultados por par</h3>
+          <span className="text-xs text-muted-foreground">
+            {winners} vencedores · {totalTrades} trades · {pending.length > 0 && `${pending.length} pendentes · `}{errors.length} erros
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="text-muted-foreground">
+              <tr className="border-b border-border">
+                <th className="text-left py-2 font-medium">Par</th>
+                <th className="text-right py-2 font-medium">Trades</th>
+                <th className="text-right py-2 font-medium">Win rate</th>
+                <th className="text-right py-2 font-medium">PnL</th>
+                <th className="text-right py-2 font-medium">PnL %</th>
+                <th className="text-right py-2 font-medium">Max DD</th>
+                <th className="text-right py-2 font-medium">Sharpe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((r) => (
+                <tr key={r.symbol} className="border-b border-border/50 hover:bg-muted/30">
+                  <td className="py-2">{r.label}</td>
+                  <td className="text-right tabular-nums">{r.result?.trades ?? 0}</td>
+                  <td className="text-right tabular-nums">{((r.result?.winRate ?? 0) * 100).toFixed(1)}%</td>
+                  <td className={`text-right tabular-nums ${(r.result?.pnl ?? 0) >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                    {(r.result?.pnl ?? 0) >= 0 ? "+" : ""}{(r.result?.pnl ?? 0).toFixed(2)}
+                  </td>
+                  <td className={`text-right tabular-nums ${(r.result?.pnlPct ?? 0) >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                    {(r.result?.pnlPct ?? 0).toFixed(2)}%
+                  </td>
+                  <td className="text-right tabular-nums text-rose-500">
+                    {((r.result?.maxDrawdown ?? 0) * 100).toFixed(2)}%
+                  </td>
+                  <td className="text-right tabular-nums">{r.result?.sharpe?.toFixed(2) ?? "0.00"}</td>
+                </tr>
+              ))}
+              {errors.map((r) => (
+                <tr key={r.symbol} className="border-b border-border/50">
+                  <td className="py-2">{r.label}</td>
+                  <td colSpan={6} className="text-right text-destructive">{r.error}</td>
+                </tr>
+              ))}
+              {pending.map((r) => (
+                <tr key={r.symbol} className="border-b border-border/50 text-muted-foreground">
+                  <td className="py-2">{r.label}</td>
+                  <td colSpan={6} className="text-right">
+                    <Loader2 className="size-3 inline animate-spin mr-1" /> processando…
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
   );
 }
