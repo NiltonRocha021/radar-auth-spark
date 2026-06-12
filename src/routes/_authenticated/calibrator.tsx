@@ -312,6 +312,46 @@ function CalibratorPage() {
                 </p>
               </div>
 
+              {(() => {
+                const days =
+                  timeframeMode === "custom"
+                    ? Math.max(
+                        1,
+                        Math.ceil(
+                          (Date.parse(`${customEnd}T23:59:59Z`) -
+                            Date.parse(`${customStart}T00:00:00Z`)) /
+                            86400000,
+                        ) || 0,
+                      )
+                    : periodDays;
+                if (!Number.isFinite(days) || days <= 0) return null;
+                const plan = planFetch(days);
+                const theoretical =
+                  plan.interval === "1h" ? days * 24 : plan.interval === "4h" ? days * 6 : days;
+                const clamped = theoretical > 1000;
+                const intervalLabel =
+                  plan.interval === "1h" ? "1 hora" : plan.interval === "4h" ? "4 horas" : "1 dia";
+                return (
+                  <div className="rounded-md border border-border bg-muted/30 p-2.5 text-[11px] space-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Candles estimados</span>
+                      <span className="font-semibold tabular-nums">
+                        ~{plan.limit.toLocaleString("pt-BR")}
+                      </span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      Timeframe: <span className="text-foreground">{intervalLabel}</span> · Janela:{" "}
+                      <span className="text-foreground">{days}d</span>
+                    </div>
+                    {clamped && (
+                      <div className="text-amber-500">
+                        Limite da Binance: 1000 candles por requisição (de {theoretical.toLocaleString("pt-BR")} possíveis).
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
 
               <Button onClick={runSimulation} disabled={loading} className="w-full">
                 {loading ? (
