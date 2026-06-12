@@ -15,7 +15,16 @@ import {
 } from "@/adapters/backend/calibrator.adapter";
 import { TOP_20_USDT_PAIRS, planFetch } from "@/lib/market-data";
 import { recordSimulation } from "@/lib/calibrator-history-store";
-import { FlaskConical, Loader2, TrendingUp, TrendingDown, Activity, AlertCircle, History, Zap } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { FlaskConical, Loader2, TrendingUp, TrendingDown, Activity, AlertCircle, History, Zap, Layers } from "lucide-react";
+
+interface MultiPairRow {
+  symbol: string;
+  label: string;
+  status: "pending" | "ok" | "error";
+  result?: SimulationResultUI;
+  error?: string;
+}
 
 const VALID_PROFILES: SimulationProfile[] = ["conservador", "rsi", "aiscore", "agressivo"];
 
