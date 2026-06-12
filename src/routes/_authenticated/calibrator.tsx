@@ -70,6 +70,13 @@ function CalibratorPage() {
   const [periodDays, setPeriodDays] = useState(search.period_days ?? 30);
   const [initialBalance, setInitialBalance] = useState(search.initial_balance ?? 10000);
   const [leverage, setLeverage] = useState(search.leverage ?? 1);
+  const [timeframeMode, setTimeframeMode] = useState<"preset" | "custom">("preset");
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const defaultStartIso = new Date(Date.now() - (search.period_days ?? 30) * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  const [customStart, setCustomStart] = useState<string>(defaultStartIso);
+  const [customEnd, setCustomEnd] = useState<string>(todayIso);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<SimulationResultUI | null>(null);
