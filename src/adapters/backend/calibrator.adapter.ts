@@ -80,6 +80,10 @@ export interface BackendSimulationRequest {
   initial_balance?: number;
   /** Alavancagem aplicada por trade (1× a 125×). */
   leverage?: number;
+  /** ISO date (YYYY-MM-DD) — fim da janela do backtest (inclusivo). */
+  end_date?: string;
+  /** ISO date (YYYY-MM-DD) — início da janela do backtest. */
+  start_date?: string;
 }
 
 export interface BackendSimulationPoint {
@@ -172,7 +176,12 @@ export const calibratorAdapter = {
       const { fetchKlines, planFetch } = await import("@/lib/market-data");
       const { runBacktest } = await import("@/lib/calibrator-backtest");
       const plan = planFetch(req.period_days);
-      const candles = await fetchKlines(req.symbol, plan.interval, plan.limit);
+      const endTime = req.end_date ? Date.parse(`${req.end_date}T23:59:59Z`) : undefined;
+      const startTime = req.start_date ? Date.parse(`${req.start_date}T00:00:00Z`) : undefined;
+      const candles = await fetchKlines(req.symbol, plan.interval, plan.limit, {
+        startTime: Number.isFinite(startTime) ? startTime : undefined,
+        endTime: Number.isFinite(endTime) ? endTime : undefined,
+      });
       const result = runBacktest({
         profile: req.profile,
         symbol: req.symbol,

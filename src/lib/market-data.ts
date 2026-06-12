@@ -49,12 +49,20 @@ export async function fetchKlines(
   symbol: string,
   interval: KlineInterval,
   limit: number,
+  opts?: { startTime?: number; endTime?: number },
 ): Promise<Candle[]> {
   const lim = Math.max(1, Math.min(1000, limit));
   let lastErr: unknown = null;
   for (const host of BINANCE_HOSTS) {
     try {
-      const url = `${host}/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${lim}`;
+      const qs = new URLSearchParams({
+        symbol,
+        interval,
+        limit: String(lim),
+      });
+      if (opts?.startTime) qs.set("startTime", String(opts.startTime));
+      if (opts?.endTime) qs.set("endTime", String(opts.endTime));
+      const url = `${host}/api/v3/klines?${qs.toString()}`;
       const res = await fetch(url);
       if (!res.ok) {
         lastErr = new Error(`Binance ${res.status}`);
