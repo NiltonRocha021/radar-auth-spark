@@ -105,6 +105,20 @@ export interface BackendSimulationResponse {
   commentary?: string;
 }
 
+export interface PairStatUI {
+  symbol: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  pnl: number;
+}
+export interface RiskSummaryUI {
+  dayStops: number;
+  dayTakes: number;
+  haltedDays: number;
+  liquidated: boolean;
+}
+
 export interface SimulationResultUI {
   trades: number;
   wins: number;
@@ -121,10 +135,12 @@ export interface SimulationResultUI {
     expectedImprovement: string;
   };
   commentary: string;
+  byPair?: PairStatUI[];
+  risk?: RiskSummaryUI;
   raw?: BackendSimulationResponse;
 }
 
-export function mapSimulationResult(r: BackendSimulationResponse): SimulationResultUI {
+export function mapSimulationResult(r: BackendSimulationResponse & { by_pair?: PairStatUI[]; risk?: RiskSummaryUI }): SimulationResultUI {
   return {
     trades: r.trades,
     wins: r.wins,
@@ -141,6 +157,8 @@ export function mapSimulationResult(r: BackendSimulationResponse): SimulationRes
       expectedImprovement: r.dna_feedback?.expected_improvement ?? "",
     },
     commentary: r.commentary ?? "",
+    byPair: r.by_pair,
+    risk: r.risk,
     raw: r,
   };
 }
@@ -155,10 +173,6 @@ export const calibratorAdapter = {
   async sendFeedback(userId: string, payload: Record<string, unknown>) {
     return api.post(calibratorEndpoints.feedback(userId), payload);
   },
-  /**
-   * Executa backtest. Tenta o BCE primeiro; se indisponível, usa dados reais
-   * da Binance e roda o motor de backtest local com alavancagem.
-   */
   async simulate(userId: string, req: BackendSimulationRequest): Promise<SimulationResultUI> {
     try {
       const data = await api.post<BackendSimulationResponse>(
@@ -172,7 +186,6 @@ export const calibratorAdapter = {
         e?.code === "ERR_NETWORK" ||
         e?.message === "Network Error";
       if (!isNetwork) throw e;
-      // Fallback com dados REAIS da Binance (sem backend BCE).
       const { fetchKlines, planFetch } = await import("@/lib/market-data");
       const { runBacktest } = await import("@/lib/calibrator-backtest");
       const plan = planFetch(req.period_days);
@@ -192,4 +205,39 @@ export const calibratorAdapter = {
       return mapSimulationResult(result);
     }
   },
+  /**
+   * Portfolio backtest: roda N pares simultâneos com gestão de risco
+   * unificada (máx 3 operações, 33% da banca cada, SL/TP por trade e diários).
+   */
+  async simulatePortfolio(
+    _userId: string,
+    req: Omit<BackendSimulationRequest, "symbol"> & { symbols: string[] },
+  ): Promise<SimulationResultUI> {
+    const { fetchKlines, planFetch } = await import("@/lib/market-data");
+    const { runPortfolioBacktest } = await import("@/lib/calibrator-backtest");
+    const plan = planFetch(req.period_days);
+    const endTime = req.end_date ? Date.parse(`${req.end_date}T23:59:59Z`) : undefined;
+    const startTime = req.start_date ? Date.parse(`${req.start_date}T00:00:00Z`) : undefined;
+    const symbols = await Promise.all(
+      req.symbols.map(async (sym) => {
+        try {
+          const candles = await fetchKlines(sym, plan.interval, plan.limit, {
+            startTime: Number.isFinite(startTime) ? startTime : undefined,
+            endTime: Number.isFinite(endTime) ? endTime : undefined,
+          });
+          return { symbol: sym, candles };
+        } catch {
+          return { symbol: sym, candles: [] };
+        }
+      }),
+    );
+    const result = runPortfolioBacktest({
+      profile: req.profile,
+      symbols: symbols.filter((s) => s.candles.length > 0),
+      initialBalance: req.initial_balance ?? 10000,
+      leverage: req.leverage ?? 1,
+    });
+    return mapSimulationResult(result);
+  },
 };
+
