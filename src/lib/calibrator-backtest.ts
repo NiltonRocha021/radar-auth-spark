@@ -1,5 +1,10 @@
-// Backtest determinístico sobre candles reais da Binance.
-// Cada perfil implementa uma estratégia simples; alavancagem multiplica o retorno por trade.
+// Backtest com gestão de riscos:
+//  - Stop/Take por trade (0,5% / 1% de variação de preço, intra-candle).
+//  - Stop/Take diário em % de equity (-1,5% / +3%).
+//  - Após +3% diário, trava o ganho e a cada +1% sobe o piso (trailing).
+//  - Stop diário aciona pausa de 24h (take diário NÃO pausa, apenas trava o dia).
+//  - Máx 3 operações simultâneas, cada uma usa 33% da banca atual.
+//  - Engine único: 1 par (single) ou N pares (portfolio unificado).
 import type { Candle } from "./market-data";
 import type {
   BackendSimulationResponse,
@@ -7,13 +12,22 @@ import type {
   SimulationProfile,
 } from "@/adapters/backend/calibrator.adapter";
 
+// ============ Risk Config ============
+export const RISK_CONFIG = {
+  positionFraction: 1 / 3,
+  maxConcurrent: 3,
+  trade: { sl: 0.005, tp: 0.01 }, // movimento de preço
+  daily: { sl: 0.015, tp: 0.03, trailStep: 0.01 }, // % de equity
+  haltMs: 24 * 60 * 60 * 1000,
+} as const;
+
+// ============ Estratégias ============
 function sma(values: number[], i: number, period: number): number | null {
   if (i + 1 < period) return null;
   let s = 0;
   for (let k = i - period + 1; k <= i; k++) s += values[k];
   return s / period;
 }
-
 function rsi(values: number[], i: number, period = 14): number | null {
   if (i < period) return null;
   let gains = 0;
@@ -26,184 +40,306 @@ function rsi(values: number[], i: number, period = 14): number | null {
   const avgGain = gains / period;
   const avgLoss = losses / period;
   if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return 100 - 100 / (1 + rs);
-}
-
-interface StrategyContext {
-  closes: number[];
-  i: number;
+  return 100 - 100 / (1 + avgGain / avgLoss);
 }
 type Signal = "LONG" | "SHORT" | "FLAT";
-
-function strategyConservador({ closes, i }: StrategyContext): Signal {
-  const fast = sma(closes, i, 20);
-  const slow = sma(closes, i, 50);
-  if (fast == null || slow == null) return "FLAT";
-  return fast > slow ? "LONG" : "FLAT";
-}
-
-function strategyRsi({ closes, i }: StrategyContext): Signal {
-  const r = rsi(closes, i, 14);
-  if (r == null) return "FLAT";
-  if (r < 30) return "LONG";
-  if (r > 70) return "SHORT";
-  return "FLAT";
-}
-
-function strategyAiScore({ closes, i }: StrategyContext): Signal {
-  const fast = sma(closes, i, 10);
-  const slow = sma(closes, i, 30);
-  const r = rsi(closes, i, 14);
-  if (fast == null || slow == null || r == null) return "FLAT";
-  const trend = fast > slow ? 1 : -1;
-  const momentum = r > 55 ? 1 : r < 45 ? -1 : 0;
-  const score = trend + momentum;
-  if (score >= 2) return "LONG";
-  if (score <= -2) return "SHORT";
-  return "FLAT";
-}
-
-function strategyAgressivo({ closes, i }: StrategyContext): Signal {
-  if (i < 3) return "FLAT";
-  const mom = (closes[i] - closes[i - 3]) / closes[i - 3];
-  if (mom > 0.005) return "LONG";
-  if (mom < -0.005) return "SHORT";
-  return "FLAT";
-}
-
-const STRATEGIES: Record<SimulationProfile, (ctx: StrategyContext) => Signal> = {
-  conservador: strategyConservador,
-  rsi: strategyRsi,
-  aiscore: strategyAiScore,
-  agressivo: strategyAgressivo,
+interface Ctx { closes: number[]; i: number; }
+const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
+  conservador: ({ closes, i }) => {
+    const f = sma(closes, i, 20), s = sma(closes, i, 50);
+    if (f == null || s == null) return "FLAT";
+    return f > s ? "LONG" : "FLAT";
+  },
+  rsi: ({ closes, i }) => {
+    const r = rsi(closes, i, 14);
+    if (r == null) return "FLAT";
+    if (r < 30) return "LONG";
+    if (r > 70) return "SHORT";
+    return "FLAT";
+  },
+  aiscore: ({ closes, i }) => {
+    const f = sma(closes, i, 10), s = sma(closes, i, 30), r = rsi(closes, i, 14);
+    if (f == null || s == null || r == null) return "FLAT";
+    const score = (f > s ? 1 : -1) + (r > 55 ? 1 : r < 45 ? -1 : 0);
+    if (score >= 2) return "LONG";
+    if (score <= -2) return "SHORT";
+    return "FLAT";
+  },
+  agressivo: ({ closes, i }) => {
+    if (i < 3) return "FLAT";
+    const mom = (closes[i] - closes[i - 3]) / closes[i - 3];
+    if (mom > 0.005) return "LONG";
+    if (mom < -0.005) return "SHORT";
+    return "FLAT";
+  },
 };
 
-export interface BacktestParams {
+// ============ Tipos ============
+export interface SymbolData { symbol: string; candles: Candle[]; }
+export interface PortfolioParams {
   profile: SimulationProfile;
-  symbol: string;
-  candles: Candle[];
+  symbols: SymbolData[];
   initialBalance: number;
   leverage: number;
-  /** Taxa por trade (entrada+saída) — ex. 0.0008 = 0.08%. */
   feePerTrade?: number;
 }
+export interface PairStat {
+  symbol: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  pnl: number;
+}
+export interface BacktestResponse extends BackendSimulationResponse {
+  by_pair?: PairStat[];
+  risk?: {
+    dayStops: number;
+    dayTakes: number;
+    haltedDays: number;
+    liquidated: boolean;
+  };
+}
 
-export function runBacktest(p: BacktestParams): BackendSimulationResponse {
+interface OpenPos {
+  symbol: string;
+  side: "LONG" | "SHORT";
+  entryPrice: number;
+  notional: number;
+  entryTime: number;
+}
+
+const utcDayKey = (ms: number) => {
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+};
+
+// ============ Engine ============
+export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
   const fee = p.feePerTrade ?? 0.0008;
   const leverage = Math.max(1, Math.min(125, p.leverage || 1));
-  const closes = p.candles.map((c) => c.close);
-  const strat = STRATEGIES[p.profile];
+  const lev = leverage;
+  const SL = RISK_CONFIG.trade.sl;
+  const TP = RISK_CONFIG.trade.tp;
+  const FRAC = RISK_CONFIG.positionFraction;
+  const MAX = RISK_CONFIG.maxConcurrent;
+  const DSL = RISK_CONFIG.daily.sl;
+  const DTP = RISK_CONFIG.daily.tp;
+  const STEP = RISK_CONFIG.daily.trailStep;
+  const HALT = RISK_CONFIG.haltMs;
 
-  let equity = p.initialBalance;
-  let peak = equity;
+  // Index candles by closeTime per symbol
+  const closesBySym = new Map<string, number[]>();
+  const candleAt = new Map<string, Map<number, { idx: number; candle: Candle }>>();
+  const timelineSet = new Set<number>();
+  for (const s of p.symbols) {
+    const closes: number[] = [];
+    const m = new Map<number, { idx: number; candle: Candle }>();
+    s.candles.forEach((c, idx) => {
+      closes.push(c.close);
+      m.set(c.closeTime, { idx, candle: c });
+      timelineSet.add(c.closeTime);
+    });
+    closesBySym.set(s.symbol, closes);
+    candleAt.set(s.symbol, m);
+  }
+  const timeline = Array.from(timelineSet).sort((a, b) => a - b);
+
+  // Last known close per symbol (for mark-to-market between candles)
+  const lastClose = new Map<string, number>();
+
+  let cash = p.initialBalance;
+  let open: OpenPos[] = [];
+  let peak = p.initialBalance;
   let maxDd = 0;
-  let wins = 0;
-  let losses = 0;
+  let dayKey: string | null = null;
+  let dayStartEquity = p.initialBalance;
+  let dailyFloor: number | null = null;
+  let dailyHaltedForDay = false;
+  let pauseUntilMs = 0;
   let liquidated = false;
-  let liquidatedAt: string | null = null;
-  let position: Signal = "FLAT";
-  let entryPrice = 0;
-  const equity_curve: BackendSimulationPoint[] = [];
+  let dayStops = 0;
+  let dayTakes = 0;
+  let haltedDays = 0;
 
-  const closeTrade = (exitPrice: number) => {
-    if (position === "FLAT") return;
-    const direction = position === "LONG" ? 1 : -1;
-    const rawRet = ((exitPrice - entryPrice) / entryPrice) * direction;
-    const leveragedRet = rawRet * leverage - fee;
-    const newEquity = equity * (1 + leveragedRet);
-    if (newEquity <= 0) {
-      equity = 0;
-      liquidated = true;
-      losses++;
-    } else {
-      equity = newEquity;
-      if (leveragedRet >= 0) wins++;
-      else losses++;
-    }
-    position = "FLAT";
-    entryPrice = 0;
+  const equity_curve: BackendSimulationPoint[] = [];
+  const pairStats = new Map<string, PairStat>();
+  const stat = (sym: string) => {
+    let s = pairStats.get(sym);
+    if (!s) { s = { symbol: sym, trades: 0, wins: 0, losses: 0, pnl: 0 }; pairStats.set(sym, s); }
+    return s;
   };
 
-  for (let i = 0; i < p.candles.length; i++) {
-    const c = p.candles[i];
-    const ts = new Date(c.closeTime).toISOString();
+  const markedEquity = () => {
+    let eq = cash;
+    for (const pos of open) {
+      const ref = lastClose.get(pos.symbol) ?? pos.entryPrice;
+      const dir = pos.side === "LONG" ? 1 : -1;
+      const ret = ((ref - pos.entryPrice) / pos.entryPrice) * dir * lev;
+      eq += pos.notional * ret;
+    }
+    return eq;
+  };
 
-    if (!liquidated) {
-      // Risco de liquidação intra-candle (com base no pior preço do candle)
-      if (position !== "FLAT") {
-        const worst = position === "LONG" ? c.low : c.high;
-        const adverseMove = position === "LONG"
-          ? (worst - entryPrice) / entryPrice
-          : (entryPrice - worst) / entryPrice;
-        const adverseLeveraged = adverseMove * leverage;
-        if (adverseLeveraged <= -1) {
-          // liquidação total
-          equity = 0;
-          losses++;
-          position = "FLAT";
-          entryPrice = 0;
-          liquidated = true;
-          liquidatedAt = ts;
-        }
+  const realizeClose = (pos: OpenPos, exitPrice: number) => {
+    const dir = pos.side === "LONG" ? 1 : -1;
+    const ret = ((exitPrice - pos.entryPrice) / pos.entryPrice) * dir * lev - fee;
+    const pnl = pos.notional * ret;
+    cash += pnl;
+    const s = stat(pos.symbol);
+    s.trades += 1;
+    s.pnl += pnl;
+    if (pnl >= 0) s.wins += 1; else s.losses += 1;
+  };
+
+  const closeAll = (ts: number) => {
+    for (const pos of open) {
+      const ref = lastClose.get(pos.symbol) ?? pos.entryPrice;
+      realizeClose(pos, ref);
+    }
+    open = [];
+  };
+
+  for (const ts of timeline) {
+    // 1) Atualiza lastClose com os candles que fecham neste ts
+    for (const s of p.symbols) {
+      const c = candleAt.get(s.symbol)!.get(ts);
+      if (c) lastClose.set(s.symbol, c.candle.close);
+    }
+
+    // 2) Checa SL/TP intra-candle para posições cujo símbolo fechou neste ts
+    const remaining: OpenPos[] = [];
+    for (const pos of open) {
+      const cInfo = candleAt.get(pos.symbol)!.get(ts);
+      if (!cInfo) { remaining.push(pos); continue; }
+      const c = cInfo.candle;
+      // Liquidação por alavancagem
+      const worst = pos.side === "LONG" ? c.low : c.high;
+      const adverse = pos.side === "LONG"
+        ? (worst - pos.entryPrice) / pos.entryPrice
+        : (pos.entryPrice - worst) / pos.entryPrice;
+      if (adverse * lev <= -1) {
+        // liquidação total da posição
+        const dir = pos.side === "LONG" ? 1 : -1;
+        const ret = -1 - fee;
+        const pnl = pos.notional * ret;
+        cash += pnl;
+        const s = stat(pos.symbol);
+        s.trades += 1; s.losses += 1; s.pnl += pnl;
+        liquidated = liquidated || cash <= 0;
+        continue;
       }
+      // SL/TP: ordem conservadora — checa SL primeiro se atingido
+      const slPrice = pos.side === "LONG" ? pos.entryPrice * (1 - SL) : pos.entryPrice * (1 + SL);
+      const tpPrice = pos.side === "LONG" ? pos.entryPrice * (1 + TP) : pos.entryPrice * (1 - TP);
+      const hitSl = pos.side === "LONG" ? c.low <= slPrice : c.high >= slPrice;
+      const hitTp = pos.side === "LONG" ? c.high >= tpPrice : c.low <= tpPrice;
+      if (hitSl) { realizeClose(pos, slPrice); continue; }
+      if (hitTp) { realizeClose(pos, tpPrice); continue; }
+      remaining.push(pos);
+    }
+    open = remaining;
 
-      if (!liquidated) {
-        const sig = strat({ closes, i });
-        if (sig !== position) {
-          // fecha posição atual e abre nova (se houver sinal direcional)
-          if (position !== "FLAT") closeTrade(c.close);
-          if (sig !== "FLAT" && equity > 0) {
-            position = sig;
-            entryPrice = c.close;
-          }
+    // 3) Day rollover
+    const k = utcDayKey(ts);
+    if (k !== dayKey) {
+      dayKey = k;
+      dayStartEquity = Math.max(1e-6, markedEquity());
+      dailyFloor = null;
+      dailyHaltedForDay = false;
+    }
+
+    // 4) Avalia metas diárias
+    let eq = markedEquity();
+    const dailyPnl = (eq - dayStartEquity) / dayStartEquity;
+    if (!dailyHaltedForDay) {
+      if (dailyPnl <= -DSL) {
+        closeAll(ts);
+        pauseUntilMs = ts + HALT;
+        dailyHaltedForDay = true;
+        dayStops += 1;
+        haltedDays += 1;
+        eq = markedEquity();
+      } else if (dailyPnl >= DTP) {
+        const newFloor = DTP + Math.floor((dailyPnl - DTP) / STEP) * STEP;
+        dailyFloor = Math.max(dailyFloor ?? -Infinity, newFloor);
+        if (dailyPnl < dailyFloor) {
+          closeAll(ts);
+          dailyHaltedForDay = true;
+          dayTakes += 1;
+          eq = markedEquity();
         }
       }
     }
 
-    if (equity > peak) peak = equity;
-    const dd = peak > 0 ? (peak - equity) / peak : 1;
+    // 5) Entradas (se não pausado, não halted, slot disponível)
+    if (!dailyHaltedForDay && ts >= pauseUntilMs && open.length < MAX && cash > 0 && eq > 0) {
+      const heldSymbols = new Set(open.map((o) => o.symbol));
+      for (const s of p.symbols) {
+        if (open.length >= MAX) break;
+        if (heldSymbols.has(s.symbol)) continue;
+        const cInfo = candleAt.get(s.symbol)!.get(ts);
+        if (!cInfo) continue;
+        const sig = STRATEGIES[p.profile]({ closes: closesBySym.get(s.symbol)!, i: cInfo.idx });
+        if (sig === "FLAT") continue;
+        const notional = Math.max(0, eq) * FRAC;
+        if (notional <= 0) break;
+        open.push({
+          symbol: s.symbol,
+          side: sig,
+          entryPrice: cInfo.candle.close,
+          notional,
+          entryTime: ts,
+        });
+        heldSymbols.add(s.symbol);
+        eq = markedEquity();
+      }
+    }
+
+    // 6) Curva de equity
+    const point = Math.max(0, markedEquity());
+    if (point > peak) peak = point;
+    const dd = peak > 0 ? (peak - point) / peak : 0;
     if (dd > maxDd) maxDd = dd;
-    equity_curve.push({ t: ts, equity: Number(equity.toFixed(2)) });
+    equity_curve.push({ t: new Date(ts).toISOString(), equity: Number(point.toFixed(2)) });
+
+    if (cash <= 0 && open.length === 0) {
+      liquidated = true;
+      break;
+    }
   }
 
-  // fecha última posição
-  if (!liquidated && position !== "FLAT" && p.candles.length > 0) {
-    closeTrade(p.candles[p.candles.length - 1].close);
+  // Fecha posições pendentes
+  if (open.length > 0) {
+    closeAll(timeline[timeline.length - 1] ?? Date.now());
     if (equity_curve.length > 0) {
       equity_curve[equity_curve.length - 1] = {
         t: equity_curve[equity_curve.length - 1].t,
-        equity: Number(equity.toFixed(2)),
+        equity: Number(Math.max(0, cash).toFixed(2)),
       };
     }
   }
 
-  const trades = wins + losses;
-  const pnl = equity - p.initialBalance;
+  const finalEquity = Math.max(0, cash);
+  let wins = 0, losses = 0, trades = 0;
+  for (const s of pairStats.values()) { wins += s.wins; losses += s.losses; trades += s.trades; }
+  const pnl = finalEquity - p.initialBalance;
   const pnl_pct = (pnl / p.initialBalance) * 100;
   const win_rate = trades ? wins / trades : 0;
-  // Sharpe simples baseado em retornos da curva
+
   const rets: number[] = [];
   for (let i = 1; i < equity_curve.length; i++) {
     const prev = equity_curve[i - 1].equity;
     if (prev > 0) rets.push((equity_curve[i].equity - prev) / prev);
   }
   const mean = rets.reduce((a, b) => a + b, 0) / Math.max(rets.length, 1);
-  const variance =
-    rets.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(rets.length - 1, 1);
+  const variance = rets.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(rets.length - 1, 1);
   const std = Math.sqrt(variance);
   const sharpe = std > 0 ? Number(((mean / std) * Math.sqrt(rets.length)).toFixed(2)) : 0;
 
-  const profileLabels: Record<SimulationProfile, string> = {
-    conservador: "Tendência (SMA 20/50)",
-    rsi: "Reversão por RSI(14)",
-    aiscore: "Score composto SMA+RSI",
-    agressivo: "Momentum curto prazo",
-  };
-
+  const symLabel = p.symbols.length === 1 ? p.symbols[0].symbol : `${p.symbols.length} pares`;
   const commentary = liquidated
-    ? `LIQUIDADO em ${liquidatedAt} — alavancagem ${leverage}× ${p.profile} em ${p.symbol}`
-    : `Real Binance ${p.symbol} • ${p.candles.length} candles • alavancagem ${leverage}× • ${profileLabels[p.profile]}`;
+    ? `LIQUIDADO • alavancagem ${lev}× ${p.profile} em ${symLabel}`
+    : `Gestão de risco ativa • ${symLabel} • alav ${lev}× • SL/TP ${SL * 100}%/${TP * 100}% por trade • SL/TP diário ${DSL * 100}%/${DTP * 100}% • ${dayStops} stop(s) diário(s) • ${dayTakes} take(s) diário(s)`;
 
   return {
     trades,
@@ -215,23 +351,43 @@ export function runBacktest(p: BacktestParams): BackendSimulationResponse {
     max_drawdown: Number(maxDd.toFixed(4)),
     sharpe,
     equity_curve,
-    dna_feedback: liquidated
-      ? {
-          pattern_detected: `Liquidação com alavancagem ${leverage}×`,
-          correction: "Reduzir alavancagem ou ajustar stops",
-          expected_improvement: "Sobrevivência do capital + drawdown menor",
-        }
-      : {
-          pattern_detected: `${profileLabels[p.profile]} • win rate ${(win_rate * 100).toFixed(1)}%`,
-          correction:
-            win_rate < 0.5
-              ? "Refinar gatilho de entrada — taxa de acerto baixa"
-              : pnl < 0
-              ? "Reduzir tamanho de posição ou alavancagem"
-              : "Manter parâmetros — desempenho positivo",
-          expected_improvement:
-            pnl >= 0 ? "Ajustes finos podem aumentar Sharpe" : "Melhora esperada de PnL com correção",
-        },
+    dna_feedback: {
+      pattern_detected: `Risco: ${dayStops} stop(s) diário(s) · ${dayTakes} take(s) diário(s) · win rate ${(win_rate * 100).toFixed(1)}%`,
+      correction: liquidated
+        ? "Reduzir alavancagem — capital foi liquidado"
+        : dayStops > dayTakes
+        ? "Stops diários dominam — revisar perfil ou janela"
+        : pnl >= 0
+        ? "Parâmetros saudáveis — manter risco"
+        : "PnL negativo mesmo com risco controlado — refinar entradas",
+      expected_improvement: liquidated
+        ? "Sobrevivência do capital + maior consistência"
+        : "Maior estabilidade do Sharpe com SL/TP ativos",
+    },
     commentary,
+    by_pair: Array.from(pairStats.values()).map((s) => ({
+      ...s,
+      pnl: Number(s.pnl.toFixed(2)),
+    })),
+    risk: { dayStops, dayTakes, haltedDays, liquidated },
   };
+}
+
+// Compat: single-pair (mantém assinatura legacy)
+export interface BacktestParams {
+  profile: SimulationProfile;
+  symbol: string;
+  candles: Candle[];
+  initialBalance: number;
+  leverage: number;
+  feePerTrade?: number;
+}
+export function runBacktest(p: BacktestParams): BacktestResponse {
+  return runPortfolioBacktest({
+    profile: p.profile,
+    symbols: [{ symbol: p.symbol, candles: p.candles }],
+    initialBalance: p.initialBalance,
+    leverage: p.leverage,
+    feePerTrade: p.feePerTrade,
+  });
 }
