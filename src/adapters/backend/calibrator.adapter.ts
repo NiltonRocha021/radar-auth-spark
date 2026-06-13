@@ -105,6 +105,20 @@ export interface BackendSimulationResponse {
   commentary?: string;
 }
 
+export interface PairStatUI {
+  symbol: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  pnl: number;
+}
+export interface RiskSummaryUI {
+  dayStops: number;
+  dayTakes: number;
+  haltedDays: number;
+  liquidated: boolean;
+}
+
 export interface SimulationResultUI {
   trades: number;
   wins: number;
@@ -121,6 +135,8 @@ export interface SimulationResultUI {
     expectedImprovement: string;
   };
   commentary: string;
+  byPair?: PairStatUI[];
+  risk?: RiskSummaryUI;
   raw?: BackendSimulationResponse;
 }
 
