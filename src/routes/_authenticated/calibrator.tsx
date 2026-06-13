@@ -540,6 +540,16 @@ function CalibratorPage() {
   );
 }
 
+function RiskCell({ label, value, tone }: { label: string; value: string; tone?: "pos" | "neg" }) {
+  const color = tone === "pos" ? "text-emerald-500" : tone === "neg" ? "text-rose-500" : "text-foreground";
+  return (
+    <div className="rounded-md border border-border bg-muted/20 p-2.5">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={`text-base font-semibold mt-0.5 ${color}`}>{value}</div>
+    </div>
+  );
+}
+
 function Metric({
   label,
   value,
