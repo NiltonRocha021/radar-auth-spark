@@ -465,6 +465,54 @@ function CalibratorPage() {
                     <EquitySparkline points={result.equityCurve} />
                   </Card>
 
+                  {result.risk && (
+                    <Card className="p-5">
+                      <h3 className="text-sm font-semibold mb-3">Gestão de risco</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                        <RiskCell label="SL diários acionados" value={String(result.risk.dayStops)} tone={result.risk.dayStops > 0 ? "neg" : undefined} />
+                        <RiskCell label="TP diários acionados" value={String(result.risk.dayTakes)} tone={result.risk.dayTakes > 0 ? "pos" : undefined} />
+                        <RiskCell label="Dias em pausa (24h)" value={String(result.risk.haltedDays)} />
+                        <RiskCell label="Liquidado" value={result.risk.liquidated ? "Sim" : "Não"} tone={result.risk.liquidated ? "neg" : "pos"} />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-3">
+                        Regras: SL 0,5% / TP 1% por trade · SL diário 1,5% (pausa 24h) · TP diário 3% com trailing de 1% · máx 3 operações simultâneas · 33% da banca por operação.
+                      </p>
+                    </Card>
+                  )}
+
+                  {result.byPair && result.byPair.length > 0 && (
+                    <Card className="p-5">
+                      <h3 className="text-sm font-semibold mb-3">Resultado por par</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead className="text-muted-foreground">
+                            <tr className="border-b border-border">
+                              <th className="text-left py-2 font-medium">Par</th>
+                              <th className="text-right py-2 font-medium">Trades</th>
+                              <th className="text-right py-2 font-medium">Wins</th>
+                              <th className="text-right py-2 font-medium">Losses</th>
+                              <th className="text-right py-2 font-medium">PnL</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[...result.byPair].sort((a, b) => b.pnl - a.pnl).map((r) => (
+                              <tr key={r.symbol} className="border-b border-border/50 hover:bg-muted/30">
+                                <td className="py-2">{r.symbol}</td>
+                                <td className="text-right tabular-nums">{r.trades}</td>
+                                <td className="text-right tabular-nums text-emerald-500">{r.wins}</td>
+                                <td className="text-right tabular-nums text-rose-500">{r.losses}</td>
+                                <td className={`text-right tabular-nums ${r.pnl >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                  {r.pnl >= 0 ? "+" : ""}{r.pnl.toFixed(2)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
+                  )}
+
+
                   {(result.commentary || result.dnaFeedback.patternDetected) && (
                     <Card className="p-5 space-y-3">
                       <h3 className="text-sm font-semibold">DNA feedback</h3>
