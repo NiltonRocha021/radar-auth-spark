@@ -126,39 +126,20 @@ function CalibratorPage() {
 
     if (multiPair) {
       setResult(null);
-      const initialRows: MultiPairRow[] = TOP_20_USDT_PAIRS.map((p) => ({
-        symbol: p.symbol,
-        label: p.label,
-        status: "pending",
-      }));
-      setMultiResults(initialRows);
+      setMultiResults(null);
       try {
-        const settled = await Promise.all(
-          TOP_20_USDT_PAIRS.map(async (p) => {
-            try {
-              const res = await calibratorAdapter.simulate(user.id!, {
-                ...baseReq,
-                symbol: p.symbol,
-              });
-              recordSimulation(user.id, {
-                profile,
-                symbol: p.symbol,
-                periodDays: effectivePeriodDays,
-                initialBalance,
-                leverage,
-              }, res);
-              return { symbol: p.symbol, label: p.label, status: "ok" as const, result: res };
-            } catch (err: any) {
-              return {
-                symbol: p.symbol,
-                label: p.label,
-                status: "error" as const,
-                error: err?.message ?? "Falha",
-              };
-            }
-          }),
-        );
-        setMultiResults(settled);
+        const res = await calibratorAdapter.simulatePortfolio(user.id, {
+          ...baseReq,
+          symbols: TOP_20_USDT_PAIRS.map((p) => p.symbol),
+        });
+        setResult(res);
+        recordSimulation(user.id, {
+          profile,
+          symbol: "PORTFOLIO_20",
+          periodDays: effectivePeriodDays,
+          initialBalance,
+          leverage,
+        }, res);
       } catch (e: any) {
         setError(e?.message ?? "Falha ao executar simulação multi-par.");
       } finally {
@@ -166,6 +147,7 @@ function CalibratorPage() {
       }
       return;
     }
+
 
     const params = {
       profile,
