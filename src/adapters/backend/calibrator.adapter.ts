@@ -71,7 +71,7 @@ export const calibratorEndpoints = {
   simulate: (userId: string) => `/calibrator/simulate/${userId}`,
 } as const;
 
-export type SimulationProfile = "conservador" | "rsi" | "aiscore" | "agressivo";
+export type SimulationProfile = "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper";
 
 export interface BackendSimulationRequest {
   profile: SimulationProfile;
