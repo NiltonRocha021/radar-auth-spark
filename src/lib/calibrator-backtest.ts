@@ -43,7 +43,38 @@ function rsi(values: number[], i: number, period = 14): number | null {
   return 100 - 100 / (1 + avgGain / avgLoss);
 }
 type Signal = "LONG" | "SHORT" | "FLAT";
-interface Ctx { closes: number[]; i: number; }
+interface Ctx { closes: number[]; i: number; candles?: Candle[]; }
+
+// ===== ScalperEngine helpers (EMA, VWAP, ATR, volume anomaly) =====
+function ema(values: number[], i: number, period: number): number | null {
+  if (i + 1 < period) return null;
+  const k = 2 / (period + 1);
+  let e = values[i - period + 1];
+  for (let j = i - period + 2; j <= i; j++) e = values[j] * k + e * (1 - k);
+  return e;
+}
+function rollingVwap(candles: Candle[], i: number, period: number): number | null {
+  if (i + 1 < period) return null;
+  let pv = 0, vv = 0;
+  for (let k = i - period + 1; k <= i; k++) {
+    const c = candles[k];
+    const tp = (c.high + c.low + c.close) / 3;
+    pv += tp * c.volume;
+    vv += c.volume;
+  }
+  return vv > 0 ? pv / vv : null;
+}
+function atr(candles: Candle[], i: number, period: number): number | null {
+  if (i < period) return null;
+  let s = 0;
+  for (let k = i - period + 1; k <= i; k++) {
+    const c = candles[k], p = candles[k - 1];
+    const tr = Math.max(c.high - c.low, Math.abs(c.high - p.close), Math.abs(c.low - p.close));
+    s += tr;
+  }
+  return s / period;
+}
+
 const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
   conservador: ({ closes, i }) => {
     const f = sma(closes, i, 20), s = sma(closes, i, 50);
@@ -70,6 +101,54 @@ const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
     const mom = (closes[i] - closes[i - 3]) / closes[i - 3];
     if (mom > 0.005) return "LONG";
     if (mom < -0.005) return "SHORT";
+    return "FLAT";
+  },
+  // ScalperEngine (Bot4x): EMA9/21 + VWAP + ATR + volume + momentum.
+  // Aprovação: confluência ≥ 80% (4 de 5 confirmações alinhadas).
+  scalper: ({ closes, i, candles }) => {
+    if (i < 22 || !candles) return "FLAT";
+    const e9 = ema(closes, i, 9);
+    const e21 = ema(closes, i, 21);
+    const vwap = rollingVwap(candles, i, 20);
+    const a = atr(candles, i, 14);
+    if (e9 == null || e21 == null || vwap == null || a == null) return "FLAT";
+    const price = closes[i];
+    // momentum curto (3 candles)
+    const mom = (closes[i] - closes[i - 3]) / closes[i - 3];
+    // volume anomaly: vol atual vs média 20
+    let vSum = 0;
+    for (let k = i - 19; k <= i; k++) vSum += candles[k].volume;
+    const vAvg = vSum / 20;
+    const vCur = candles[i].volume;
+    const volAnom = vAvg > 0 ? vCur / vAvg : 1;
+    // força do candle (corpo / range)
+    const c = candles[i];
+    const range = c.high - c.low;
+    const body = Math.abs(c.close - c.open);
+    const bodyRatio = range > 0 ? body / range : 0;
+    const bullishCandle = c.close > c.open;
+    // ATR mínimo (rejeita mercado lateral extremo: ATR < 0.05% do preço)
+    if (a / price < 0.0005) return "FLAT";
+
+    // Confluências LONG
+    const longChecks = [
+      e9 > e21,
+      price > vwap,
+      mom > 0.0015,
+      volAnom >= 1.3,
+      bullishCandle && bodyRatio >= 0.55,
+    ];
+    const shortChecks = [
+      e9 < e21,
+      price < vwap,
+      mom < -0.0015,
+      volAnom >= 1.3,
+      !bullishCandle && bodyRatio >= 0.55,
+    ];
+    const longScore = longChecks.filter(Boolean).length / longChecks.length;
+    const shortScore = shortChecks.filter(Boolean).length / shortChecks.length;
+    if (longScore >= 0.8) return "LONG";
+    if (shortScore >= 0.8) return "SHORT";
     return "FLAT";
   },
 };
@@ -279,7 +358,7 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
         if (heldSymbols.has(s.symbol)) continue;
         const cInfo = candleAt.get(s.symbol)!.get(ts);
         if (!cInfo) continue;
-        const sig = STRATEGIES[p.profile]({ closes: closesBySym.get(s.symbol)!, i: cInfo.idx });
+        const sig = STRATEGIES[p.profile]({ closes: closesBySym.get(s.symbol)!, i: cInfo.idx, candles: s.candles });
         if (sig === "FLAT") continue;
         const notional = Math.max(0, eq) * FRAC;
         if (notional <= 0) break;

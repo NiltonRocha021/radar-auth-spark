@@ -43,6 +43,7 @@ const PROFILES: { value: ProfileFilter; label: string }[] = [
   { value: "rsi", label: "RSI" },
   { value: "aiscore", label: "AI Score" },
   { value: "agressivo", label: "Agressivo" },
+  { value: "scalper", label: "Scalper" },
 ];
 
 function CalibratorHistoryPage() {
