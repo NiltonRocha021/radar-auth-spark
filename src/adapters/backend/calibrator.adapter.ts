@@ -25,7 +25,7 @@ export interface BackendCalibratorPayload {
   };
   commentary?: string;
   // Mapeamento para o perfil local do tab-calibrador (opcional)
-  profile?: "conservador" | "rsi" | "aiscore" | "agressivo";
+  profile?: "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper";
   updatedAt?: string;
 }
 
