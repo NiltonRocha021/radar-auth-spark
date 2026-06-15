@@ -151,6 +151,68 @@ const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
     if (shortScore >= 0.8) return "SHORT";
     return "FLAT";
   },
+  // IntradayEngine (Bot4x): EMA20/50, RSI, MACD, ATR, volume crescente, estrutura.
+  // Aprovação: confluência ≥ 80% (5 de 6 confirmações alinhadas).
+  intraday: ({ closes, i, candles }) => {
+    if (i < 60 || !candles) return "FLAT";
+    const e20 = ema(closes, i, 20);
+    const e50 = ema(closes, i, 50);
+    const r = rsi(closes, i, 14);
+    const a = atr(candles, i, 14);
+    if (e20 == null || e50 == null || r == null || a == null) return "FLAT";
+    const price = closes[i];
+    // MACD (12,26,9) — linha vs sinal
+    const macdLine = (() => {
+      const f = ema(closes, i, 12);
+      const s = ema(closes, i, 26);
+      return f != null && s != null ? f - s : null;
+    })();
+    if (macdLine == null) return "FLAT";
+    // sinal = EMA9 do MACD aproximada: compara com macd de 3 candles atrás
+    const macdPrev = (() => {
+      const f = ema(closes, i - 3, 12);
+      const s = ema(closes, i - 3, 26);
+      return f != null && s != null ? f - s : null;
+    })();
+    if (macdPrev == null) return "FLAT";
+    // Tendência (EMA20 x EMA50) + momentum (preço x EMA20)
+    const trendUp = e20 > e50 && price > e20;
+    const trendDown = e20 < e50 && price < e20;
+    // Volume crescente: média 5 > média 20
+    let v5 = 0, v20 = 0;
+    for (let k = i - 4; k <= i; k++) v5 += candles[k].volume;
+    for (let k = i - 19; k <= i; k++) v20 += candles[k].volume;
+    const volRising = v5 / 5 > v20 / 20 * 1.1;
+    // Estrutura: maior alta/baixa em 10 candles
+    let hh = -Infinity, ll = Infinity;
+    for (let k = i - 9; k <= i; k++) { hh = Math.max(hh, candles[k].high); ll = Math.min(ll, candles[k].low); }
+    const breakoutUp = candles[i].close >= hh * 0.999;
+    const breakoutDown = candles[i].close <= ll * 1.001;
+    // Volatilidade mínima (ATR ≥ 0.15% do preço)
+    if (a / price < 0.0015) return "FLAT";
+
+    const longChecks = [
+      trendUp,
+      r > 50 && r < 70,
+      macdLine > 0 && macdLine > macdPrev,
+      volRising,
+      breakoutUp,
+      a / price >= 0.0015,
+    ];
+    const shortChecks = [
+      trendDown,
+      r < 50 && r > 30,
+      macdLine < 0 && macdLine < macdPrev,
+      volRising,
+      breakoutDown,
+      a / price >= 0.0015,
+    ];
+    const longScore = longChecks.filter(Boolean).length / longChecks.length;
+    const shortScore = shortChecks.filter(Boolean).length / shortChecks.length;
+    if (longScore >= 0.8) return "LONG";
+    if (shortScore >= 0.8) return "SHORT";
+    return "FLAT";
+  },
 };
 
 // ============ Tipos ============

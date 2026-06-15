@@ -16,9 +16,10 @@ const ICONS: Record<CalibProfile, typeof Sliders> = {
   aiscore: Brain,
   agressivo: Zap,
   scalper: Zap,
+  intraday: TrendingUp,
 };
 
-const ORDER: CalibProfile[] = ["conservador", "rsi", "aiscore", "agressivo", "scalper"];
+const ORDER: CalibProfile[] = ["conservador", "rsi", "aiscore", "agressivo", "scalper", "intraday"];
 
 export function TabCalibrador() {
   // Ponte com o backend (BCE): sincroniza perfil ativo quando o Calibrador emite estado.
