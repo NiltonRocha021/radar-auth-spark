@@ -1,6 +1,6 @@
 export type ExecMode = "DEMO" | "REAL";
 export type Side = "LONG" | "SHORT";
-export type CalibProfile = "conservador" | "rsi" | "aiscore" | "agressivo";
+export type CalibProfile = "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper";
 
 export type ProfileSpec = {
   id: CalibProfile;
@@ -51,6 +51,14 @@ export const PROFILES: Record<CalibProfile, ProfileSpec> = {
     blockings30d: 378, trades30d: 267, riskRank: 4,
     warning: { level: "red", text: "🚨 EXCLUSIVO para alavancagem 1:1 e 1:3" },
     levMatrix: { 1: "ok", 2: "ok", 3: "warn", 4: "warn", 5: "warn", 6: "warn", 7: "no", 8: "no", 9: "no", 10: "no" },
+  },
+  scalper: {
+    id: "scalper" as CalibProfile, name: "Scalper", color: "#E0A82E", riskLabel: "Scalping M1-M5",
+    desc: "ScalperEngine: EMA9/21, VWAP, ATR, volume e momentum. Confluência ≥80% em M1/M3/M5.",
+    rsiBuy: 35, rsiSell: 65, aiScore: 80, fomo: 25, wr: 56,
+    blockings30d: 420, trades30d: 312, riskRank: 4,
+    warning: { level: "amber", text: "⚠ Scalping de alta frequência — requer baixo spread" },
+    levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "warn", 5: "warn", 6: "warn", 7: "no", 8: "no", 9: "no", 10: "no" },
   },
 };
 
