@@ -26,7 +26,7 @@ interface MultiPairRow {
   error?: string;
 }
 
-const VALID_PROFILES: SimulationProfile[] = ["conservador", "rsi", "aiscore", "agressivo", "scalper"];
+const VALID_PROFILES: SimulationProfile[] = ["conservador", "rsi", "aiscore", "agressivo", "scalper", "intraday"];
 
 type CalibratorSearch = {
   profile?: SimulationProfile;
@@ -69,6 +69,7 @@ const PROFILES: { value: SimulationProfile; label: string }[] = [
   { value: "aiscore", label: "AI Score" },
   { value: "agressivo", label: "Agressivo" },
   { value: "scalper", label: "Scalper (M1-M5 · Bot4x)" },
+  { value: "intraday", label: "Intraday (M15-H1 · Bot4x)" },
 ];
 
 function CalibratorPage() {

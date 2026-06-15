@@ -60,6 +60,14 @@ export const PROFILES: Record<CalibProfile, ProfileSpec> = {
     warning: { level: "amber", text: "⚠ Scalping de alta frequência — requer baixo spread" },
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "warn", 5: "warn", 6: "warn", 7: "no", 8: "no", 9: "no", 10: "no" },
   },
+  intraday: {
+    id: "intraday" as CalibProfile, name: "Intraday", color: "#2E86C1", riskLabel: "Intraday M15-H1",
+    desc: "IntradayEngine: EMA20/50, RSI, MACD, ATR, volume crescente e estrutura. RR ≥ 1:2.",
+    rsiBuy: 40, rsiSell: 60, aiScore: 80, fomo: 20, wr: 58,
+    blockings30d: 390, trades30d: 178, riskRank: 3,
+    warning: { level: "amber", text: "⚠ Requer tendência clara e volume crescente" },
+    levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "ok", 5: "warn", 6: "warn", 7: "warn", 8: "no", 9: "no", 10: "no" },
+  },
 };
 
 export function leverageRisk(lev: number): { tier: "low" | "med" | "high"; label: string; color: string; diagnosis: string } {

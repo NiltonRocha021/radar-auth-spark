@@ -44,6 +44,7 @@ const PROFILES: { value: ProfileFilter; label: string }[] = [
   { value: "aiscore", label: "AI Score" },
   { value: "agressivo", label: "Agressivo" },
   { value: "scalper", label: "Scalper" },
+  { value: "intraday", label: "Intraday" },
 ];
 
 function CalibratorHistoryPage() {
