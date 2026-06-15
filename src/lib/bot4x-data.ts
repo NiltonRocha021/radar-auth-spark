@@ -1,6 +1,6 @@
 export type ExecMode = "DEMO" | "REAL";
 export type Side = "LONG" | "SHORT";
-export type CalibProfile = "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper";
+export type CalibProfile = "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper" | "intraday";
 
 export type ProfileSpec = {
   id: CalibProfile;
