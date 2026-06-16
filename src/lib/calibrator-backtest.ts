@@ -385,10 +385,13 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
   const fee = p.feePerTrade ?? 0.0008;
   const leverage = Math.max(1, Math.min(125, p.leverage || 1));
   const lev = leverage;
-  const SL = RISK_CONFIG.trade.sl;
-  const TP = RISK_CONFIG.trade.tp;
-  const FRAC = RISK_CONFIG.positionFraction;
-  const MAX = RISK_CONFIG.maxConcurrent;
+  // Scalper override: SL 0,25% / TP 0,50% / até 6 operações simultâneas.
+  // Demais perfis seguem RISK_CONFIG global. Stop/Take diários inalterados.
+  const isScalper = p.profile === "scalper";
+  const SL = isScalper ? 0.0025 : RISK_CONFIG.trade.sl;
+  const TP = isScalper ? 0.005 : RISK_CONFIG.trade.tp;
+  const MAX = isScalper ? 6 : RISK_CONFIG.maxConcurrent;
+  const FRAC = isScalper ? 1 / 6 : RISK_CONFIG.positionFraction;
   const DSL = RISK_CONFIG.daily.sl;
   const DTP = RISK_CONFIG.daily.tp;
   const STEP = RISK_CONFIG.daily.trailStep;
