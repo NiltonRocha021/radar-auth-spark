@@ -479,7 +479,9 @@ function CalibratorPage() {
                         <RiskCell label="Liquidado" value={result.risk.liquidated ? "Sim" : "Não"} tone={result.risk.liquidated ? "neg" : "pos"} />
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-3">
-                        Regras: SL 0,5% / TP 1% por trade · SL diário 1,5% (pausa 24h) · TP diário 3% com trailing de 1% · máx 3 operações simultâneas · 33% da banca por operação.
+                        {profile === "scalper"
+                          ? "Regras: SL 0,25% / TP 0,50% por trade · SL diário 1,5% (pausa 24h) · TP diário 3% com trailing de 1% · máx 6 operações simultâneas · ~16,7% da banca por operação."
+                          : "Regras: SL 0,5% / TP 1% por trade · SL diário 1,5% (pausa 24h) · TP diário 3% com trailing de 1% · máx 3 operações simultâneas · 33% da banca por operação."}
                       </p>
                     </Card>
                   )}
