@@ -25,7 +25,7 @@ export interface BackendCalibratorPayload {
   };
   commentary?: string;
   // Mapeamento para o perfil local do tab-calibrador (opcional)
-  profile?: "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper" | "intraday";
+  profile?: "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper" | "intraday" | "swing" | "position";
   updatedAt?: string;
 }
 
@@ -71,7 +71,7 @@ export const calibratorEndpoints = {
   simulate: (userId: string) => `/calibrator/simulate/${userId}`,
 } as const;
 
-export type SimulationProfile = "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper" | "intraday";
+export type SimulationProfile = "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper" | "intraday" | "swing" | "position";
 
 export interface BackendSimulationRequest {
   profile: SimulationProfile;
