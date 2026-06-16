@@ -213,6 +213,132 @@ const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
     if (shortScore >= 0.8) return "SHORT";
     return "FLAT";
   },
+  // SwingEngine (Bot4x): EMA50/200, RSI, MACD, ADX proxy, volume institucional, rompimentos, pullbacks.
+  // Aprovação: confluência ≥ 75% (6 de 8 confirmações alinhadas). RR alvo 1:3 (gerido pelo engine de risco).
+  swing: ({ closes, i, candles }) => {
+    if (i < 210 || !candles) return "FLAT";
+    const e50 = ema(closes, i, 50);
+    const e200 = ema(closes, i, 200);
+    const r = rsi(closes, i, 14);
+    const a = atr(candles, i, 14);
+    if (e50 == null || e200 == null || r == null || a == null) return "FLAT";
+    const price = closes[i];
+    const macdLine = (() => {
+      const f = ema(closes, i, 12); const s = ema(closes, i, 26);
+      return f != null && s != null ? f - s : null;
+    })();
+    const macdPrev = (() => {
+      const f = ema(closes, i - 5, 12); const s = ema(closes, i - 5, 26);
+      return f != null && s != null ? f - s : null;
+    })();
+    if (macdLine == null || macdPrev == null) return "FLAT";
+    // ADX proxy: força direcional via |EMA50 - EMA200| / preço
+    const adxProxy = Math.abs(e50 - e200) / price;
+    const strongTrend = adxProxy >= 0.015;
+    // Volume institucional: média 20 acima da média 50
+    let v20 = 0, v50 = 0;
+    for (let k = i - 19; k <= i; k++) v20 += candles[k].volume;
+    for (let k = i - 49; k <= i; k++) v50 += candles[k].volume;
+    const volInst = v20 / 20 > v50 / 50 * 1.15;
+    // Rompimento 20 candles
+    let hh = -Infinity, ll = Infinity;
+    for (let k = i - 19; k <= i; k++) { hh = Math.max(hh, candles[k].high); ll = Math.min(ll, candles[k].low); }
+    const breakoutUp = candles[i].close >= hh * 0.999;
+    const breakoutDown = candles[i].close <= ll * 1.001;
+    // Pullback de qualidade: preço encostou em EMA50 nos últimos 5 candles
+    let pullbackUp = false, pullbackDown = false;
+    for (let k = i - 4; k <= i; k++) {
+      const e = ema(closes, k, 50);
+      if (e == null) continue;
+      if (candles[k].low <= e * 1.005 && candles[k].close > e) pullbackUp = true;
+      if (candles[k].high >= e * 0.995 && candles[k].close < e) pullbackDown = true;
+    }
+    if (a / price < 0.002) return "FLAT"; // baixa participação / lateralidade
+
+    const longChecks = [
+      e50 > e200,
+      price > e50,
+      r > 50 && r < 70,
+      macdLine > 0 && macdLine > macdPrev,
+      strongTrend,
+      volInst,
+      breakoutUp,
+      pullbackUp,
+    ];
+    const shortChecks = [
+      e50 < e200,
+      price < e50,
+      r < 50 && r > 30,
+      macdLine < 0 && macdLine < macdPrev,
+      strongTrend,
+      volInst,
+      breakoutDown,
+      pullbackDown,
+    ];
+    const longScore = longChecks.filter(Boolean).length / longChecks.length;
+    const shortScore = shortChecks.filter(Boolean).length / shortChecks.length;
+    if (longScore >= 0.75) return "LONG";
+    if (shortScore >= 0.75) return "SHORT";
+    return "FLAT";
+  },
+  // PositionEngine (Bot4x): EMA200/400, ciclo macro, fluxo institucional, correlação BTC/ETH.
+  // Aprovação: confluência ≥ 70% (5 de 7 confirmações). RR alvo 1:4.
+  position: ({ closes, i, candles }) => {
+    if (i < 410 || !candles) return "FLAT";
+    const e200 = ema(closes, i, 200);
+    const e400 = ema(closes, i, 400);
+    if (e200 == null || e400 == null) return "FLAT";
+    const price = closes[i];
+    // Estrutura macro: preço acima/abaixo da média 200 por ≥30 candles
+    let macroBull = 0, macroBear = 0;
+    for (let k = i - 29; k <= i; k++) {
+      const e = ema(closes, k, 200);
+      if (e == null) continue;
+      if (closes[k] > e) macroBull++; else macroBear++;
+    }
+    const macroUp = macroBull >= 25;
+    const macroDown = macroBear >= 25;
+    // Ciclo: variação 90 candles
+    const cycleRet = i >= 90 ? (closes[i] - closes[i - 90]) / closes[i - 90] : 0;
+    // Fluxo institucional: volume médio 30 acima do 90
+    let v30 = 0, v90 = 0;
+    for (let k = i - 29; k <= i; k++) v30 += candles[k].volume;
+    for (let k = i - 89; k <= i; k++) v90 += candles[k].volume;
+    const instFlow = v30 / 30 > v90 / 90 * 1.1;
+    // Tendência dominante (EMA200 inclinação)
+    const e200Prev = ema(closes, i - 20, 200);
+    const slopeUp = e200Prev != null && e200 > e200Prev;
+    const slopeDown = e200Prev != null && e200 < e200Prev;
+    // Correlação BTC/ETH não disponível por símbolo individual; usa consistência de fechamento
+    let upDays = 0, downDays = 0;
+    for (let k = i - 19; k <= i; k++) { if (closes[k] > closes[k - 1]) upDays++; else downDays++; }
+    const consUp = upDays >= 12;
+    const consDown = downDays >= 12;
+
+    const longChecks = [
+      e200 > e400,
+      price > e200,
+      macroUp,
+      cycleRet > 0.05,
+      instFlow,
+      slopeUp,
+      consUp,
+    ];
+    const shortChecks = [
+      e200 < e400,
+      price < e200,
+      macroDown,
+      cycleRet < -0.05,
+      instFlow,
+      slopeDown,
+      consDown,
+    ];
+    const longScore = longChecks.filter(Boolean).length / longChecks.length;
+    const shortScore = shortChecks.filter(Boolean).length / shortChecks.length;
+    if (longScore >= 0.7) return "LONG";
+    if (shortScore >= 0.7) return "SHORT";
+    return "FLAT";
+  },
 };
 
 // ============ Tipos ============

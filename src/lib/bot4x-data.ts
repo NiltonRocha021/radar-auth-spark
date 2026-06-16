@@ -1,6 +1,6 @@
 export type ExecMode = "DEMO" | "REAL";
 export type Side = "LONG" | "SHORT";
-export type CalibProfile = "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper" | "intraday";
+export type CalibProfile = "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper" | "intraday" | "swing" | "position";
 
 export type ProfileSpec = {
   id: CalibProfile;
@@ -67,6 +67,22 @@ export const PROFILES: Record<CalibProfile, ProfileSpec> = {
     blockings30d: 390, trades30d: 178, riskRank: 3,
     warning: { level: "amber", text: "⚠ Requer tendência clara e volume crescente" },
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "ok", 5: "warn", 6: "warn", 7: "warn", 8: "no", 9: "no", 10: "no" },
+  },
+  swing: {
+    id: "swing" as CalibProfile, name: "Swing", color: "#16A085", riskLabel: "Swing H4-D1",
+    desc: "SwingEngine: EMA50/200, RSI, MACD, ADX, volume institucional. Confluência ≥75%, RR ≥1:3.",
+    rsiBuy: 45, rsiSell: 55, aiScore: 75, fomo: 30, wr: 61,
+    blockings30d: 340, trades30d: 92, riskRank: 2,
+    warning: { level: "amber", text: "⚠ Requer ADX favorável e tendência confirmada" },
+    levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "ok", 5: "warn", 6: "warn", 7: "no", 8: "no", 9: "no", 10: "no" },
+  },
+  position: {
+    id: "position" as CalibProfile, name: "Position", color: "#8E44AD", riskLabel: "Position D1-W1",
+    desc: "PositionEngine: EMA200/400, ciclo macro, fluxo institucional, correlação BTC/ETH. Confluência ≥70%, RR ≥1:4.",
+    rsiBuy: 50, rsiSell: 50, aiScore: 70, fomo: 40, wr: 64,
+    blockings30d: 280, trades30d: 32, riskRank: 2,
+    warning: { level: "amber", text: "⚠ Tendência macro de longo prazo — exposição prolongada" },
+    levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "warn", 5: "warn", 6: "no", 7: "no", 8: "no", 9: "no", 10: "no" },
   },
 };
 

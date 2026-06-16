@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp,
+  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp, Activity, Mountain,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBot4xStore } from "@/lib/bot4x-store";
@@ -17,9 +17,11 @@ const ICONS: Record<CalibProfile, typeof Sliders> = {
   agressivo: Zap,
   scalper: Zap,
   intraday: TrendingUp,
+  swing: Activity,
+  position: Mountain,
 };
 
-const ORDER: CalibProfile[] = ["conservador", "rsi", "aiscore", "agressivo", "scalper", "intraday"];
+const ORDER: CalibProfile[] = ["conservador", "rsi", "aiscore", "agressivo", "scalper", "intraday", "swing", "position"];
 
 export function TabCalibrador() {
   // Ponte com o backend (BCE): sincroniza perfil ativo quando o Calibrador emite estado.
