@@ -1,13 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp, Activity, Mountain,
+  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp, Activity, Mountain, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { PROFILES, type CalibProfile, type ProfileSpec } from "@/lib/bot4x-data";
 import { useCalibratorState } from "@/hooks/useCalibratorState";
 import { useAuth } from "@/lib/auth";
+import { calibratorAdapter, type SimulationResultUI } from "@/adapters/backend/calibrator.adapter";
 
 
 const ICONS: Record<CalibProfile, typeof Sliders> = {
