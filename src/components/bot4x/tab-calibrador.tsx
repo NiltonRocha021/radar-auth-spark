@@ -1,13 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp, Activity, Mountain,
+  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp, Activity, Mountain, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { PROFILES, type CalibProfile, type ProfileSpec } from "@/lib/bot4x-data";
 import { useCalibratorState } from "@/hooks/useCalibratorState";
 import { useAuth } from "@/lib/auth";
+import { calibratorAdapter, type SimulationResultUI } from "@/adapters/backend/calibrator.adapter";
 
 
 const ICONS: Record<CalibProfile, typeof Sliders> = {
@@ -207,41 +208,63 @@ function ProfileCard({ p, onOpenSim }: { p: ProfileSpec; onOpenSim: () => void }
 // ----- Simulation modal -----
 function SimulationModal({ profile, onClose }: { profile: ProfileSpec; onClose: () => void }) {
   const Icon = ICONS[profile.id];
-  // 30-day equity curve seeded from profile WR
+  const { user } = useAuth();
+  const leverage = useBot4xStore((s) => s.leverage);
+  const [sim, setSim] = useState<SimulationResultUI | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancel = false;
+    setLoading(true);
+    setErr(null);
+    setSim(null);
+    calibratorAdapter
+      .simulate(user?.id ?? "local", {
+        profile: profile.id,
+        symbol: "BTCUSDT",
+        period_days: 30,
+        initial_balance: 1000,
+        leverage,
+      })
+      .then((res) => {
+        if (cancel) return;
+        setSim(res);
+        setLoading(false);
+      })
+      .catch((e: unknown) => {
+        if (cancel) return;
+        setErr(e instanceof Error ? e.message : String(e));
+        setLoading(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [profile.id, user?.id, leverage]);
+
+  // Derive series from real backtest equity curve; fallback to flat 1000 while loading
   const series = useMemo(() => {
-    const N = 30;
-    const out: number[] = [];
-    let acc = 1000;
-    const tradesPerDay = Math.max(1, Math.round(profile.trades30d / 30));
-    let seed = profile.id.length * 7919;
-    const rng = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0xFFFFFFFF; };
-    for (let i = 0; i < N; i++) {
-      let day = 0;
-      for (let t = 0; t < tradesPerDay; t++) {
-        const win = rng() < profile.wr / 100;
-        const pct = win ? 0.4 + rng() * 0.5 : -(0.3 + rng() * 0.4);
-        day += pct;
-      }
-      acc = +(acc * (1 + day / 100)).toFixed(2);
-      out.push(acc);
-    }
-    return out;
-  }, [profile.id, profile.wr, profile.trades30d]);
+    if (sim?.equityCurve?.length) return sim.equityCurve.map((p) => p.equity);
+    return [1000];
+  }, [sim]);
 
   const final = series[series.length - 1];
-  const pnlPct = ((final - 1000) / 1000) * 100;
-  const peak = Math.max(...series);
-  const trough = Math.min(...series.map((v, i) => v - Math.max(...series.slice(0, i + 1))));
-  const maxDD = (trough / peak) * 100;
+  const pnlPct = sim?.pnlPct ?? ((final - 1000) / 1000) * 100;
+  const maxDD = sim?.maxDrawdown ?? 0;
+  const totalTrades = sim?.trades ?? profile.trades30d;
+  const winRate = sim ? sim.winRate * 100 : profile.wr;
 
-  const W = 560, H = 160;
+  const W = 560,
+    H = 160;
   const min = Math.min(...series, 1000);
   const max = Math.max(...series, 1000);
   const range = max - min || 1;
-  const step = W / (series.length - 1);
+  const step = series.length > 1 ? W / (series.length - 1) : W;
   const norm = (v: number) => H - ((v - min) / range) * H;
-  const d = series.map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${norm(v).toFixed(1)}`).join(" ");
-  const area = `${d} L${W},${H} L0,${H} Z`;
+  const d = series
+    .map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${norm(v).toFixed(1)}`)
+    .join(" ");
+  const area = series.length > 1 ? `${d} L${W},${H} L0,${H} Z` : "";
 
   return (
     <>
@@ -267,44 +290,66 @@ function SimulationModal({ profile, onClose }: { profile: ProfileSpec; onClose: 
                 Simulação 30 dias — {profile.name}
               </h3>
               <p className="text-[12px] text-muted-foreground mt-0.5">
-                Capital inicial 1.000 USDT · {profile.trades30d} trades · WR ~{profile.wr}%
+                BTCUSDT · Capital 1.000 USDT · Leverage {leverage}x · estratégia real (backtest)
               </p>
             </div>
             <button onClick={onClose} className="size-7 rounded hover:bg-secondary flex items-center justify-center text-muted-foreground">
               <X className="size-4" />
             </button>
           </div>
-          <div className="p-5 space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <SimStat label="Resultado" value={`${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%`} color={pnlPct >= 0 ? "#1D9E75" : "#E24B4A"} />
-              <SimStat label="Capital final" value={`${final.toFixed(0)} USDT`} />
-              <SimStat label="Max drawdown" value={`${maxDD.toFixed(2)}%`} color="#E24B4A" />
-              <SimStat label="Bloqueios" value={`~${profile.blockings30d}`} />
-            </div>
-            <div className="rounded-md border border-border bg-background p-3">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1.5">
-                  <TrendingUp className="size-3.5" /> Curva de equity (30d)
-                </span>
-                <span className="text-[10px] text-muted-foreground tabular-nums">
-                  min {min.toFixed(0)} · max {max.toFixed(0)}
-                </span>
+          <div className="p-5 space-y-4 min-h-[280px]">
+            {loading && (
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-2">
+                <Loader2 className="size-6 animate-spin" style={{ color: profile.color }} />
+                <span className="text-[12px]">Executando backtest real sobre candles BTCUSDT…</span>
               </div>
-              <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-40" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id={`sim-${profile.id}`} x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="0%" stopColor={profile.color} stopOpacity="0.35" />
-                    <stop offset="100%" stopColor={profile.color} stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <line x1="0" x2={W} y1={norm(1000)} y2={norm(1000)} stroke="currentColor" strokeOpacity="0.15" strokeDasharray="3 3" />
-                <path d={area} fill={`url(#sim-${profile.id})`} />
-                <path d={d} fill="none" stroke={profile.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Simulação determinística baseada em WR e volume médios. Resultados reais variam com slippage e condições de mercado.
-            </p>
+            )}
+            {!loading && err && (
+              <div className="rounded-md border border-[#E24B4A55] bg-[#E24B4A14] px-3 py-2 text-[12px] text-[#FF9B9A]">
+                Falha ao executar backtest: {err}
+              </div>
+            )}
+            {!loading && !err && sim && (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <SimStat
+                    label="Resultado"
+                    value={`${pnlPct >= 0 ? "+" : ""}${pnlPct.toFixed(2)}%`}
+                    color={pnlPct >= 0 ? "#1D9E75" : "#E24B4A"}
+                  />
+                  <SimStat label="Capital final" value={`${final.toFixed(0)} USDT`} />
+                  <SimStat label="Max drawdown" value={`${maxDD.toFixed(2)}%`} color="#E24B4A" />
+                  <SimStat label="Trades" value={`${totalTrades} · WR ${winRate.toFixed(0)}%`} />
+                </div>
+                <div className="rounded-md border border-border bg-background p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1.5">
+                      <TrendingUp className="size-3.5" /> Curva de equity (30d)
+                    </span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                      min {min.toFixed(0)} · max {max.toFixed(0)}
+                    </span>
+                  </div>
+                  <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-40" preserveAspectRatio="none">
+                    <defs>
+                      <linearGradient id={`sim-${profile.id}`} x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stopColor={profile.color} stopOpacity="0.35" />
+                        <stop offset="100%" stopColor={profile.color} stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                    <line x1="0" x2={W} y1={norm(1000)} y2={norm(1000)} stroke="currentColor" strokeOpacity="0.15" strokeDasharray="3 3" />
+                    {area && <path d={area} fill={`url(#sim-${profile.id})`} />}
+                    <path d={d} fill="none" stroke={profile.color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+                {sim.commentary && (
+                  <p className="text-[11px] text-muted-foreground">{sim.commentary}</p>
+                )}
+                <p className="text-[10.5px] text-muted-foreground/80">
+                  Backtest executado sobre candles reais (Binance) com a estratégia do perfil <b style={{ color: profile.color }}>{profile.name}</b>. Resultados variam com slippage e condições de mercado.
+                </p>
+              </>
+            )}
           </div>
         </div>
       </motion.div>
