@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import {
-  type ExecMode, type CalibProfile, type Order, type Tick, type Trade,
+  type ExecMode, type CalibProfile, type Order, type Side, type Tick, type Trade,
   makeTick, genHistory,
 } from "./bot4x-data";
 import { PROFILES } from "./bot4x-data";
