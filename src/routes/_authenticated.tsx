@@ -23,6 +23,7 @@ function AuthGate() {
   const { profile } = useTraderProfile(session?.user?.id);
   const { marketContext } = useMarketContext(session?.user?.id);
   const initBot4x = useBot4xStore((s) => s.init);
+  useDnaAutoCorrector(!!session);
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });
