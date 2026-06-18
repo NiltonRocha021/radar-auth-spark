@@ -14,8 +14,23 @@ export interface OHLCV {
 export type Volatility = "LOW" | "MEDIUM" | "HIGH";
 export type Trend = "BULLISH" | "BEARISH" | "NEUTRAL";
 
+export type RegimeType =
+  | "TRENDING"
+  | "TRENDING_BULL"
+  | "TRENDING_BEAR"
+  | "RANGING"
+  | "RANGING_BULL"
+  | "RANGING_BEAR";
+
 export interface MarketRegime {
   trend: Trend;
+  type?: RegimeType;
+}
+
+export interface EngineSignal {
+  score: number;
+  threshold: number;
+  side: Direction;
 }
 
 export interface MarketSnapshot {
