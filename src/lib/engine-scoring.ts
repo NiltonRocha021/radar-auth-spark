@@ -73,40 +73,59 @@ export function calcVolumeRatio(candles: OHLCV[]): number {
 
 // ===== Engine 1 — SCALPER (M5) =====
 
-export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): number {
-  let score = 50;
+export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): EngineSignal {
+  // Hard block
+  if (snapshot.manipulationScore >= 60) return { score: 0, threshold: 70, side: "HOLD" };
 
-  if (snapshot.manipulationScore >= 60) return 0; // hard block
+  let score = 55; // raised from 50 — scalper is high-frequency, needs higher base
 
+  // Volatility — no longer penalizes LOW, only rewards HIGH/MEDIUM
   if (snapshot.volatility === "HIGH") score += 15;
-  if (snapshot.volatility === "MEDIUM") score += 5;
-  if (snapshot.volatility === "LOW") score -= 10;
+  if (snapshot.volatility === "MEDIUM") score += 8;
+  // LOW: no penalty, no bonus — handled by adaptive threshold below
 
+  // Channel zone — MIDDLE no longer penalized (valid breakout setup with volume)
   const zone = calcChannelZone(candles, snapshot.price);
   if (zone === "BOTTOM") score += 20;
   if (zone === "TOP") score += 20;
-  if (zone === "MIDDLE") score -= 10;
+  // MIDDLE: +0
 
+  // AI score
   if (snapshot.aiScore >= 75) score += 15;
   else if (snapshot.aiScore >= 60) score += 8;
   else score -= 10;
 
+  // Volume (normalized ratio)
   const vr = calcVolumeRatio(candles);
   if (vr > 0.5) score += 15;
-  else if (vr < 0) score -= 10;
+  else if (vr < 0) score -= 8;
 
+  // Anti-FOMO hard block
   const drift = Math.abs((snapshot.price - snapshot.triggerPrice) / snapshot.triggerPrice);
-  if (drift > 0.02) return 0; // anti-FOMO block
+  if (drift > 0.02) return { score: 0, threshold: 70, side: "HOLD" };
 
-  return Math.max(0, Math.min(100, score));
+  score = Math.max(0, Math.min(100, score));
+
+  // Adaptive threshold by volatility + zone
+  let threshold = 68;
+  if (snapshot.volatility === "HIGH" && zone !== "MIDDLE") threshold = 72;
+  if (snapshot.volatility === "MEDIUM" && zone !== "MIDDLE") threshold = 68;
+  if (snapshot.volatility === "LOW") threshold = 63;
+
+  const side: Direction =
+    score >= threshold
+      ? zone === "BOTTOM"
+        ? "BUY"
+        : zone === "TOP"
+          ? "SELL"
+          : "HOLD"
+      : "HOLD";
+
+  return { score, threshold, side };
 }
 
 export function scalperSignal(snapshot: MarketSnapshot, candles: OHLCV[]): Direction {
-  const score = calcScalperScore(snapshot, candles);
-  const zone = calcChannelZone(candles, snapshot.price);
-  if (zone === "BOTTOM" && score >= 70) return "BUY";
-  if (zone === "TOP" && score >= 70) return "SELL";
-  return "HOLD";
+  return calcScalperScore(snapshot, candles).side;
 }
 
 export const SCALPER_RISK = { slPct: 0.5, tpPct: 1.0, rr: 2.0, expiryMin: 20 };
