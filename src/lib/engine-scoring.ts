@@ -14,8 +14,23 @@ export interface OHLCV {
 export type Volatility = "LOW" | "MEDIUM" | "HIGH";
 export type Trend = "BULLISH" | "BEARISH" | "NEUTRAL";
 
+export type RegimeType =
+  | "TRENDING"
+  | "TRENDING_BULL"
+  | "TRENDING_BEAR"
+  | "RANGING"
+  | "RANGING_BULL"
+  | "RANGING_BEAR";
+
 export interface MarketRegime {
   trend: Trend;
+  type?: RegimeType;
+}
+
+export interface EngineSignal {
+  score: number;
+  threshold: number;
+  side: Direction;
 }
 
 export interface MarketSnapshot {
@@ -58,40 +73,59 @@ export function calcVolumeRatio(candles: OHLCV[]): number {
 
 // ===== Engine 1 — SCALPER (M5) =====
 
-export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): number {
-  let score = 50;
+export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): EngineSignal {
+  // Hard block
+  if (snapshot.manipulationScore >= 60) return { score: 0, threshold: 70, side: "HOLD" };
 
-  if (snapshot.manipulationScore >= 60) return 0; // hard block
+  let score = 55; // raised from 50 — scalper is high-frequency, needs higher base
 
+  // Volatility — no longer penalizes LOW, only rewards HIGH/MEDIUM
   if (snapshot.volatility === "HIGH") score += 15;
-  if (snapshot.volatility === "MEDIUM") score += 5;
-  if (snapshot.volatility === "LOW") score -= 10;
+  if (snapshot.volatility === "MEDIUM") score += 8;
+  // LOW: no penalty, no bonus — handled by adaptive threshold below
 
+  // Channel zone — MIDDLE no longer penalized (valid breakout setup with volume)
   const zone = calcChannelZone(candles, snapshot.price);
   if (zone === "BOTTOM") score += 20;
   if (zone === "TOP") score += 20;
-  if (zone === "MIDDLE") score -= 10;
+  // MIDDLE: +0
 
+  // AI score
   if (snapshot.aiScore >= 75) score += 15;
   else if (snapshot.aiScore >= 60) score += 8;
   else score -= 10;
 
+  // Volume (normalized ratio)
   const vr = calcVolumeRatio(candles);
   if (vr > 0.5) score += 15;
-  else if (vr < 0) score -= 10;
+  else if (vr < 0) score -= 8;
 
+  // Anti-FOMO hard block
   const drift = Math.abs((snapshot.price - snapshot.triggerPrice) / snapshot.triggerPrice);
-  if (drift > 0.02) return 0; // anti-FOMO block
+  if (drift > 0.02) return { score: 0, threshold: 70, side: "HOLD" };
 
-  return Math.max(0, Math.min(100, score));
+  score = Math.max(0, Math.min(100, score));
+
+  // Adaptive threshold by volatility + zone
+  let threshold = 68;
+  if (snapshot.volatility === "HIGH" && zone !== "MIDDLE") threshold = 72;
+  if (snapshot.volatility === "MEDIUM" && zone !== "MIDDLE") threshold = 68;
+  if (snapshot.volatility === "LOW") threshold = 63;
+
+  const side: Direction =
+    score >= threshold
+      ? zone === "BOTTOM"
+        ? "BUY"
+        : zone === "TOP"
+          ? "SELL"
+          : "HOLD"
+      : "HOLD";
+
+  return { score, threshold, side };
 }
 
 export function scalperSignal(snapshot: MarketSnapshot, candles: OHLCV[]): Direction {
-  const score = calcScalperScore(snapshot, candles);
-  const zone = calcChannelZone(candles, snapshot.price);
-  if (zone === "BOTTOM" && score >= 70) return "BUY";
-  if (zone === "TOP" && score >= 70) return "SELL";
-  return "HOLD";
+  return calcScalperScore(snapshot, candles).side;
 }
 
 export const SCALPER_RISK = { slPct: 0.5, tpPct: 1.0, rr: 2.0, expiryMin: 20 };
@@ -102,33 +136,87 @@ export function calcIntradayScore(
   snapshot: MarketSnapshot,
   candles: OHLCV[],
   regime: MarketRegime,
-): number {
+): EngineSignal {
   let score = 50;
 
+  const zone = calcChannelZone(candles, snapshot.price);
+  const isRanging =
+    regime.type === "RANGING" ||
+    regime.type === "RANGING_BULL" ||
+    regime.type === "RANGING_BEAR";
+
+  if (isRanging) {
+    // RSI is OFF in ranging — use pivot channel logic instead
+    if (zone === "BOTTOM") score += 25;
+    if (zone === "TOP") score += 25;
+    if (zone === "MIDDLE") score -= 15;
+
+    // Candle body confirmation — must close in signal direction
+    const lastCandle = candles[candles.length - 1];
+    const candleDir: Direction = lastCandle.close > lastCandle.open ? "BUY" : "SELL";
+    const signalDir: Direction = zone === "BOTTOM" ? "BUY" : "SELL";
+    if (candleDir !== signalDir) score -= 20;
+
+    // Manipulation
+    if (snapshot.manipulationScore >= 75) score -= 25;
+    else if (snapshot.manipulationScore >= 50) score -= 10;
+
+    // AI score in ranging
+    if (snapshot.aiScore >= 75 && zone !== "MIDDLE") score += 12;
+
+    const threshold = 75;
+    score = Math.max(0, Math.min(100, score));
+    const side: Direction =
+      score >= threshold
+        ? zone === "BOTTOM"
+          ? "BUY"
+          : zone === "TOP"
+            ? "SELL"
+            : "HOLD"
+        : "HOLD";
+    return { score, threshold, side };
+  }
+
+  // TRENDING regime — RSI dynamic logic
   const rsi = snapshot.rsi;
   if (regime.trend === "BULLISH" && rsi < 40) score += 20;
   if (regime.trend === "BEARISH" && rsi > 65) score += 20;
   if (rsi >= 40 && rsi <= 60) score -= 10;
 
+  // BTC dominance
   const dom = snapshot.btcDominance ?? 50;
   if (dom < 40) score -= 15;
   if (dom > 60) score += 8;
 
+  // Volatility
   if (snapshot.volatility === "HIGH") score += 10;
   if (snapshot.volatility === "LOW") score -= 15;
 
-  const manip = snapshot.manipulationScore;
-  if (manip >= 75) score -= 25;
-  else if (manip >= 50) score -= 10;
+  // Manipulation
+  if (snapshot.manipulationScore >= 75) score -= 25;
+  else if (snapshot.manipulationScore >= 50) score -= 10;
 
-  const zone = calcChannelZone(candles, snapshot.price);
-  if (snapshot.aiScore >= 75 && zone !== "MIDDLE") score += 15;
+  // AI score graduated
+  if (snapshot.aiScore >= 80 && zone !== "MIDDLE") score += 20;
+  else if (snapshot.aiScore >= 75 && zone !== "MIDDLE") score += 15;
+  else if (snapshot.aiScore >= 75 && zone === "MIDDLE") score += 5;
 
+  // Candle body confirmation
+  const lastCandle = candles[candles.length - 1];
+  const expectedDir: Direction = regime.trend === "BULLISH" ? "BUY" : "SELL";
+  const candleDir: Direction = lastCandle.close > lastCandle.open ? "BUY" : "SELL";
+  if (candleDir !== expectedDir) score -= 15;
+
+  // Fear & Greed
   const fg = snapshot.fearGreedIndex;
   if (fg <= 25) score += 10;
   if (fg >= 80) score -= 10;
 
-  return Math.max(0, Math.min(100, score));
+  const threshold = 68;
+  score = Math.max(0, Math.min(100, score));
+  const side: Direction =
+    score >= threshold ? (regime.trend === "BULLISH" ? "BUY" : "SELL") : "HOLD";
+  return { score, threshold, side };
 }
 
 export const INTRADAY_RISK = { slPct: 1.5, tpPct: 3.2, rr: 2.1, expiryHours: 3 };
