@@ -1,4 +1,4 @@
-import { LayoutDashboard, Activity, Bot, Brain, Menu } from "lucide-react";
+import { LayoutDashboard, Activity, Bot, Brain, Menu, History } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -16,6 +16,7 @@ const more = [
   { icon: Radar, label: "Manipulation", to: "/manipulation" as const },
   { icon: Sparkles, label: "Sentiment", to: "/sentiment" as const },
   { icon: Bell, label: "Alerts", to: "/alerts" as const },
+  { icon: History, label: "DNA Correções", to: "/dna-corrections" as const },
   { icon: Users, label: "Copy Trading", to: "/copy-trading" as const },
   { icon: Store, label: "Marketplace", to: "/marketplace" as const },
   { icon: Code2, label: "API Access", to: "/api" as const },
