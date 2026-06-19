@@ -11,6 +11,8 @@ type State = {
   allocationPct: number;
   leverage: number;
   profile: CalibProfile;
+  slPct: number; // stop loss (positive percent, e.g. 0.5 = -0.5%)
+  tpPct: number; // take profit (positive percent, e.g. 1.0 = +1.0%)
   orders: Order[];
   dailyPnlPct: number;
   trailingPeakPct: number;
@@ -28,6 +30,8 @@ type State = {
   setAllocationPct: (n: number) => void;
   setLeverage: (n: number) => void;
   setProfile: (p: CalibProfile) => void;
+  setSlPct: (n: number) => void;
+  setTpPct: (n: number) => void;
   closeOrder: (id: string) => void;
   seedOrders: () => void;
   setMonitorTab: (t: "tick" | "order" | "shutdown") => void;
@@ -51,6 +55,8 @@ export const useBot4xStore = create<State>((set, get) => ({
   allocationPct: 30,
   leverage: 3,
   profile: (typeof window !== "undefined" && (localStorage.getItem("bot4x.profile") as CalibProfile)) || "conservador",
+  slPct: (typeof window !== "undefined" && Number(localStorage.getItem("bot4x.slPct"))) || 0.5,
+  tpPct: (typeof window !== "undefined" && Number(localStorage.getItem("bot4x.tpPct"))) || 1.0,
   orders: [],
   dailyPnlPct: -0.42,
   trailingPeakPct: 0,
@@ -74,8 +80,10 @@ export const useBot4xStore = create<State>((set, get) => ({
           const drift = (Math.random() - 0.48) * 0.18;
           return { ...o, pnlPct: +(o.pnlPct + drift).toFixed(2) };
         });
-        // 2) close orders that hit SL (-0.5%) or TP (+1.0%)
-        const alive = walked.filter((o) => o.pnlPct > -0.5 && o.pnlPct < 1.0);
+        // 2) close orders that hit SL or TP (configurable via store)
+        const slLimit = -s.slPct;
+        const tpLimit = s.tpPct;
+        const alive = walked.filter((o) => o.pnlPct > slLimit && o.pnlPct < tpLimit);
 
         // 3) open new order if tick was approved and a slot is free
         let nextOrders = alive;
@@ -83,13 +91,14 @@ export const useBot4xStore = create<State>((set, get) => ({
         const pairBusy = alive.some((o) => o.pair === t.pair);
         if (t.verdict === "EXECUTE" && t.side && slotsFree && !pairBusy) {
           const side: Side = t.side === "BUY" ? "LONG" : "SHORT";
-          // pseudo entry price coherent with the pair scale
           const base = t.pair.startsWith("BTC") ? 65000
             : t.pair.startsWith("ETH") ? 1800
             : t.pair.startsWith("SOL") ? 150
             : t.pair.startsWith("BNB") ? 580
             : 1 + Math.random() * 40;
           const entry = +(base * (0.99 + Math.random() * 0.02)).toFixed(2);
+          const slMult = s.slPct / 100;
+          const tpMult = s.tpPct / 100;
           nextOrders = [
             ...alive,
             {
@@ -97,8 +106,8 @@ export const useBot4xStore = create<State>((set, get) => ({
               pair: t.pair,
               side,
               entry,
-              sl: +(entry * (side === "LONG" ? 0.995 : 1.005)).toFixed(2),
-              tp: +(entry * (side === "LONG" ? 1.01 : 0.99)).toFixed(2),
+              sl: +(entry * (side === "LONG" ? 1 - slMult : 1 + slMult)).toFixed(2),
+              tp: +(entry * (side === "LONG" ? 1 + tpMult : 1 - tpMult)).toFixed(2),
               openedAt: Date.now(),
               pnlPct: 0,
             },
@@ -125,6 +134,8 @@ export const useBot4xStore = create<State>((set, get) => ({
   setAllocationPct: (n) => set({ allocationPct: Math.min(100, Math.max(1, n)) }),
   setLeverage: (n) => set({ leverage: Math.min(10, Math.max(1, n)) }),
   setProfile: (profile) => { if (typeof window !== "undefined") localStorage.setItem("bot4x.profile", profile); set({ profile }); },
+  setSlPct: (n) => { const v = Math.min(10, Math.max(0.1, +Number(n).toFixed(2))); if (typeof window !== "undefined") localStorage.setItem("bot4x.slPct", String(v)); set({ slPct: v }); },
+  setTpPct: (n) => { const v = Math.min(20, Math.max(0.1, +Number(n).toFixed(2))); if (typeof window !== "undefined") localStorage.setItem("bot4x.tpPct", String(v)); set({ tpPct: v }); },
   closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
   seedOrders: () => {
     const sample: Order[] = [
