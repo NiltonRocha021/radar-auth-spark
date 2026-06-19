@@ -143,6 +143,8 @@ export const useBot4xStore = create<State>((set, get) => ({
   setProfile: (profile) => { if (typeof window !== "undefined") localStorage.setItem("bot4x.profile", profile); set({ profile }); },
   setSlPct: (n) => { const v = Math.min(10, Math.max(0.1, +Number(n).toFixed(2))); if (typeof window !== "undefined") localStorage.setItem("bot4x.slPct", String(v)); set({ slPct: v }); },
   setTpPct: (n) => { const v = Math.min(20, Math.max(0.1, +Number(n).toFixed(2))); if (typeof window !== "undefined") localStorage.setItem("bot4x.tpPct", String(v)); set({ tpPct: v }); },
+  setPreferredPairs: (pairs) => { if (typeof window !== "undefined") localStorage.setItem("bot4x.preferredPairs", JSON.stringify(pairs)); set({ preferredPairs: pairs }); },
+  setAvoidPairs: (pairs) => { if (typeof window !== "undefined") localStorage.setItem("bot4x.avoidPairs", JSON.stringify(pairs)); set({ avoidPairs: pairs }); },
   closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
   seedOrders: () => {
     const sample: Order[] = [
