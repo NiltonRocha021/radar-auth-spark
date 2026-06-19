@@ -69,6 +69,8 @@ export const useBot4xStore = create<State>((set, get) => ({
   feedPaused: false,
   history: [],
   monitorTab: "tick",
+  preferredPairs: (typeof window !== "undefined" && JSON.parse(localStorage.getItem("bot4x.preferredPairs") || "[]")) || [],
+  avoidPairs: (typeof window !== "undefined" && JSON.parse(localStorage.getItem("bot4x.avoidPairs") || "[]")) || [],
 
   init: () => {
     if (get()._ticker) return;
@@ -93,7 +95,8 @@ export const useBot4xStore = create<State>((set, get) => ({
         let nextOrders = alive;
         const slotsFree = alive.length < 3;
         const pairBusy = alive.some((o) => o.pair === t.pair);
-        if (t.verdict === "EXECUTE" && t.side && slotsFree && !pairBusy) {
+        const pairAvoided = s.avoidPairs.includes(t.pair);
+        if (t.verdict === "EXECUTE" && t.side && slotsFree && !pairBusy && !pairAvoided) {
           const side: Side = t.side === "BUY" ? "LONG" : "SHORT";
           const base = t.pair.startsWith("BTC") ? 65000
             : t.pair.startsWith("ETH") ? 1800
