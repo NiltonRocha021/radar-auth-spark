@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp, Activity, Mountain, Loader2,
+  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp, Activity, Mountain, Loader2, Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBot4xStore } from "@/lib/bot4x-store";
@@ -9,6 +9,8 @@ import { PROFILES, type CalibProfile, type ProfileSpec } from "@/lib/bot4x-data"
 import { useCalibratorState } from "@/hooks/useCalibratorState";
 import { useAuth } from "@/lib/auth";
 import { calibratorAdapter, type SimulationResultUI } from "@/adapters/backend/calibrator.adapter";
+import { proposeSimCorrections, applySimCorrections, describeProposal, type SimProposal } from "@/lib/dna-sim-corrector";
+
 
 
 const ICONS: Record<CalibProfile, typeof Sliders> = {
@@ -345,11 +347,13 @@ function SimulationModal({ profile, onClose }: { profile: ProfileSpec; onClose: 
                 {sim.commentary && (
                   <p className="text-[11px] text-muted-foreground">{sim.commentary}</p>
                 )}
+                <DnaCorrectionsPanel sim={sim} profileId={profile.id} color={profile.color} />
                 <p className="text-[10.5px] text-muted-foreground/80">
                   Backtest executado sobre candles reais (Binance) com a estratégia do perfil <b style={{ color: profile.color }}>{profile.name}</b>. Resultados variam com slippage e condições de mercado.
                 </p>
               </>
             )}
+
           </div>
         </div>
       </motion.div>
@@ -578,5 +582,65 @@ GUARDRAILS:
         )}
       </AnimatePresence>
     </section>
+  );
+}
+
+// ----- DNA suggested corrections (from simulation) -----
+function DnaCorrectionsPanel({ sim, profileId, color }: { sim: SimulationResultUI; profileId: CalibProfile; color: string }) {
+  // recompute when sim or store deps change
+  const slPct = useBot4xStore((s) => s.slPct);
+  const tpPct = useBot4xStore((s) => s.tpPct);
+  const leverage = useBot4xStore((s) => s.leverage);
+  const allocationPct = useBot4xStore((s) => s.allocationPct);
+  const activeProfile = useBot4xStore((s) => s.profile);
+  const proposals = useMemo<SimProposal[]>(
+    () => proposeSimCorrections(sim, profileId),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sim, profileId, slPct, tpPct, leverage, allocationPct, activeProfile],
+  );
+
+  if (proposals.length === 0) {
+    return (
+      <div className="rounded-md border border-border bg-background px-3 py-2 text-[11.5px] text-muted-foreground inline-flex items-center gap-2">
+        <Check className="size-3.5 text-[#1D9E75]" />
+        DNA: estratégia já está alinhada com este resultado — sem correções sugeridas.
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="rounded-md border p-3 space-y-2"
+      style={{
+        borderColor: `color-mix(in oklab, ${color} 45%, transparent)`,
+        background: `color-mix(in oklab, ${color} 10%, transparent)`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="text-[12px] font-semibold inline-flex items-center gap-1.5" style={{ color }}>
+          <Brain className="size-3.5" />
+          DNA · correções sugeridas ({proposals.length})
+        </div>
+        <button
+          onClick={() => applySimCorrections(proposals)}
+          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[12px] font-semibold text-white transition-opacity hover:opacity-90"
+          style={{ background: color }}
+        >
+          <Wand2 className="size-3.5" />
+          Aplicar correções
+        </button>
+      </div>
+      <ul className="space-y-1.5">
+        {proposals.map((p, i) => (
+          <li key={i} className="text-[11.5px] text-foreground/90 flex items-start gap-2">
+            <ArrowRight className="size-3.5 mt-0.5 shrink-0" style={{ color }} />
+            <span>
+              <span className="font-semibold">{describeProposal(p)}</span>
+              <span className="text-muted-foreground"> — {p.reason}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
