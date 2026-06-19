@@ -21,6 +21,8 @@ type State = {
   feedPaused: boolean;
   history: Trade[];
   monitorTab: "tick" | "order" | "shutdown";
+  preferredPairs: string[];
+  avoidPairs: string[];
   _ticker?: ReturnType<typeof setInterval>;
 
   init: () => void;
@@ -32,6 +34,8 @@ type State = {
   setProfile: (p: CalibProfile) => void;
   setSlPct: (n: number) => void;
   setTpPct: (n: number) => void;
+  setPreferredPairs: (pairs: string[]) => void;
+  setAvoidPairs: (pairs: string[]) => void;
   closeOrder: (id: string) => void;
   seedOrders: () => void;
   setMonitorTab: (t: "tick" | "order" | "shutdown") => void;
@@ -65,6 +69,8 @@ export const useBot4xStore = create<State>((set, get) => ({
   feedPaused: false,
   history: [],
   monitorTab: "tick",
+  preferredPairs: (typeof window !== "undefined" && JSON.parse(localStorage.getItem("bot4x.preferredPairs") || "[]")) || [],
+  avoidPairs: (typeof window !== "undefined" && JSON.parse(localStorage.getItem("bot4x.avoidPairs") || "[]")) || [],
 
   init: () => {
     if (get()._ticker) return;
@@ -89,7 +95,8 @@ export const useBot4xStore = create<State>((set, get) => ({
         let nextOrders = alive;
         const slotsFree = alive.length < 3;
         const pairBusy = alive.some((o) => o.pair === t.pair);
-        if (t.verdict === "EXECUTE" && t.side && slotsFree && !pairBusy) {
+        const pairAvoided = s.avoidPairs.includes(t.pair);
+        if (t.verdict === "EXECUTE" && t.side && slotsFree && !pairBusy && !pairAvoided) {
           const side: Side = t.side === "BUY" ? "LONG" : "SHORT";
           const base = t.pair.startsWith("BTC") ? 65000
             : t.pair.startsWith("ETH") ? 1800
@@ -136,6 +143,8 @@ export const useBot4xStore = create<State>((set, get) => ({
   setProfile: (profile) => { if (typeof window !== "undefined") localStorage.setItem("bot4x.profile", profile); set({ profile }); },
   setSlPct: (n) => { const v = Math.min(10, Math.max(0.1, +Number(n).toFixed(2))); if (typeof window !== "undefined") localStorage.setItem("bot4x.slPct", String(v)); set({ slPct: v }); },
   setTpPct: (n) => { const v = Math.min(20, Math.max(0.1, +Number(n).toFixed(2))); if (typeof window !== "undefined") localStorage.setItem("bot4x.tpPct", String(v)); set({ tpPct: v }); },
+  setPreferredPairs: (pairs) => { if (typeof window !== "undefined") localStorage.setItem("bot4x.preferredPairs", JSON.stringify(pairs)); set({ preferredPairs: pairs }); },
+  setAvoidPairs: (pairs) => { if (typeof window !== "undefined") localStorage.setItem("bot4x.avoidPairs", JSON.stringify(pairs)); set({ avoidPairs: pairs }); },
   closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
   seedOrders: () => {
     const sample: Order[] = [

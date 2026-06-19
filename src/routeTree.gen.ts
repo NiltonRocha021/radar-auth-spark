@@ -21,6 +21,7 @@ import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMarketplaceRouteImport } from './routes/_authenticated/marketplace'
 import { Route as AuthenticatedManipulationRouteImport } from './routes/_authenticated/manipulation'
 import { Route as AuthenticatedDnaTraderRouteImport } from './routes/_authenticated/dna-trader'
+import { Route as AuthenticatedDnaPairsRouteImport } from './routes/_authenticated/dna-pairs'
 import { Route as AuthenticatedDnaCorrectionsRouteImport } from './routes/_authenticated/dna-corrections'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCopyTradingRouteImport } from './routes/_authenticated/copy-trading'
@@ -92,6 +93,11 @@ const AuthenticatedManipulationRoute =
 const AuthenticatedDnaTraderRoute = AuthenticatedDnaTraderRouteImport.update({
   id: '/dna-trader',
   path: '/dna-trader',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedDnaPairsRoute = AuthenticatedDnaPairsRouteImport.update({
+  id: '/dna-pairs',
+  path: '/dna-pairs',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedDnaCorrectionsRoute =
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-corrections': typeof AuthenticatedDnaCorrectionsRoute
+  '/dna-pairs': typeof AuthenticatedDnaPairsRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
   '/manipulation': typeof AuthenticatedManipulationRoute
   '/marketplace': typeof AuthenticatedMarketplaceRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/dna-corrections': typeof AuthenticatedDnaCorrectionsRoute
+  '/dna-pairs': typeof AuthenticatedDnaPairsRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
   '/manipulation': typeof AuthenticatedManipulationRoute
   '/marketplace': typeof AuthenticatedMarketplaceRoute
@@ -216,6 +224,7 @@ export interface FileRoutesById {
   '/_authenticated/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/dna-corrections': typeof AuthenticatedDnaCorrectionsRoute
+  '/_authenticated/dna-pairs': typeof AuthenticatedDnaPairsRoute
   '/_authenticated/dna-trader': typeof AuthenticatedDnaTraderRoute
   '/_authenticated/manipulation': typeof AuthenticatedManipulationRoute
   '/_authenticated/marketplace': typeof AuthenticatedMarketplaceRoute
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/copy-trading'
     | '/dashboard'
     | '/dna-corrections'
+    | '/dna-pairs'
     | '/dna-trader'
     | '/manipulation'
     | '/marketplace'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/copy-trading'
     | '/dashboard'
     | '/dna-corrections'
+    | '/dna-pairs'
     | '/dna-trader'
     | '/manipulation'
     | '/marketplace'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/_authenticated/copy-trading'
     | '/_authenticated/dashboard'
     | '/_authenticated/dna-corrections'
+    | '/_authenticated/dna-pairs'
     | '/_authenticated/dna-trader'
     | '/_authenticated/manipulation'
     | '/_authenticated/marketplace'
@@ -397,6 +409,13 @@ declare module '@tanstack/react-router' {
       path: '/dna-trader'
       fullPath: '/dna-trader'
       preLoaderRoute: typeof AuthenticatedDnaTraderRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dna-pairs': {
+      id: '/_authenticated/dna-pairs'
+      path: '/dna-pairs'
+      fullPath: '/dna-pairs'
+      preLoaderRoute: typeof AuthenticatedDnaPairsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/dna-corrections': {
@@ -528,6 +547,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCopyTradingRoute: typeof AuthenticatedCopyTradingRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDnaCorrectionsRoute: typeof AuthenticatedDnaCorrectionsRoute
+  AuthenticatedDnaPairsRoute: typeof AuthenticatedDnaPairsRoute
   AuthenticatedDnaTraderRoute: typeof AuthenticatedDnaTraderRoute
   AuthenticatedManipulationRoute: typeof AuthenticatedManipulationRoute
   AuthenticatedMarketplaceRoute: typeof AuthenticatedMarketplaceRoute
@@ -547,6 +567,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCopyTradingRoute: AuthenticatedCopyTradingRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDnaCorrectionsRoute: AuthenticatedDnaCorrectionsRoute,
+  AuthenticatedDnaPairsRoute: AuthenticatedDnaPairsRoute,
   AuthenticatedDnaTraderRoute: AuthenticatedDnaTraderRoute,
   AuthenticatedManipulationRoute: AuthenticatedManipulationRoute,
   AuthenticatedMarketplaceRoute: AuthenticatedMarketplaceRoute,
