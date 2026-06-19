@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp, Activity, Mountain, Loader2,
+  Copy, Check, Sliders, ShieldCheck, Brain, Zap, ChevronDown, ArrowRight, X, TrendingUp, Activity, Mountain, Loader2, Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBot4xStore } from "@/lib/bot4x-store";
@@ -9,6 +9,8 @@ import { PROFILES, type CalibProfile, type ProfileSpec } from "@/lib/bot4x-data"
 import { useCalibratorState } from "@/hooks/useCalibratorState";
 import { useAuth } from "@/lib/auth";
 import { calibratorAdapter, type SimulationResultUI } from "@/adapters/backend/calibrator.adapter";
+import { proposeSimCorrections, applySimCorrections, describeProposal, type SimProposal } from "@/lib/dna-sim-corrector";
+
 
 
 const ICONS: Record<CalibProfile, typeof Sliders> = {
@@ -345,11 +347,13 @@ function SimulationModal({ profile, onClose }: { profile: ProfileSpec; onClose: 
                 {sim.commentary && (
                   <p className="text-[11px] text-muted-foreground">{sim.commentary}</p>
                 )}
+                <DnaCorrectionsPanel sim={sim} profileId={profile.id} color={profile.color} />
                 <p className="text-[10.5px] text-muted-foreground/80">
                   Backtest executado sobre candles reais (Binance) com a estratégia do perfil <b style={{ color: profile.color }}>{profile.name}</b>. Resultados variam com slippage e condições de mercado.
                 </p>
               </>
             )}
+
           </div>
         </div>
       </motion.div>
