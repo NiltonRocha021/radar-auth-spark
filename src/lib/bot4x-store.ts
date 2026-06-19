@@ -21,6 +21,8 @@ type State = {
   feedPaused: boolean;
   history: Trade[];
   monitorTab: "tick" | "order" | "shutdown";
+  preferredPairs: string[];
+  avoidPairs: string[];
   _ticker?: ReturnType<typeof setInterval>;
 
   init: () => void;
@@ -32,6 +34,8 @@ type State = {
   setProfile: (p: CalibProfile) => void;
   setSlPct: (n: number) => void;
   setTpPct: (n: number) => void;
+  setPreferredPairs: (pairs: string[]) => void;
+  setAvoidPairs: (pairs: string[]) => void;
   closeOrder: (id: string) => void;
   seedOrders: () => void;
   setMonitorTab: (t: "tick" | "order" | "shutdown") => void;
