@@ -29,7 +29,7 @@ function sma(values: number[], i: number, period: number): number | null {
   return s / period;
 }
 function rsi(values: number[], i: number, period = 14): number | null {
-  if (i < period) return null;
+  if (i <= period) return null;
   let gains = 0;
   let losses = 0;
   for (let k = i - period + 1; k <= i; k++) {
