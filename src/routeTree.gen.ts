@@ -23,6 +23,7 @@ import { Route as AuthenticatedManipulationRouteImport } from './routes/_authent
 import { Route as AuthenticatedDnaTraderRouteImport } from './routes/_authenticated/dna-trader'
 import { Route as AuthenticatedDnaPairsRouteImport } from './routes/_authenticated/dna-pairs'
 import { Route as AuthenticatedDnaCorrectionsRouteImport } from './routes/_authenticated/dna-corrections'
+import { Route as AuthenticatedDiagnosticsRouteImport } from './routes/_authenticated/diagnostics'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCopyTradingRouteImport } from './routes/_authenticated/copy-trading'
 import { Route as AuthenticatedCalibratorRouteImport } from './routes/_authenticated/calibrator'
@@ -106,6 +107,12 @@ const AuthenticatedDnaCorrectionsRoute =
     path: '/dna-corrections',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedDiagnosticsRoute =
+  AuthenticatedDiagnosticsRouteImport.update({
+    id: '/diagnostics',
+    path: '/diagnostics',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -171,6 +178,7 @@ export interface FileRoutesByFullPath {
   '/calibrator': typeof AuthenticatedCalibratorRouteWithChildren
   '/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/diagnostics': typeof AuthenticatedDiagnosticsRoute
   '/dna-corrections': typeof AuthenticatedDnaCorrectionsRoute
   '/dna-pairs': typeof AuthenticatedDnaPairsRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -196,6 +204,7 @@ export interface FileRoutesByTo {
   '/calibrator': typeof AuthenticatedCalibratorRouteWithChildren
   '/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/diagnostics': typeof AuthenticatedDiagnosticsRoute
   '/dna-corrections': typeof AuthenticatedDnaCorrectionsRoute
   '/dna-pairs': typeof AuthenticatedDnaPairsRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -223,6 +232,7 @@ export interface FileRoutesById {
   '/_authenticated/calibrator': typeof AuthenticatedCalibratorRouteWithChildren
   '/_authenticated/copy-trading': typeof AuthenticatedCopyTradingRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/diagnostics': typeof AuthenticatedDiagnosticsRoute
   '/_authenticated/dna-corrections': typeof AuthenticatedDnaCorrectionsRoute
   '/_authenticated/dna-pairs': typeof AuthenticatedDnaPairsRoute
   '/_authenticated/dna-trader': typeof AuthenticatedDnaTraderRoute
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/calibrator'
     | '/copy-trading'
     | '/dashboard'
+    | '/diagnostics'
     | '/dna-corrections'
     | '/dna-pairs'
     | '/dna-trader'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/calibrator'
     | '/copy-trading'
     | '/dashboard'
+    | '/diagnostics'
     | '/dna-corrections'
     | '/dna-pairs'
     | '/dna-trader'
@@ -301,6 +313,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calibrator'
     | '/_authenticated/copy-trading'
     | '/_authenticated/dashboard'
+    | '/_authenticated/diagnostics'
     | '/_authenticated/dna-corrections'
     | '/_authenticated/dna-pairs'
     | '/_authenticated/dna-trader'
@@ -425,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDnaCorrectionsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/diagnostics': {
+      id: '/_authenticated/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/diagnostics'
+      preLoaderRoute: typeof AuthenticatedDiagnosticsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -546,6 +566,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCalibratorRoute: typeof AuthenticatedCalibratorRouteWithChildren
   AuthenticatedCopyTradingRoute: typeof AuthenticatedCopyTradingRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDiagnosticsRoute: typeof AuthenticatedDiagnosticsRoute
   AuthenticatedDnaCorrectionsRoute: typeof AuthenticatedDnaCorrectionsRoute
   AuthenticatedDnaPairsRoute: typeof AuthenticatedDnaPairsRoute
   AuthenticatedDnaTraderRoute: typeof AuthenticatedDnaTraderRoute
@@ -566,6 +587,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCalibratorRoute: AuthenticatedCalibratorRouteWithChildren,
   AuthenticatedCopyTradingRoute: AuthenticatedCopyTradingRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDiagnosticsRoute: AuthenticatedDiagnosticsRoute,
   AuthenticatedDnaCorrectionsRoute: AuthenticatedDnaCorrectionsRoute,
   AuthenticatedDnaPairsRoute: AuthenticatedDnaPairsRoute,
   AuthenticatedDnaTraderRoute: AuthenticatedDnaTraderRoute,
