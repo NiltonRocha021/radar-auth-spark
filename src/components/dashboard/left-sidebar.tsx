@@ -1,4 +1,4 @@
-import { LayoutDashboard, Activity, Radar, Bell, Brain, Settings, Cpu, User, Sparkles, Tag, Code2, Users, Store, LogOut, Bot, FlaskConical, History, Layers } from "lucide-react";
+import { LayoutDashboard, Activity, Radar, Bell, Brain, Settings, Cpu, User, Sparkles, Tag, Code2, Users, Store, LogOut, Bot, FlaskConical, History, Layers, Stethoscope } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { BrandLogo } from "@/components/brand-logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ const items = [
   { icon: Store, label: "Marketplace", to: "/marketplace" as const },
   { icon: Code2, label: "API Access", to: "/api" as const },
   { icon: Tag, label: "Pricing", to: "/pricing" as const },
+  { icon: Stethoscope, label: "Diagnostics", to: "/diagnostics" as const },
 ];
 
 const bottomItems = [
