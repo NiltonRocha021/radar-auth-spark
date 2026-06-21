@@ -62,7 +62,7 @@ export const useBot4xStore = create<State>((set, get) => ({
   slPct: (typeof window !== "undefined" && Number(localStorage.getItem("bot4x.slPct"))) || 0.5,
   tpPct: (typeof window !== "undefined" && Number(localStorage.getItem("bot4x.tpPct"))) || 1.0,
   orders: [],
-  dailyPnlPct: -0.42,
+  dailyPnlPct: 0,
   trailingPeakPct: 0,
   ticks: [],
   ticksProcessed: 1247,
