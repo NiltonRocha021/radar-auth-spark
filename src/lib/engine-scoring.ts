@@ -112,13 +112,15 @@ export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): En
   if (snapshot.volatility === "MEDIUM" && zone !== "MIDDLE") threshold = 68;
   if (snapshot.volatility === "LOW") threshold = 63;
 
+  const lastCandle = candles[candles.length - 1];
+  const middleDir: Direction = lastCandle.close > lastCandle.open ? "BUY" : "SELL";
   const side: Direction =
     score >= threshold
       ? zone === "BOTTOM"
         ? "BUY"
         : zone === "TOP"
           ? "SELL"
-          : "HOLD"
+          : middleDir
       : "HOLD";
 
   return { score, threshold, side };
