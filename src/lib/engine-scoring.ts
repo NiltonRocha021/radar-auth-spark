@@ -292,7 +292,17 @@ export function calcSwingScore(
   if (fg <= 25) score += 15;
   if (fg >= 75) score -= 10;
 
-  return Math.max(0, Math.min(100, score));
+  const finalScore = Math.max(0, Math.min(100, score));
+  const threshold = 70;
+  const side: Direction =
+    finalScore >= threshold
+      ? regime.trend === "BULLISH"
+        ? "BUY"
+        : regime.trend === "BEARISH"
+          ? "SELL"
+          : "HOLD"
+      : "HOLD";
+  return { score: finalScore, threshold, side };
 }
 
 export const SWING_RISK = { slPct: 3.0, tpPct: 7.0, rr: 2.3, expiryHours: 24 };
