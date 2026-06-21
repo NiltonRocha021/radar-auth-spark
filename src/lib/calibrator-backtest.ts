@@ -551,7 +551,8 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
         if (!cInfo) continue;
         const sig = STRATEGIES[p.profile]({ closes: closesBySym.get(s.symbol)!, i: cInfo.idx, candles: s.candles });
         if (sig === "FLAT") continue;
-        const notional = Math.max(0, eq) * FRAC;
+        if (eq <= 0 || cash <= 0) break;
+        const notional = eq * FRAC;
         if (notional <= 0) break;
         open.push({
           symbol: s.symbol,
