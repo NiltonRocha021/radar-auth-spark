@@ -29,7 +29,7 @@ function sma(values: number[], i: number, period: number): number | null {
   return s / period;
 }
 function rsi(values: number[], i: number, period = 14): number | null {
-  if (i < period) return null;
+  if (i <= period) return null;
   let gains = 0;
   let losses = 0;
   for (let k = i - period + 1; k <= i; k++) {
@@ -551,7 +551,8 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
         if (!cInfo) continue;
         const sig = STRATEGIES[p.profile]({ closes: closesBySym.get(s.symbol)!, i: cInfo.idx, candles: s.candles });
         if (sig === "FLAT") continue;
-        const notional = Math.max(0, eq) * FRAC;
+        if (eq <= 0 || cash <= 0) break;
+        const notional = eq * FRAC;
         if (notional <= 0) break;
         open.push({
           symbol: s.symbol,

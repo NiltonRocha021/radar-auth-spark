@@ -69,7 +69,7 @@ class BackendWsClient {
     this.connecting = true;
     this.setStatus("connecting");
 
-    const url = `${WS_URL}${path}?token=${encodeURIComponent(token)}`;
+    const url = `${WS_URL}${path}`;
     let ws: WebSocket;
     try {
       ws = new WebSocket(url);
@@ -81,6 +81,7 @@ class BackendWsClient {
     }
 
     ws.onopen = () => {
+      ws.send(JSON.stringify({ type: "auth", token }));
       this.connecting = false;
       this.setStatus("open");
     };

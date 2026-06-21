@@ -112,13 +112,15 @@ export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): En
   if (snapshot.volatility === "MEDIUM" && zone !== "MIDDLE") threshold = 68;
   if (snapshot.volatility === "LOW") threshold = 63;
 
+  const lastCandle = candles[candles.length - 1];
+  const middleDir: Direction = lastCandle.close > lastCandle.open ? "BUY" : "SELL";
   const side: Direction =
     score >= threshold
       ? zone === "BOTTOM"
         ? "BUY"
         : zone === "TOP"
           ? "SELL"
-          : "HOLD"
+          : middleDir
       : "HOLD";
 
   return { score, threshold, side };
@@ -258,7 +260,11 @@ export function calcFibProximity(
   return "OFF_FIB";
 }
 
-export function calcSwingScore(snapshot: MarketSnapshot, candles: OHLCV[]): number {
+export function calcSwingScore(
+  snapshot: MarketSnapshot,
+  candles: OHLCV[],
+  regime: MarketRegime = { trend: "NEUTRAL" },
+): EngineSignal {
   let score = 50;
 
   const adx = calcADX(candles, 14);
@@ -286,7 +292,17 @@ export function calcSwingScore(snapshot: MarketSnapshot, candles: OHLCV[]): numb
   if (fg <= 25) score += 15;
   if (fg >= 75) score -= 10;
 
-  return Math.max(0, Math.min(100, score));
+  const finalScore = Math.max(0, Math.min(100, score));
+  const threshold = 70;
+  const side: Direction =
+    finalScore >= threshold
+      ? regime.trend === "BULLISH"
+        ? "BUY"
+        : regime.trend === "BEARISH"
+          ? "SELL"
+          : "HOLD"
+      : "HOLD";
+  return { score: finalScore, threshold, side };
 }
 
 export const SWING_RISK = { slPct: 3.0, tpPct: 7.0, rr: 2.3, expiryHours: 24 };
