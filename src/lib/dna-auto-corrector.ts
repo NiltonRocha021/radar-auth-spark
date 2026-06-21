@@ -75,8 +75,8 @@ function markApplied(axis: keyof typeof lastApplied) {
 
 export function runDnaAutoCorrection(): CorrectionLog | null {
   const snap = readSnapshot();
-  const bot4x = useBot4xStore.getState();
-  const signals = useSignalsStore.getState();
+  const bot4xState = useBot4xStore.getState();
+  const signalsState = useSignalsStore.getState();
 
   // Severity tiers based on capital-loss criteria.
   // tier 1 (mild)  : dailyPnl <= -0.5%   OR  3+ of last 5 trades negative
@@ -102,10 +102,10 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
 
   // 1) Profile degradation (tier ≥ 2 swaps to safer profile)
   if (tier >= 2 && canApply("profile")) {
-    const next = saferProfile(bot4x.profile);
-    if (next && next !== bot4x.profile) {
-      const prev = bot4x.profile;
-      bot4x.setProfile(next);
+    const next = saferProfile(bot4xState.profile);
+    if (next && next !== bot4xState.profile) {
+      const prev = bot4xState.profile;
+      bot4xState.setProfile(next);
       changes.push(`Perfil: ${prev} → ${next}`);
       markApplied("profile");
     }
@@ -115,17 +115,17 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
   if (canApply("calib")) {
     let touched = false;
     // Reduce leverage by 1 step (min 1) starting at tier 1
-    if (bot4x.leverage > 1) {
-      const nextLev = Math.max(1, bot4x.leverage - 1);
-      bot4x.setLeverage(nextLev);
-      changes.push(`Alavancagem: ${bot4x.leverage}× → ${nextLev}×`);
+    if (bot4xState.leverage > 1) {
+      const nextLev = Math.max(1, bot4xState.leverage - 1);
+      bot4xState.setLeverage(nextLev);
+      changes.push(`Alavancagem: ${bot4xState.leverage}× → ${nextLev}×`);
       touched = true;
     }
     // Reduce allocation by 5% (min 10%) starting at tier 2
-    if (tier >= 2 && bot4x.allocationPct > 10) {
-      const nextAlloc = Math.max(10, bot4x.allocationPct - 5);
-      bot4x.setAllocationPct(nextAlloc);
-      changes.push(`Alocação: ${bot4x.allocationPct}% → ${nextAlloc}%`);
+    if (tier >= 2 && bot4xState.allocationPct > 10) {
+      const nextAlloc = Math.max(10, bot4xState.allocationPct - 5);
+      bot4xState.setAllocationPct(nextAlloc);
+      changes.push(`Alocação: ${bot4xState.allocationPct}% → ${nextAlloc}%`);
       touched = true;
     }
     if (touched) markApplied("calib");
@@ -135,15 +135,15 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
   if (canApply("filters")) {
     let touched = false;
     const tiers: Array<0 | 60 | 75 | 90> = [0, 60, 75, 90];
-    const curIdx = tiers.indexOf(signals.filters.scoreMin);
+    const curIdx = tiers.indexOf(signalsState.filters.scoreMin);
     if (curIdx < tiers.length - 1) {
       const nextScore = tiers[Math.min(tiers.length - 1, curIdx + 1)];
-      signals.setFilter("scoreMin", nextScore);
-      changes.push(`Score min: ${signals.filters.scoreMin} → ${nextScore}`);
+      signalsState.setFilter("scoreMin", nextScore);
+      changes.push(`Score min: ${signalsState.filters.scoreMin} → ${nextScore}`);
       touched = true;
     }
-    if (tier >= 2 && !signals.filters.bot4xOnly) {
-      signals.setFilter("bot4xOnly", true);
+    if (tier >= 2 && !signalsState.filters.bot4xOnly) {
+      signalsState.setFilter("bot4xOnly", true);
       changes.push("Filtro 'Apenas Bot4x' ativado");
       touched = true;
     }
