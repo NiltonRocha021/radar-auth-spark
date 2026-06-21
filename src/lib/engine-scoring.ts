@@ -260,7 +260,11 @@ export function calcFibProximity(
   return "OFF_FIB";
 }
 
-export function calcSwingScore(snapshot: MarketSnapshot, candles: OHLCV[]): number {
+export function calcSwingScore(
+  snapshot: MarketSnapshot,
+  candles: OHLCV[],
+  regime: MarketRegime = { trend: "NEUTRAL" },
+): EngineSignal {
   let score = 50;
 
   const adx = calcADX(candles, 14);
