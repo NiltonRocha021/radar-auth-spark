@@ -14,13 +14,7 @@ export interface OHLCV {
 export type Volatility = "LOW" | "MEDIUM" | "HIGH";
 export type Trend = "BULLISH" | "BEARISH" | "NEUTRAL";
 
-export type RegimeType =
-  | "TRENDING"
-  | "TRENDING_BULL"
-  | "TRENDING_BEAR"
-  | "RANGING"
-  | "RANGING_BULL"
-  | "RANGING_BEAR";
+export type RegimeType = "TRENDING" | "TRENDING_BULL" | "TRENDING_BEAR" | "RANGING" | "RANGING_BULL" | "RANGING_BEAR";
 
 export interface MarketRegime {
   trend: Trend;
@@ -55,6 +49,10 @@ export function calcChannelZone(candles: OHLCV[], currentPrice: number): Zone {
   const last20 = candles.slice(-20);
   const pivotHigh = Math.max(...last20.map((c) => c.high));
   const pivotLow = Math.min(...last20.map((c) => c.low));
+  // Guarda: range zero (mercado completamente flat) faz `position` virar NaN.
+  // NaN >= / <= sempre retorna false, então sem essa guarda a função já caía em
+  // "MIDDLE" por acidente — deixamos explícito para não depender desse acaso.
+  if (pivotHigh === pivotLow) return "MIDDLE";
   const position = (currentPrice - pivotLow) / (pivotHigh - pivotLow);
   if (position >= 0.75) return "TOP";
   if (position <= 0.3) return "BOTTOM";
@@ -65,6 +63,9 @@ export function calcVolumeRatio(candles: OHLCV[]): number {
   const last20Vols = candles.slice(-20).map((c) => c.volume);
   const avgVol = last20Vols.reduce((a, b) => a + b, 0) / last20Vols.length;
   const currentVol = candles[candles.length - 1].volume;
+  // Guarda: volume médio zero faria o ratio virar Infinity, inflando o score
+  // artificialmente em qualquer engine que o consuma.
+  if (!avgVol) return 0;
   return currentVol / avgVol - 1;
   // > 0.5  → high volume (+15)
   // 0–0.5  → neutral     (+0)
@@ -115,13 +116,7 @@ export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): En
   const lastCandle = candles[candles.length - 1];
   const middleDir: Direction = lastCandle.close > lastCandle.open ? "BUY" : "SELL";
   const side: Direction =
-    score >= threshold
-      ? zone === "BOTTOM"
-        ? "BUY"
-        : zone === "TOP"
-          ? "SELL"
-          : middleDir
-      : "HOLD";
+    score >= threshold ? (zone === "BOTTOM" ? "BUY" : zone === "TOP" ? "SELL" : middleDir) : "HOLD";
 
   return { score, threshold, side };
 }
@@ -134,18 +129,11 @@ export const SCALPER_RISK = { slPct: 0.5, tpPct: 1.0, rr: 2.0, expiryMin: 20 };
 
 // ===== Engine 2 — INTRADAY (H1) =====
 
-export function calcIntradayScore(
-  snapshot: MarketSnapshot,
-  candles: OHLCV[],
-  regime: MarketRegime,
-): EngineSignal {
+export function calcIntradayScore(snapshot: MarketSnapshot, candles: OHLCV[], regime: MarketRegime): EngineSignal {
   let score = 50;
 
   const zone = calcChannelZone(candles, snapshot.price);
-  const isRanging =
-    regime.type === "RANGING" ||
-    regime.type === "RANGING_BULL" ||
-    regime.type === "RANGING_BEAR";
+  const isRanging = regime.type === "RANGING" || regime.type === "RANGING_BULL" || regime.type === "RANGING_BEAR";
 
   if (isRanging) {
     // RSI is OFF in ranging — use pivot channel logic instead
@@ -169,13 +157,7 @@ export function calcIntradayScore(
     const threshold = 75;
     score = Math.max(0, Math.min(100, score));
     const side: Direction =
-      score >= threshold
-        ? zone === "BOTTOM"
-          ? "BUY"
-          : zone === "TOP"
-            ? "SELL"
-            : "HOLD"
-        : "HOLD";
+      score >= threshold ? (zone === "BOTTOM" ? "BUY" : zone === "TOP" ? "SELL" : "HOLD") : "HOLD";
     return { score, threshold, side };
   }
 
@@ -217,7 +199,7 @@ export function calcIntradayScore(
   const threshold = 68;
   score = Math.max(0, Math.min(100, score));
   const side: Direction =
-    score >= threshold ? (regime.trend === "BULLISH" ? "BUY" : "SELL") : "HOLD";
+    score >= threshold ? (regime.trend === "BULLISH" ? "BUY" : regime.trend === "BEARISH" ? "SELL" : "HOLD") : "HOLD";
   return { score, threshold, side };
 }
 
@@ -228,10 +210,15 @@ export const INTRADAY_RISK = { slPct: 1.5, tpPct: 3.2, rr: 2.1, expiryHours: 3 }
 export function calcADX(candles: OHLCV[], period = 14): number {
   if (candles.length < period * 2 + 1) return 25; // fallback neutro — dados insuficientes
 
-  let trSum = 0, plusDmSum = 0, minusDmSum = 0;
+  let trSum = 0,
+    plusDmSum = 0,
+    minusDmSum = 0;
   for (let i = 1; i <= period; i++) {
-    const h = candles[i].high, l = candles[i].low;
-    const ph = candles[i - 1].high, pl = candles[i - 1].low, pc = candles[i - 1].close;
+    const h = candles[i].high,
+      l = candles[i].low;
+    const ph = candles[i - 1].high,
+      pl = candles[i - 1].low,
+      pc = candles[i - 1].close;
     const tr = Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
     const upMove = h - ph;
     const downMove = pl - l;
@@ -242,8 +229,11 @@ export function calcADX(candles: OHLCV[], period = 14): number {
 
   const dxValues: number[] = [];
   for (let i = period + 1; i < candles.length; i++) {
-    const h = candles[i].high, l = candles[i].low;
-    const ph = candles[i - 1].high, pl = candles[i - 1].low, pc = candles[i - 1].close;
+    const h = candles[i].high,
+      l = candles[i].low;
+    const ph = candles[i - 1].high,
+      pl = candles[i - 1].low,
+      pc = candles[i - 1].close;
     const tr = Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
     const upMove = h - ph;
     const downMove = pl - l;
@@ -266,10 +256,7 @@ export function calcADX(candles: OHLCV[], period = 14): number {
   return Math.round(lastDx.reduce((a, b) => a + b, 0) / lastDx.length);
 }
 
-export function calcFibProximity(
-  candles: OHLCV[],
-  price: number,
-): "ON_FIB" | "NEAR_FIB" | "OFF_FIB" {
+export function calcFibProximity(candles: OHLCV[], price: number): "ON_FIB" | "NEAR_FIB" | "OFF_FIB" {
   const last50 = candles.slice(-50);
   const swingH = Math.max(...last50.map((c) => c.high));
   const swingL = Math.min(...last50.map((c) => c.low));
@@ -341,26 +328,20 @@ export function calcEMA(candles: OHLCV[], period: number): number {
 export function calcBTCCorrelation(candles: OHLCV[], btcCandles: OHLCV[]): number {
   const n = Math.min(30, candles.length - 1, btcCandles.length - 1);
   if (n < 10) return 0.5;
-  const r = Array.from(
-    { length: n },
-    (_, i) => (candles[i + 1].close - candles[i].close) / candles[i].close,
-  );
-  const br = Array.from(
-    { length: n },
-    (_, i) => (btcCandles[i + 1].close - btcCandles[i].close) / btcCandles[i].close,
-  );
+  const r = Array.from({ length: n }, (_, i) => (candles[i + 1].close - candles[i].close) / candles[i].close);
+  const br = Array.from({ length: n }, (_, i) => (btcCandles[i + 1].close - btcCandles[i].close) / btcCandles[i].close);
   const mr = r.reduce((a, b) => a + b, 0) / n;
   const mbr = br.reduce((a, b) => a + b, 0) / n;
   const num = r.reduce((s, v, i) => s + (v - mr) * (br[i] - mbr), 0);
-  const den = Math.sqrt(
-    r.reduce((s, v) => s + (v - mr) ** 2, 0) * br.reduce((s, v) => s + (v - mbr) ** 2, 0),
-  );
+  const den = Math.sqrt(r.reduce((s, v) => s + (v - mr) ** 2, 0) * br.reduce((s, v) => s + (v - mbr) ** 2, 0));
   return den === 0 ? 0 : Math.round((num / den) * 100) / 100;
 }
 
-export function detectWyckoff(
-  candles: OHLCV[],
-): "ACCUMULATION" | "DISTRIBUTION" | "UNKNOWN" {
+export function detectWyckoff(candles: OHLCV[]): "ACCUMULATION" | "DISTRIBUTION" | "UNKNOWN" {
+  // Guarda mínima — sem isso, candles.length - 10 negativo faz `candles[neg]`
+  // retornar undefined e `.close` lançar TypeError em runtime (mesmo problema
+  // que calcBTCCorrelation já guarda com `if (n < 10) return 0.5;`).
+  if (candles.length < 10) return "UNKNOWN";
   const last5 = candles.slice(-5);
   const avgVol = candles.slice(-20).reduce((s, c) => s + c.volume, 0) / 20;
   const highVol = last5.every((c) => c.volume > avgVol * 1.3);
@@ -372,11 +353,7 @@ export function detectWyckoff(
   return "UNKNOWN";
 }
 
-export function calcPositionScore(
-  snapshot: MarketSnapshot,
-  candles: OHLCV[],
-  regime: MarketRegime,
-): EngineSignal {
+export function calcPositionScore(snapshot: MarketSnapshot, candles: OHLCV[], regime: MarketRegime): EngineSignal {
   let score = 50;
 
   const fg = snapshot.fearGreedIndex;
