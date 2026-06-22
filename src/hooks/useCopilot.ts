@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from "react";
 
-export type OrbState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'alert';
-export type MessageRole = 'user' | 'assistant' | 'alert' | 'system';
+export type OrbState = "idle" | "listening" | "thinking" | "speaking" | "alert";
+export type MessageRole = "user" | "assistant" | "alert" | "system";
 
 export interface CopilotMessage {
   id: string;
@@ -15,7 +15,7 @@ export interface CopilotMessage {
 export interface MarketContext {
   asset?: string;
   price?: number;
-  regime?: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'VOLATILE';
+  regime?: "BULLISH" | "BEARISH" | "NEUTRAL" | "VOLATILE";
   aiScore?: number;
   volatility?: number;
   riskScore?: number;
@@ -30,20 +30,20 @@ export interface MarketContext {
   macroScore?: number;
 
   bot4xActive?: boolean;
-  bot4xProfile?: 'conservador' | 'calibradoRSI' | 'calibradoAiScore' | 'agressivo';
+  bot4xProfile?: "conservador" | "calibradoRSI" | "calibradoAiScore" | "agressivo";
   bot4xDailyPnl?: number;
   bot4xOpenSlots?: number;
-  bot4xCircuitBreaker?: 'none' | 'emergency' | 'profitLock';
+  bot4xCircuitBreaker?: "none" | "emergency" | "profitLock";
 
   activeSignals?: number;
   topSignalScore?: number;
   topSignalAsset?: string;
-  topSignalDirection?: 'BUY' | 'SELL';
+  topSignalDirection?: "BUY" | "SELL";
 }
 
 export interface TraderProfile {
   name?: string;
-  style?: 'conservative' | 'moderate' | 'aggressive';
+  style?: "conservative" | "moderate" | "aggressive";
   operationsToday?: number;
   drawdownToday?: number;
   bestSession?: string;
@@ -57,7 +57,7 @@ export interface TraderProfile {
   worstDayOfWeek?: string;
   worstSession?: string;
   avgWinRate?: number;
-  planTier?: 'starter' | 'pro' | 'institutional';
+  planTier?: "starter" | "pro" | "institutional";
 }
 
 export interface CopilotConfig {
@@ -69,6 +69,22 @@ export interface CopilotConfig {
   onAlert?: (msg: CopilotMessage) => void;
 }
 
+// CORREÇÃO: remover (import.meta as any) — import.meta.env é tipado via vite/client.
+// Forçar wss:// em produção, igual ao ws-client.ts, para não transmitir JWT sem TLS.
+function resolveCopilotWsUrl(override?: string): string {
+  if (override) return override;
+  const envUrl = import.meta.env.VITE_API_WS_URL;
+  if (envUrl) return envUrl;
+  if (import.meta.env.PROD) {
+    console.error(
+      "[Copilot] VITE_API_WS_URL não definida em produção. " +
+        "Defina a variável de ambiente para habilitar WebSocket seguro (wss://).",
+    );
+    return "";
+  }
+  return "ws://localhost:3001";
+}
+
 export function useCopilot(config: CopilotConfig) {
   const { userId, token, wsUrl, marketContext = {}, traderProfile = {}, onAlert } = config;
 
@@ -78,41 +94,49 @@ export function useCopilot(config: CopilotConfig) {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
-  const [orbState, setOrbState] = useState<OrbState>('idle');
+  const [orbState, setOrbState] = useState<OrbState>("idle");
   const [isConnected, setIsConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [latency, setLatency] = useState<number>(0);
 
   function buildMessage(role: MessageRole, content: string, extras: Partial<CopilotMessage> = {}): CopilotMessage {
-    return { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, role, content, timestamp: new Date(), ...extras };
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      role,
+      content,
+      timestamp: new Date(),
+      ...extras,
+    };
   }
 
   function addMessage(msg: CopilotMessage) {
-    setMessages(prev => [...prev, msg]);
+    setMessages((prev) => [...prev, msg]);
   }
 
   function playAudio(base64: string) {
     const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
-    setOrbState('speaking');
-    audio.onended = () => setOrbState('idle');
-    audio.play().catch(() => setOrbState('idle'));
+    setOrbState("speaking");
+    audio.onended = () => setOrbState("idle");
+    audio.play().catch(() => setOrbState("idle"));
   }
 
   const connect = useCallback(() => {
-    const url = wsUrl || (typeof window !== 'undefined'
-      ? ((import.meta as any).env?.VITE_API_WS_URL || 'ws://localhost:3001')
-      : 'ws://localhost:3001');
+    const resolvedUrl = resolveCopilotWsUrl(wsUrl);
+    if (!resolvedUrl) {
+      // Sem URL em produção — não conectar sem TLS
+      return;
+    }
 
-    const ws = new WebSocket(`${url}/copilot?token=${token}`);
+    const ws = new WebSocket(`${resolvedUrl}/copilot?token=${token}`);
 
     ws.onopen = () => {
       setIsConnected(true);
-      ws.send(JSON.stringify({ type: 'init', userId, marketContext, traderProfile }));
+      ws.send(JSON.stringify({ type: "init", userId, marketContext, traderProfile }));
     };
 
     ws.onclose = () => {
       setIsConnected(false);
-      setOrbState('idle');
+      setOrbState("idle");
       reconnectTimerRef.current = setTimeout(connect, 3000);
     };
 
@@ -122,7 +146,9 @@ export function useCopilot(config: CopilotConfig) {
       try {
         const data = JSON.parse(event.data);
         handleServerMessage(data);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     };
 
     socketRef.current = ws;
@@ -139,63 +165,74 @@ export function useCopilot(config: CopilotConfig) {
 
   function handleServerMessage(data: Record<string, unknown>) {
     switch (data.type) {
-      case 'thinking':
-        setOrbState('thinking');
+      case "thinking":
+        setOrbState("thinking");
         break;
-      case 'chat_response': {
-        addMessage(buildMessage('assistant', data.text as string, { metadata: data.metadata as Record<string, unknown> }));
-        setOrbState('idle');
+      case "chat_response": {
+        addMessage(
+          buildMessage("assistant", data.text as string, { metadata: data.metadata as Record<string, unknown> }),
+        );
+        setOrbState("idle");
         if (data.latency) setLatency(data.latency as number);
         break;
       }
-      case 'voice_response': {
-        addMessage(buildMessage('assistant', data.text as string, { metadata: data.metadata as Record<string, unknown> }));
+      case "voice_response": {
+        addMessage(
+          buildMessage("assistant", data.text as string, { metadata: data.metadata as Record<string, unknown> }),
+        );
         if (data.audio_base64) playAudio(data.audio_base64 as string);
-        setOrbState('idle');
+        setOrbState("idle");
         break;
       }
-      case 'transcript':
-        addMessage(buildMessage('user', data.text as string));
-        setOrbState('thinking');
+      case "transcript":
+        addMessage(buildMessage("user", data.text as string));
+        setOrbState("thinking");
         break;
-      case 'proactive_alert': {
-        const alert = buildMessage('alert', data.content as string, { agent: data.agent as string });
+      case "proactive_alert": {
+        const alert = buildMessage("alert", data.content as string, { agent: data.agent as string });
         addMessage(alert);
-        setOrbState('alert');
+        setOrbState("alert");
         onAlert?.(alert);
-        setTimeout(() => setOrbState('idle'), 4000);
+        setTimeout(() => setOrbState("idle"), 4000);
         break;
       }
-      case 'system_message':
-        addMessage(buildMessage('system', data.content as string));
+      case "system_message":
+        addMessage(buildMessage("system", data.content as string));
         break;
     }
   }
 
-  const sendMessage = useCallback((text: string) => {
-    if (!text.trim() || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
-    addMessage(buildMessage('user', text));
-    setOrbState('thinking');
-    socketRef.current.send(JSON.stringify({
-      type: 'chat_message',
-      userId,
-      message: text,
-      context: { market: marketContext, trader: traderProfile },
-    }));
-  }, [userId, marketContext, traderProfile]);
+  const sendMessage = useCallback(
+    (text: string) => {
+      if (!text.trim() || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+      addMessage(buildMessage("user", text));
+      setOrbState("thinking");
+      socketRef.current.send(
+        JSON.stringify({
+          type: "chat_message",
+          userId,
+          message: text,
+          context: { market: marketContext, trader: traderProfile },
+        }),
+      );
+    },
+    [userId, marketContext, traderProfile],
+  );
 
   function sendVoice(blob: Blob, mimeType: string) {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1];
-      socketRef.current!.send(JSON.stringify({
-        type: 'voice_input',
-        userId,
-        audio_base64: base64,
-        mime_type: mimeType,
-        context: { market: marketContext, trader: traderProfile },
-      }));
+      const base64 = (reader.result as string).split(",")[1];
+      socketRef.current!.send(
+        JSON.stringify({
+          type: "voice_input",
+          userId,
+          audio_base64: base64,
+          mime_type: mimeType,
+          context: { market: marketContext, trader: traderProfile },
+        }),
+      );
     };
     reader.readAsDataURL(blob);
   }
@@ -203,22 +240,25 @@ export function useCopilot(config: CopilotConfig) {
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus' : 'audio/webm';
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
       recorder.onstop = () => {
         const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType });
-        stream.getTracks().forEach(t => t.stop());
+        stream.getTracks().forEach((t) => t.stop());
         sendVoice(blob, recorder.mimeType);
       };
       recorder.start(100);
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
-      setOrbState('listening');
+      setOrbState("listening");
     } catch (err) {
-      console.error('[Copilot] Microphone denied', err);
+      console.error("[Copilot] Microphone denied", err);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -226,10 +266,22 @@ export function useCopilot(config: CopilotConfig) {
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
     setIsRecording(false);
-    setOrbState('thinking');
+    setOrbState("thinking");
   }, []);
 
-  function clearHistory() { setMessages([]); }
+  function clearHistory() {
+    setMessages([]);
+  }
 
-  return { messages, orbState, isConnected, isRecording, latency, sendMessage, startRecording, stopRecording, clearHistory };
+  return {
+    messages,
+    orbState,
+    isConnected,
+    isRecording,
+    latency,
+    sendMessage,
+    startRecording,
+    stopRecording,
+    clearHistory,
+  };
 }
