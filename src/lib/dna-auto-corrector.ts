@@ -18,14 +18,14 @@ import type { CalibProfile } from "./bot4x-data";
 
 // Profile risk ladder (safest → riskiest). Auto-corrector walks LEFT under stress.
 const PROFILE_LADDER: CalibProfile[] = [
-  "conservador",
-  "rsi",
-  "aiscore",
-  "swing",
-  "position",
-  "intraday",
-  "scalper",
-  "agressivo",
+  "conservador",   // risco 1 — máxima proteção
+  "rsi",           // risco 2 — RSI conservador
+  "aiscore",       // risco 2 — aiScore elevado
+  "position",      // risco 3 — D1/W1, baixíssima frequência
+  "swing",         // risco 3 — H4/D1, baixa frequência
+  "intraday",      // risco 4 — M15/H1, alta frequência
+  "scalper",       // risco 5 — M1/M5, altíssima frequência
+  "agressivo",     // risco 5 — todos os parâmetros soltos
 ];
 
 function saferProfile(p: CalibProfile): CalibProfile | null {
