@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { AlertBanner } from "@/components/manipulation/alert-banner";
@@ -9,7 +10,8 @@ import { SmartMoney } from "@/components/manipulation/smart-money";
 import { LiquidityMap } from "@/components/manipulation/liquidity-map";
 import { AggressionAnalysis } from "@/components/manipulation/aggression-analysis";
 import { HistoricalLog } from "@/components/manipulation/historical-log";
-import { ALERTS } from "@/lib/manipulation-data";
+import { ALERTS as MOCK_ALERTS } from "@/lib/manipulation-data";
+import { manipulationAdapter } from "@/adapters/backend/manipulation.adapter";
 
 export const Route = createFileRoute("/_authenticated/manipulation")({
   head: () => ({
@@ -23,7 +25,16 @@ export const Route = createFileRoute("/_authenticated/manipulation")({
 
 function ManipulationPage() {
   const [dismissed, setDismissed] = useState(false);
-  const activeAssets = Array.from(new Set(ALERTS.map((a) => a.asset)));
+
+  const { data: liveAlerts } = useQuery({
+    queryKey: ["manipulation-alerts"],
+    queryFn: () => manipulationAdapter.getAlerts(20),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+  const alerts = liveAlerts?.length ? liveAlerts : MOCK_ALERTS;
+  const activeAssets = Array.from(new Set(alerts.map((a) => a.asset)));
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -39,14 +50,14 @@ function ManipulationPage() {
           </header>
 
           {!dismissed && (
-            <AlertBanner count={ALERTS.length} assets={activeAssets} onDismiss={() => setDismissed(true)} />
+            <AlertBanner count={alerts.length} assets={activeAssets} onDismiss={() => setDismissed(true)} />
           )}
 
           <InstitutionalHeatmap />
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-3">
-              <AlertsFeed />
+              <AlertsFeed alerts={alerts} />
             </div>
             <div className="lg:col-span-2">
               <SmartMoney />
