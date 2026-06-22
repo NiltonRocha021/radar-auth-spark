@@ -226,23 +226,44 @@ export const INTRADAY_RISK = { slPct: 1.5, tpPct: 3.2, rr: 2.1, expiryHours: 3 }
 // ===== Engine 3 — SWING (H4) =====
 
 export function calcADX(candles: OHLCV[], period = 14): number {
-  if (candles.length < period + 1) return 20;
-  let plusDM = 0,
-    minusDM = 0,
-    tr = 0;
-  for (let i = candles.length - period; i < candles.length; i++) {
-    const h = candles[i].high,
-      l = candles[i].low;
-    const ph = candles[i - 1].high,
-      pl = candles[i - 1].low,
-      pc = candles[i - 1].close;
-    plusDM += Math.max(h - ph, 0);
-    minusDM += Math.max(pl - l, 0);
-    tr += Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
+  if (candles.length < period * 2 + 1) return 25; // fallback neutro — dados insuficientes
+
+  let trSum = 0, plusDmSum = 0, minusDmSum = 0;
+  for (let i = 1; i <= period; i++) {
+    const h = candles[i].high, l = candles[i].low;
+    const ph = candles[i - 1].high, pl = candles[i - 1].low, pc = candles[i - 1].close;
+    const tr = Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
+    const upMove = h - ph;
+    const downMove = pl - l;
+    trSum += tr;
+    plusDmSum += upMove > downMove && upMove > 0 ? upMove : 0;
+    minusDmSum += downMove > upMove && downMove > 0 ? downMove : 0;
   }
-  const pDI = (plusDM / tr) * 100;
-  const mDI = (minusDM / tr) * 100;
-  return Math.round((Math.abs(pDI - mDI) / (pDI + mDI + 0.001)) * 100);
+
+  const dxValues: number[] = [];
+  for (let i = period + 1; i < candles.length; i++) {
+    const h = candles[i].high, l = candles[i].low;
+    const ph = candles[i - 1].high, pl = candles[i - 1].low, pc = candles[i - 1].close;
+    const tr = Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
+    const upMove = h - ph;
+    const downMove = pl - l;
+
+    trSum = trSum - trSum / period + tr;
+    plusDmSum = plusDmSum - plusDmSum / period + (upMove > downMove && upMove > 0 ? upMove : 0);
+    minusDmSum = minusDmSum - minusDmSum / period + (downMove > upMove && downMove > 0 ? downMove : 0);
+
+    if (trSum === 0) continue;
+    const plusDI = (plusDmSum / trSum) * 100;
+    const minusDI = (minusDmSum / trSum) * 100;
+    const diSum = plusDI + minusDI;
+    if (diSum === 0) continue;
+    dxValues.push((Math.abs(plusDI - minusDI) / diSum) * 100);
+  }
+
+  if (dxValues.length < period) return 25;
+
+  const lastDx = dxValues.slice(-period);
+  return Math.round(lastDx.reduce((a, b) => a + b, 0) / lastDx.length);
 }
 
 export function calcFibProximity(
