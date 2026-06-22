@@ -376,7 +376,7 @@ export function calcPositionScore(
   snapshot: MarketSnapshot,
   candles: OHLCV[],
   regime: MarketRegime,
-): number {
+): EngineSignal {
   let score = 50;
 
   const fg = snapshot.fearGreedIndex;
@@ -402,7 +402,17 @@ export function calcPositionScore(
   if (snapshot.price < ema200) score -= 10;
   if (snapshot.price > ema200 * 1.02) score += 10;
 
-  return Math.max(0, Math.min(100, score));
+  const finalScore = Math.max(0, Math.min(100, score));
+  const threshold = 65;
+  const side: Direction =
+    finalScore >= threshold
+      ? regime.trend === "BULLISH"
+        ? "BUY"
+        : regime.trend === "BEARISH"
+          ? "SELL"
+          : "HOLD"
+      : "HOLD";
+  return { score: finalScore, threshold, side };
 }
 
 export const POSITION_RISK = { slPct: 6.0, tpPct: 15.0, rr: 2.5, expiryDays: 7 };
