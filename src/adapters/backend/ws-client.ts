@@ -6,13 +6,7 @@ import { authAdapter } from "./auth.adapter";
 type Handler = (payload: unknown) => void;
 type StatusHandler = (status: WsStatus) => void;
 
-export type WsStatus =
-  | "idle"
-  | "connecting"
-  | "open"
-  | "closed"
-  | "unauthenticated"
-  | "error";
+export type WsStatus = "idle" | "connecting" | "open" | "closed" | "unauthenticated" | "error";
 
 export type WsEvent =
   | "signal:new"
@@ -23,10 +17,30 @@ export type WsEvent =
   | "price:update"
   | string;
 
+// CORREÇÃO: fallback ws:// era usado em qualquer ambiente sem VITE_API_WS_URL,
+// incluindo staging/preview — JWT transmitido sem TLS.
+// Agora: produção sempre usa wss://, localhost usa ws:// apenas em dev explícito.
+function resolveWsUrl(): string {
+  const envUrl = import.meta.env.VITE_API_WS_URL as string | undefined;
+  if (envUrl) return envUrl;
 
-const WS_URL =
-  (typeof window !== "undefined" && (import.meta as any).env?.VITE_API_WS_URL) ||
-  "ws://localhost:3001";
+  // Em produção, nunca aceitar ws:// sem TLS — falhar explicitamente
+  // em vez de transmitir token em texto claro.
+  if (import.meta.env.PROD) {
+    console.error(
+      "[WS] VITE_API_WS_URL não definida em produção. " +
+        "Defina a variável de ambiente para habilitar WebSocket seguro (wss://).",
+    );
+    // Retorna string vazia — connect() vai cair em setStatus("error") sem tentar
+    // conectar sem TLS. Melhor do que transmitir JWT em texto claro.
+    return "";
+  }
+
+  // Desenvolvimento local: ws:// é aceitável
+  return "ws://localhost:3001";
+}
+
+const WS_URL = resolveWsUrl();
 
 class BackendWsClient {
   private socket: WebSocket | null = null;
@@ -54,6 +68,12 @@ class BackendWsClient {
     this.currentPath = path;
     if (this.socket && this.socket.readyState <= 1) return this.status;
     if (this.connecting) return this.status;
+
+    // CORREÇÃO: sem URL configurada em produção, não tentar conectar
+    if (!WS_URL) {
+      this.setStatus("error");
+      return this.status;
+    }
 
     const token = await authAdapter.getAccessToken();
     if (!token) {
