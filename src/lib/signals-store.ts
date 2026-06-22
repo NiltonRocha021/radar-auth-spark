@@ -37,6 +37,8 @@ type State = {
   detailId: string | null;
   toasts: SignalToast[];
   flashIds: Set<string>;
+  lastSyncAt: number | null;
+  syncFromBackend: () => Promise<void>;
   // actions
   setView: (v: ViewMode) => void;
   setSort: (s: SortKey) => void;
