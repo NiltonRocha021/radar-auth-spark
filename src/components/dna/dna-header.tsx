@@ -1,9 +1,27 @@
 import { motion } from "framer-motion";
 import { CircularGauge } from "./circular-gauge";
 import { GAUGES } from "@/lib/dna-data";
+import { useDnaProfile } from "@/hooks/useDnaProfile";
+import { useAuth } from "@/lib/auth";
 
 export function DnaHeader() {
-  const consistency = GAUGES[0].value;
+  const { session } = useAuth();
+  const { data: dnaData } = useDnaProfile(session?.user?.id);
+
+  const hasLive =
+    !!dnaData && typeof dnaData === "object" && "dnaConsistency" in dnaData;
+
+  const gauges = hasLive
+    ? [
+        { label: "Consistency",       value: Math.round((dnaData as any).dnaConsistency       ?? GAUGES[0].value) },
+        { label: "Discipline",        value: Math.round((dnaData as any).dnaDiscipline        ?? GAUGES[1].value) },
+        { label: "Risk Control",      value: Math.round((dnaData as any).dnaRiskControl       ?? GAUGES[2].value) },
+        { label: "Timing",            value: Math.round((dnaData as any).dnaTiming            ?? GAUGES[3].value) },
+        { label: "Emotional Control", value: Math.round((dnaData as any).dnaEmotionalControl  ?? GAUGES[4].value) },
+      ]
+    : GAUGES;
+
+  const consistency = gauges[0].value;
   const size = 88;
   const stroke = 4;
   const r = (size - stroke) / 2;
@@ -47,12 +65,23 @@ export function DnaHeader() {
             <div className="text-2xl font-semibold tracking-tight bg-gradient-to-r from-[var(--brand-cyan)] to-purple-400 bg-clip-text text-transparent">
               MOMENTUM TRADER
             </div>
-            <div className="text-xs text-muted-foreground mt-1">Consistency ring · {consistency}% filled</div>
+            <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+              <span>Consistency ring · {consistency}% filled</span>
+              {hasLive ? (
+                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-emerald-500/40 text-emerald-300 bg-emerald-500/10">
+                  ao vivo
+                </span>
+              ) : (
+                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-border text-muted-foreground bg-muted/20">
+                  demo
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="lg:ml-auto grid grid-cols-3 md:grid-cols-5 gap-3">
-          {GAUGES.map((g) => (
+          {gauges.map((g) => (
             <CircularGauge key={g.label} value={g.value} label={g.label} />
           ))}
         </div>

@@ -37,6 +37,8 @@ type State = {
   detailId: string | null;
   toasts: SignalToast[];
   flashIds: Set<string>;
+  lastSyncAt: number | null;
+  syncFromBackend: () => Promise<void>;
   // actions
   setView: (v: ViewMode) => void;
   setSort: (s: SortKey) => void;
@@ -105,8 +107,50 @@ export const useSignalsStore = create<State>((set, get) => ({
   openDetail: (id) => set({ detailId: id }),
   closeDetail: () => set({ detailId: null }),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  lastSyncAt: null,
+  syncFromBackend: async () => {
+    try {
+      const { signalAdapter } = await import("@/adapters/backend/signal.adapter");
+      const backendSignals = await signalAdapter.list();
+      if (!backendSignals?.length) return;
+
+      const mapped: Signal[] = backendSignals.map((s) => ({
+        id: s.id,
+        asset: s.symbol,
+        assetClass: "Crypto" as AssetClass,
+        exchange: s.exchange ?? "Binance",
+        direction: s.direction,
+        score: s.confidence,
+        tf: (s.tf ?? "1H") as Signal["tf"],
+        entry: s.entry,
+        stop: s.sl ?? s.entry * 0.995,
+        target: s.tp ?? s.entry * 1.01,
+        rr: s.tp
+          ? Number(((s.tp - s.entry) / (s.entry - (s.sl ?? s.entry * 0.995))).toFixed(1))
+          : 2.0,
+        riskPct: 0.5,
+        volDelta: 0,
+        confirms: { rsi: true, macd: false, volume: true, structure: true, vwap: false },
+        dnaMatch: 70,
+        manipRisk: "low",
+        setup: "Breakout",
+        session: "NY",
+        ageMin: 0,
+        status: (s.state === "active" ? "active" : "expired") as Signal["status"],
+      }));
+
+      set((st) => ({
+        signals: [...mapped, ...st.signals.filter((x) => x.id.startsWith("sig-"))].slice(0, 60),
+        lastSyncAt: Date.now(),
+      }));
+    } catch {
+      // silencioso — mantém mock
+    }
+  },
   init: () => {
     if (intervals.length) return;
+    // Sincronizar com backend (silencioso — mantém mock se falhar)
+    get().syncFromBackend();
     // New signal every 10s
     const newSig = window.setInterval(() => {
       if (!get().live) return;

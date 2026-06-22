@@ -9,19 +9,23 @@ export type Bot4xLikeState = {
 };
 
 export function bot4xEligibility(signal: Signal, state: Bot4xLikeState): Bot4xEligibility {
-  // Circuit breaker / shutdown
+  // Circuit breakers absolutos — sem exceção
   if (state.dailyPnlPct <= -1.5) return "BLOQUEADO";
   if (signal.status === "expired" || signal.status === "invalidated") return "BLOQUEADO";
   if (signal.manipRisk === "high") return "BLOQUEADO";
 
   let minScore = 80;
-  if (state.profile === "conservador") minScore = 88;
-  else if (state.profile === "regular") minScore = 82;
-  else if (state.profile === "agressivo") minScore = 75;
+  if (state.profile === "conservador")          minScore = 88;
+  else if (state.profile === "regular")          minScore = 82;
+  else if (state.profile === "agressivo")        minScore = 75;
   else if (state.profile === "agressivo-galaxy") minScore = 70;
 
-  if (signal.score >= minScore && signal.manipRisk !== "medium") return "EXECUTAR";
-  if (signal.score >= minScore - 8) return "IGNORAR";
+  // manipRisk medium aplica penalidade de -8 pontos no score efetivo
+  // (não é veto — um sinal excelente ainda pode ser executado com cautela)
+  const effectiveScore =
+    signal.manipRisk === "medium" ? signal.score - 8 : signal.score;
+
+  if (effectiveScore >= minScore) return "EXECUTAR";
   return "IGNORAR";
 }
 
