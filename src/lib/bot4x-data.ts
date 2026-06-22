@@ -1,6 +1,14 @@
 export type ExecMode = "DEMO" | "REAL";
 export type Side = "LONG" | "SHORT";
-export type CalibProfile = "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper" | "intraday" | "swing" | "position";
+export type CalibProfile =
+  | "conservador"
+  | "rsi"
+  | "aiscore"
+  | "agressivo"
+  | "scalper"
+  | "intraday"
+  | "swing"
+  | "position";
 
 export type ProfileSpec = {
   id: CalibProfile;
@@ -22,79 +30,183 @@ export type ProfileSpec = {
 
 export const PROFILES: Record<CalibProfile, ProfileSpec> = {
   conservador: {
-    id: "conservador", name: "Conservador", color: "#3B6D11", riskLabel: "Risco Baixo",
+    id: "conservador",
+    name: "Conservador",
+    color: "#3B6D11",
+    riskLabel: "Risco Baixo",
     desc: "Máxima proteção patrimonial. Opera apenas em confluências institucionais perfeitas.",
-    rsiBuy: 35, rsiSell: 65, aiScore: 85, fomo: 15, wr: 62,
-    blockings30d: 647, trades30d: 183, riskRank: 1,
+    rsiBuy: 35,
+    rsiSell: 65,
+    aiScore: 85,
+    fomo: 15,
+    wr: 62,
+    blockings30d: 647,
+    trades30d: 183,
+    riskRank: 1,
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "warn", 5: "warn", 6: "warn", 7: "warn", 8: "no", 9: "no", 10: "no" },
   },
   rsi: {
-    id: "rsi", name: "Calibrado RSI", color: "#185FA5", riskLabel: "Risco Moderado",
+    id: "rsi",
+    name: "Calibrado RSI",
+    color: "#185FA5",
+    riskLabel: "Risco Moderado",
     desc: "RSI ampliado para capturar extremos menos severos. Reduz ~25% dos bloqueios.",
-    rsiBuy: 40, rsiSell: 60, aiScore: 85, fomo: 15, wr: 59,
-    blockings30d: 485, trades30d: 221, riskRank: 2,
+    rsiBuy: 40,
+    rsiSell: 60,
+    aiScore: 85,
+    fomo: 15,
+    wr: 59,
+    blockings30d: 485,
+    trades30d: 221,
+    riskRank: 2,
     warning: { level: "amber", text: "⚠ Monitorar disjuntores em lev 1:6 e 1:10" },
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "ok", 5: "warn", 6: "warn", 7: "warn", 8: "warn", 9: "no", 10: "no" },
   },
   aiscore: {
-    id: "aiscore", name: "Calibrado aiScore", color: "#534AB7", riskLabel: "Risco Médio",
+    id: "aiscore",
+    name: "Calibrado aiScore",
+    color: "#534AB7",
+    riskLabel: "Risco Médio",
     desc: "aiScore reduzido para 78. Libera sinais em dias de baixa volatilidade.",
-    rsiBuy: 35, rsiSell: 65, aiScore: 78, fomo: 15, wr: 57,
-    blockings30d: 516, trades30d: 208, riskRank: 3,
+    rsiBuy: 35,
+    rsiSell: 65,
+    aiScore: 78,
+    fomo: 15,
+    wr: 57,
+    blockings30d: 516,
+    trades30d: 208,
+    riskRank: 3,
     warning: { level: "red", text: "⛔ Não usar com alavancagem 1:8 e 1:10" },
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "ok", 5: "warn", 6: "warn", 7: "warn", 8: "no", 9: "no", 10: "no" },
   },
   agressivo: {
-    id: "agressivo", name: "Agressivo", color: "#A32D2D", riskLabel: "Risco Alto",
+    id: "agressivo",
+    name: "Agressivo",
+    color: "#A32D2D",
+    riskLabel: "Risco Alto",
     desc: "RSI 40/60 + aiScore 78 + FOMO 20%. Máximo volume de operações.",
-    rsiBuy: 40, rsiSell: 60, aiScore: 78, fomo: 20, wr: 53,
-    blockings30d: 378, trades30d: 267, riskRank: 4,
+    rsiBuy: 40,
+    rsiSell: 60,
+    aiScore: 78,
+    fomo: 20,
+    wr: 53,
+    blockings30d: 378,
+    trades30d: 267,
+    riskRank: 4,
     warning: { level: "red", text: "🚨 EXCLUSIVO para alavancagem 1:1 e 1:3" },
     levMatrix: { 1: "ok", 2: "ok", 3: "warn", 4: "warn", 5: "warn", 6: "warn", 7: "no", 8: "no", 9: "no", 10: "no" },
   },
   scalper: {
-    id: "scalper" as CalibProfile, name: "Scalper", color: "#E0A82E", riskLabel: "Scalping M1-M5",
+    id: "scalper" as CalibProfile,
+    name: "Scalper",
+    color: "#E0A82E",
+    riskLabel: "Scalping M1-M5",
     desc: "ScalperEngine: EMA9/21, VWAP, ATR, volume e momentum. Confluência ≥80% em M1/M3/M5.",
-    rsiBuy: 35, rsiSell: 65, aiScore: 80, fomo: 25, wr: 56,
-    blockings30d: 420, trades30d: 312, riskRank: 4,
+    rsiBuy: 35,
+    rsiSell: 65,
+    aiScore: 80,
+    fomo: 25,
+    wr: 56,
+    blockings30d: 420,
+    trades30d: 312,
+    riskRank: 4,
     warning: { level: "amber", text: "⚠ Scalping de alta frequência — requer baixo spread" },
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "warn", 5: "warn", 6: "warn", 7: "no", 8: "no", 9: "no", 10: "no" },
   },
   intraday: {
-    id: "intraday" as CalibProfile, name: "Intraday", color: "#2E86C1", riskLabel: "Intraday M15-H1",
+    id: "intraday" as CalibProfile,
+    name: "Intraday",
+    color: "#2E86C1",
+    riskLabel: "Intraday M15-H1",
     desc: "IntradayEngine: EMA20/50, RSI, MACD, ATR, volume crescente e estrutura. RR ≥ 1:2.",
-    rsiBuy: 40, rsiSell: 60, aiScore: 80, fomo: 20, wr: 58,
-    blockings30d: 390, trades30d: 178, riskRank: 3,
+    rsiBuy: 40,
+    rsiSell: 60,
+    aiScore: 80,
+    fomo: 20,
+    wr: 58,
+    blockings30d: 390,
+    trades30d: 178,
+    riskRank: 3,
     warning: { level: "amber", text: "⚠ Requer tendência clara e volume crescente" },
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "ok", 5: "warn", 6: "warn", 7: "warn", 8: "no", 9: "no", 10: "no" },
   },
   swing: {
-    id: "swing" as CalibProfile, name: "Swing", color: "#16A085", riskLabel: "Swing H4-D1",
+    id: "swing" as CalibProfile,
+    name: "Swing",
+    color: "#16A085",
+    riskLabel: "Swing H4-D1",
     desc: "SwingEngine: EMA50/200, RSI, MACD, ADX, volume institucional. Confluência ≥75%, RR ≥1:3.",
-    rsiBuy: 45, rsiSell: 55, aiScore: 75, fomo: 30, wr: 61,
-    blockings30d: 340, trades30d: 92, riskRank: 2,
+    rsiBuy: 45,
+    rsiSell: 55,
+    aiScore: 75,
+    fomo: 30,
+    wr: 61,
+    blockings30d: 340,
+    trades30d: 92,
+    riskRank: 2,
     warning: { level: "amber", text: "⚠ Requer ADX favorável e tendência confirmada" },
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "ok", 5: "warn", 6: "warn", 7: "no", 8: "no", 9: "no", 10: "no" },
   },
   position: {
-    id: "position" as CalibProfile, name: "Position", color: "#8E44AD", riskLabel: "Position D1-W1",
+    id: "position" as CalibProfile,
+    name: "Position",
+    color: "#8E44AD",
+    riskLabel: "Position D1-W1",
     desc: "PositionEngine: EMA200/400, ciclo macro, fluxo institucional, correlação BTC/ETH. Confluência ≥70%, RR ≥1:4.",
-    rsiBuy: 50, rsiSell: 50, aiScore: 70, fomo: 40, wr: 64,
-    blockings30d: 280, trades30d: 32, riskRank: 2,
+    rsiBuy: 50,
+    rsiSell: 50,
+    aiScore: 70,
+    fomo: 40,
+    wr: 64,
+    blockings30d: 280,
+    trades30d: 32,
+    riskRank: 2,
     warning: { level: "amber", text: "⚠ Tendência macro de longo prazo — exposição prolongada" },
     levMatrix: { 1: "ok", 2: "ok", 3: "ok", 4: "warn", 5: "warn", 6: "no", 7: "no", 8: "no", 9: "no", 10: "no" },
   },
 };
 
-export function leverageRisk(lev: number): { tier: "low" | "med" | "high"; label: string; color: string; diagnosis: string } {
-  if (lev <= 3) return { tier: "low", label: "🟢 RISCO BAIXO", color: "#1D9E75", diagnosis: "Volatilidade absorvida. Boa zona para acumulação de WR." };
-  if (lev <= 7) return { tier: "med", label: "🟡 RISCO MÉDIO", color: "#EF9F27", diagnosis: "Alavancagem operacional. Requer disciplina de stop." };
-  return { tier: "high", label: "🔴 RISCO ALTO", color: "#E24B4A", diagnosis: "Liquidação próxima. Apenas com perfil Conservador + filtros máximos." };
+// Fonte única de verdade para a ordem "mais seguro → mais arriscado" entre perfis.
+// Derivada do `riskRank` de cada ProfileSpec acima — não duplicar esta lista em
+// outros arquivos (era a causa do bug onde dna-auto-corrector.ts e
+// dna-sim-corrector.ts discordavam sobre a posição de "swing" e "position").
+// Sort é estável (ES2019+), então perfis com o mesmo riskRank mantêm a ordem
+// de declaração em PROFILES acima.
+export const PROFILE_RISK_LADDER: CalibProfile[] = (Object.keys(PROFILES) as CalibProfile[]).sort(
+  (a, b) => PROFILES[a].riskRank - PROFILES[b].riskRank,
+);
+
+export function leverageRisk(lev: number): {
+  tier: "low" | "med" | "high";
+  label: string;
+  color: string;
+  diagnosis: string;
+} {
+  if (lev <= 3)
+    return {
+      tier: "low",
+      label: "🟢 RISCO BAIXO",
+      color: "#1D9E75",
+      diagnosis: "Volatilidade absorvida. Boa zona para acumulação de WR.",
+    };
+  if (lev <= 7)
+    return {
+      tier: "med",
+      label: "🟡 RISCO MÉDIO",
+      color: "#EF9F27",
+      diagnosis: "Alavancagem operacional. Requer disciplina de stop.",
+    };
+  return {
+    tier: "high",
+    label: "🔴 RISCO ALTO",
+    color: "#E24B4A",
+    diagnosis: "Liquidação próxima. Apenas com perfil Conservador + filtros máximos.",
+  };
 }
 
 export function slTpFromLeverage(lev: number) {
   const sl = (0.005 / lev) * 100;
-  const tp = (0.010 / lev) * 100;
+  const tp = (0.01 / lev) * 100;
   return { sl: sl.toFixed(3), tp: tp.toFixed(3) };
 }
 
@@ -111,7 +223,12 @@ export type Order = {
 
 export type FilterKey = "F1" | "F2" | "F3" | "F4" | "F5" | "F6";
 export const FILTER_NAMES: Record<FilterKey, string> = {
-  F1: "Universo", F2: "Grade", F3: "Par", F4: "Canal", F5: "Confluência", F6: "FOMO",
+  F1: "Universo",
+  F2: "Grade",
+  F3: "Par",
+  F4: "Canal",
+  F5: "Confluência",
+  F6: "FOMO",
 };
 
 export type ChannelZone = "BOTTOM" | "MIDDLE" | "TOP";
@@ -163,15 +280,26 @@ export type Trade = {
   hour: number;
 };
 
-const PAIRS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ARB/USDT", "AVAX/USDT", "LINK/USDT", "DOGE/USDT", "MATIC/USDT"];
+const PAIRS = [
+  "BTC/USDT",
+  "ETH/USDT",
+  "SOL/USDT",
+  "BNB/USDT",
+  "XRP/USDT",
+  "ARB/USDT",
+  "AVAX/USDT",
+  "LINK/USDT",
+  "DOGE/USDT",
+  "MATIC/USDT",
+];
 const rand = (n: number) => Math.floor(Math.random() * n);
 const pick = <T,>(a: T[]) => a[rand(a.length)];
 
 type MakeTickCtx = {
   profile: ProfileSpec;
-  slotsUsed: number;        // 0..3
-  busyPairs?: string[];     // pairs in active orders
-  shutdown?: boolean;       // emergency shutdown active
+  slotsUsed: number; // 0..3
+  busyPairs?: string[]; // pairs in active orders
+  shutdown?: boolean; // emergency shutdown active
 };
 
 export function makeTick(ctx: MakeTickCtx): Tick {
@@ -205,36 +333,56 @@ export function makeTick(ctx: MakeTickCtx): Tick {
   // F1: always pass (mocked top 10)
   // F2: grid saturation
   if (slotsUsed >= 3) {
-    filters.F2 = false; blockedAt = "F2"; verdict = "GRID_SATURATED";
+    filters.F2 = false;
+    blockedAt = "F2";
+    verdict = "GRID_SATURATED";
     detail.F2 = `Grade 3/3 — saturada`;
   }
   // F3: pair busy
   else if (busyPairs.includes(pair)) {
-    filters.F3 = false; blockedAt = "F3"; verdict = "IGNORE";
+    filters.F3 = false;
+    blockedAt = "F3";
+    verdict = "IGNORE";
     detail.F3 = `Par ${pair} já ativo`;
   }
   // F4: middle channel
   else if (channelZone === "MIDDLE") {
-    filters.F4 = false; blockedAt = "F4"; verdict = "IGNORE";
+    filters.F4 = false;
+    blockedAt = "F4";
+    verdict = "IGNORE";
     detail.F4 = `Zona MIDDLE → BLOQUEADO`;
   }
   // F5: confluence
   else if (side === "BUY" && rsi >= profile.rsiBuy) {
-    filters.F5 = false; blockedAt = "F5"; f5Sub = "RSI"; verdict = "IGNORE";
+    filters.F5 = false;
+    blockedAt = "F5";
+    f5Sub = "RSI";
+    verdict = "IGNORE";
     detail.F5 = `RSI ${rsi} ≥ ${profile.rsiBuy} (esperado < ${profile.rsiBuy})`;
   } else if (side === "SELL" && rsi <= profile.rsiSell) {
-    filters.F5 = false; blockedAt = "F5"; f5Sub = "RSI"; verdict = "IGNORE";
+    filters.F5 = false;
+    blockedAt = "F5";
+    f5Sub = "RSI";
+    verdict = "IGNORE";
     detail.F5 = `RSI ${rsi} ≤ ${profile.rsiSell} (esperado > ${profile.rsiSell})`;
   } else if (aiScore < profile.aiScore) {
-    filters.F5 = false; blockedAt = "F5"; f5Sub = "AISCORE"; verdict = "IGNORE";
+    filters.F5 = false;
+    blockedAt = "F5";
+    f5Sub = "AISCORE";
+    verdict = "IGNORE";
     detail.F5 = `aiScore ${aiScore} < ${profile.aiScore}`;
   } else if (!liquidityGrab) {
-    filters.F5 = false; blockedAt = "F5"; f5Sub = "LIQGRAB"; verdict = "IGNORE";
+    filters.F5 = false;
+    blockedAt = "F5";
+    f5Sub = "LIQGRAB";
+    verdict = "IGNORE";
     detail.F5 = `liquidityGrab ausente`;
   }
   // F6: FOMO
   else if (fomoDisplacement > profile.fomo) {
-    filters.F6 = false; blockedAt = "F6"; verdict = "FOMO_BLOCKED";
+    filters.F6 = false;
+    blockedAt = "F6";
+    verdict = "FOMO_BLOCKED";
     detail.F6 = `Desl. ${fomoDisplacement}% > ${profile.fomo}%`;
   }
 
@@ -253,10 +401,24 @@ export function makeTick(ctx: MakeTickCtx): Tick {
   return {
     id: `tk_${Date.now()}_${rand(99999)}`,
     ts: Date.now(),
-    pair, side, channelZone, rsi, aiScore, liquidityGrab, fomoDisplacement,
-    profileId: profile.id, rsiBuy: profile.rsiBuy, rsiSell: profile.rsiSell,
-    aiScoreMin: profile.aiScore, fomoLimit: profile.fomo,
-    slotsUsed, filters, blockedAt, f5Sub, verdict, detail,
+    pair,
+    side,
+    channelZone,
+    rsi,
+    aiScore,
+    liquidityGrab,
+    fomoDisplacement,
+    profileId: profile.id,
+    rsiBuy: profile.rsiBuy,
+    rsiSell: profile.rsiSell,
+    aiScoreMin: profile.aiScore,
+    fomoLimit: profile.fomo,
+    slotsUsed,
+    filters,
+    blockedAt,
+    f5Sub,
+    verdict,
+    detail,
   };
 }
 
@@ -277,22 +439,40 @@ export function genHistory(n = 80): Trade[] {
     else result = "SHUTDOWN";
     const entry = +(100 + Math.random() * 40000).toFixed(2);
     const stop = +(entry * (side === "LONG" ? 0.995 : 1.005)).toFixed(2);
-    const target = +(entry * (side === "LONG" ? 1.010 : 0.990)).toFixed(2);
-    const pnlPct = result === "WIN" ? +(0.3 + Math.random() * 0.7).toFixed(2)
-      : result === "LOSS" ? -+(0.3 + Math.random() * 0.5).toFixed(2) : 0;
+    const target = +(entry * (side === "LONG" ? 1.01 : 0.99)).toFixed(2);
+    const pnlPct =
+      result === "WIN"
+        ? +(0.3 + Math.random() * 0.7).toFixed(2)
+        : result === "LOSS"
+          ? -+(0.3 + Math.random() * 0.5).toFixed(2)
+          : 0;
     const pnl = +(acc * (pnlPct / 100)).toFixed(2);
     acc = +(acc + pnl).toFixed(2);
     const profile = pick<CalibProfile>(["conservador", "rsi", "aiscore", "agressivo"]);
     const leverage = 1 + rand(10);
-    const motivo = result === "WIN" ? "TP atingido"
-      : result === "LOSS" ? "SL atingido"
-      : result === "BLOCKED" ? `Bloqueado em F${1 + rand(6)}`
-      : "Circuit breaker -1.5%";
+    const motivo =
+      result === "WIN"
+        ? "TP atingido"
+        : result === "LOSS"
+          ? "SL atingido"
+          : result === "BLOCKED"
+            ? `Bloqueado em F${1 + rand(6)}`
+            : "Circuit breaker -1.5%";
     out.push({
       id: `tr_${i}`,
       day: d.toISOString().slice(0, 10),
-      pair, side, entry, stop, target, result, pnl, pnlPct,
-      accumulated: acc, profile, leverage, motivo,
+      pair,
+      side,
+      entry,
+      stop,
+      target,
+      result,
+      pnl,
+      pnlPct,
+      accumulated: acc,
+      profile,
+      leverage,
+      motivo,
       hour: rand(24),
     });
   }
