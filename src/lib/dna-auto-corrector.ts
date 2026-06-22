@@ -14,24 +14,15 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useBot4xStore } from "./bot4x-store";
 import { useSignalsStore } from "./signals-store";
-import type { CalibProfile } from "./bot4x-data";
+import { PROFILE_RISK_LADDER, type CalibProfile } from "./bot4x-data";
 
-// Profile risk ladder (safest → riskiest). Auto-corrector walks LEFT under stress.
-const PROFILE_LADDER: CalibProfile[] = [
-  "conservador",   // risco 1 — máxima proteção
-  "rsi",           // risco 2 — RSI conservador
-  "aiscore",       // risco 2 — aiScore elevado
-  "position",      // risco 3 — D1/W1, baixíssima frequência
-  "swing",         // risco 3 — H4/D1, baixa frequência
-  "intraday",      // risco 4 — M15/H1, alta frequência
-  "scalper",       // risco 5 — M1/M5, altíssima frequência
-  "agressivo",     // risco 5 — todos os parâmetros soltos
-];
-
+// Profile risk ladder (safest → riskiest) — fonte única em bot4x-data.ts
+// (derivada do `riskRank` de cada perfil). Auto-corrector caminha para a
+// ESQUERDA (índice menor) sob estresse.
 function saferProfile(p: CalibProfile): CalibProfile | null {
-  const idx = PROFILE_LADDER.indexOf(p);
+  const idx = PROFILE_RISK_LADDER.indexOf(p);
   if (idx <= 0) return null;
-  return PROFILE_LADDER[idx - 1];
+  return PROFILE_RISK_LADDER[idx - 1];
 }
 
 type Snapshot = {
@@ -44,9 +35,7 @@ function readSnapshot(): Snapshot {
   const s = useBot4xStore.getState();
   const last5 = s.history.slice(0, 5);
   const recentLosses = last5.filter((t) => (t.pnlPct ?? 0) < 0).length;
-  const openLossPct = s.orders
-    .filter((o) => o.pnlPct < 0)
-    .reduce((acc, o) => acc + o.pnlPct, 0);
+  const openLossPct = s.orders.filter((o) => o.pnlPct < 0).reduce((acc, o) => acc + o.pnlPct, 0);
   return { dailyPnlPct: s.dailyPnlPct, recentLosses, openLossPct };
 }
 
