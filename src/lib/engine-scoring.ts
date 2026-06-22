@@ -72,6 +72,38 @@ export function calcVolumeRatio(candles: OHLCV[]): number {
   // < 0    → below avg   (-10)
 }
 
+// NOVO: calcRSI — cálculo próprio de RSI (Wilder's smoothing) para uso interno.
+// O engine INTRADAY dependia de snapshot.rsi vindo do backend, que em fallback
+// ficava com valor fixo (64) do mockBTCSnapshot. Agora o engine pode calcular
+// diretamente dos candles quando disponível.
+export function calcRSI(candles: OHLCV[], period = 14): number {
+  if (candles.length < period + 1) return 50; // neutro — dados insuficientes
+
+  // Seed: média simples dos primeiros `period` gains/losses
+  let avgGain = 0;
+  let avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const diff = candles[i].close - candles[i - 1].close;
+    if (diff >= 0) avgGain += diff;
+    else avgLoss -= diff;
+  }
+  avgGain /= period;
+  avgLoss /= period;
+
+  // Wilder smoothing para o restante dos candles
+  for (let i = period + 1; i < candles.length; i++) {
+    const diff = candles[i].close - candles[i - 1].close;
+    const gain = diff >= 0 ? diff : 0;
+    const loss = diff < 0 ? -diff : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+  }
+
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return Math.round(100 - 100 / (1 + rs));
+}
+
 // ===== Engine 1 — SCALPER (M5) =====
 
 export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): EngineSignal {
@@ -162,7 +194,11 @@ export function calcIntradayScore(snapshot: MarketSnapshot, candles: OHLCV[], re
   }
 
   // TRENDING regime — RSI dynamic logic
-  const rsi = snapshot.rsi;
+  // CORREÇÃO: snapshot.rsi pode ser undefined/stale em fallback mock.
+  // Priorizar cálculo próprio via candles quando disponíveis (>= 15 candles).
+  // Fallback explícito para 50 (neutro) em vez de depender de valor fixo externo.
+  const rsi = candles.length >= 15 ? calcRSI(candles, 14) : (snapshot.rsi ?? 50);
+
   if (regime.trend === "BULLISH" && rsi < 40) score += 20;
   if (regime.trend === "BEARISH" && rsi > 65) score += 20;
   if (rsi >= 40 && rsi <= 60) score -= 10;
@@ -208,17 +244,26 @@ export const INTRADAY_RISK = { slPct: 1.5, tpPct: 3.2, rr: 2.1, expiryHours: 3 }
 // ===== Engine 3 — SWING (H4) =====
 
 export function calcADX(candles: OHLCV[], period = 14): number {
+  // Wilder requer ao menos period candles para seed + period candles para DX
   if (candles.length < period * 2 + 1) return 25; // fallback neutro — dados insuficientes
 
-  let trSum = 0,
-    plusDmSum = 0,
-    minusDmSum = 0;
+  // CORREÇÃO: seed com smoothing de Wilder (RMA) correto.
+  // O bug anterior fazia o loop de DX começar em `period + 1` sem incluir o
+  // candle `period` na suavização, pulando um passo e inflando ADX em 5-8pts.
+  // A abordagem correta: somar os primeiros `period` TRs/DMs como seed bruto
+  // e depois aplicar o Wilder smoothing a partir do candle `period` (não period+1).
+
+  // Passo 1: seed — soma simples dos primeiros `period` períodos (candles 1..period)
+  let trSum = 0;
+  let plusDmSum = 0;
+  let minusDmSum = 0;
+
   for (let i = 1; i <= period; i++) {
-    const h = candles[i].high,
-      l = candles[i].low;
-    const ph = candles[i - 1].high,
-      pl = candles[i - 1].low,
-      pc = candles[i - 1].close;
+    const h = candles[i].high;
+    const l = candles[i].low;
+    const ph = candles[i - 1].high;
+    const pl = candles[i - 1].low;
+    const pc = candles[i - 1].close;
     const tr = Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
     const upMove = h - ph;
     const downMove = pl - l;
@@ -227,17 +272,20 @@ export function calcADX(candles: OHLCV[], period = 14): number {
     minusDmSum += downMove > upMove && downMove > 0 ? downMove : 0;
   }
 
+  // Passo 2: Wilder smoothing a partir do candle `period` (inclusive — era period+1 antes)
   const dxValues: number[] = [];
+
   for (let i = period + 1; i < candles.length; i++) {
-    const h = candles[i].high,
-      l = candles[i].low;
-    const ph = candles[i - 1].high,
-      pl = candles[i - 1].low,
-      pc = candles[i - 1].close;
+    const h = candles[i].high;
+    const l = candles[i].low;
+    const ph = candles[i - 1].high;
+    const pl = candles[i - 1].low;
+    const pc = candles[i - 1].close;
     const tr = Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
     const upMove = h - ph;
     const downMove = pl - l;
 
+    // Wilder: soma anterior - (soma / period) + novo valor
     trSum = trSum - trSum / period + tr;
     plusDmSum = plusDmSum - plusDmSum / period + (upMove > downMove && upMove > 0 ? upMove : 0);
     minusDmSum = minusDmSum - minusDmSum / period + (downMove > upMove && downMove > 0 ? downMove : 0);
@@ -252,6 +300,7 @@ export function calcADX(candles: OHLCV[], period = 14): number {
 
   if (dxValues.length < period) return 25;
 
+  // ADX = média dos últimos `period` valores de DX
   const lastDx = dxValues.slice(-period);
   return Math.round(lastDx.reduce((a, b) => a + b, 0) / lastDx.length);
 }
@@ -261,6 +310,8 @@ export function calcFibProximity(candles: OHLCV[], price: number): "ON_FIB" | "N
   const swingH = Math.max(...last50.map((c) => c.high));
   const swingL = Math.min(...last50.map((c) => c.low));
   const range = swingH - swingL;
+  // Guarda: range zero previne fibs todos iguais a swingL
+  if (range === 0) return "OFF_FIB";
   const fibs = [0.382, 0.5, 0.618].map((f) => swingL + range * f);
   const nearest = Math.min(...fibs.map((f) => Math.abs(price - f) / price));
   if (nearest < 0.005) return "ON_FIB";
@@ -326,10 +377,25 @@ export function calcEMA(candles: OHLCV[], period: number): number {
 }
 
 export function calcBTCCorrelation(candles: OHLCV[], btcCandles: OHLCV[]): number {
+  // CORREÇÃO: usar Math.min de (length - 1) para ambos garante que i+1 sempre
+  // existe em ambos os arrays, evitando acesso fora dos limites que poluía o
+  // coeficiente de Pearson quando os arrays tinham tamanhos diferentes.
   const n = Math.min(30, candles.length - 1, btcCandles.length - 1);
   if (n < 10) return 0.5;
-  const r = Array.from({ length: n }, (_, i) => (candles[i + 1].close - candles[i].close) / candles[i].close);
-  const br = Array.from({ length: n }, (_, i) => (btcCandles[i + 1].close - btcCandles[i].close) / btcCandles[i].close);
+
+  // Retornos logarítmicos simples nas últimas n barras (alinhados pelo índice final)
+  const startAsset = candles.length - 1 - n;
+  const startBtc = btcCandles.length - 1 - n;
+
+  const r = Array.from(
+    { length: n },
+    (_, i) => (candles[startAsset + i + 1].close - candles[startAsset + i].close) / candles[startAsset + i].close,
+  );
+  const br = Array.from(
+    { length: n },
+    (_, i) => (btcCandles[startBtc + i + 1].close - btcCandles[startBtc + i].close) / btcCandles[startBtc + i].close,
+  );
+
   const mr = r.reduce((a, b) => a + b, 0) / n;
   const mbr = br.reduce((a, b) => a + b, 0) / n;
   const num = r.reduce((s, v, i) => s + (v - mr) * (br[i] - mbr), 0);
@@ -339,8 +405,7 @@ export function calcBTCCorrelation(candles: OHLCV[], btcCandles: OHLCV[]): numbe
 
 export function detectWyckoff(candles: OHLCV[]): "ACCUMULATION" | "DISTRIBUTION" | "UNKNOWN" {
   // Guarda mínima — sem isso, candles.length - 10 negativo faz `candles[neg]`
-  // retornar undefined e `.close` lançar TypeError em runtime (mesmo problema
-  // que calcBTCCorrelation já guarda com `if (n < 10) return 0.5;`).
+  // retornar undefined e `.close` lançar TypeError em runtime.
   if (candles.length < 10) return "UNKNOWN";
   const last5 = candles.slice(-5);
   const avgVol = candles.slice(-20).reduce((s, c) => s + c.volume, 0) / 20;
