@@ -1,4 +1,4 @@
-import { ALERTS, type Severity } from "@/lib/manipulation-data";
+import { ALERTS, type Alert, type Severity } from "@/lib/manipulation-data";
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { ScoreRing } from "./score-ring";
@@ -9,8 +9,9 @@ const sevStyle: Record<Severity, string> = {
   LOW: "bg-zinc-500/15 text-zinc-300 border-zinc-500/40",
 };
 
-export function AlertsFeed() {
-  const [open, setOpen] = useState<string | null>("a1");
+export function AlertsFeed({ alerts }: { alerts?: Alert[] } = {}) {
+  const list = alerts && alerts.length ? alerts : ALERTS;
+  const [open, setOpen] = useState<string | null>(list[0]?.id ?? null);
   return (
     <div className="rounded-xl border border-border bg-card/40 p-5">
       <div className="flex items-center justify-between mb-3">
@@ -18,11 +19,11 @@ export function AlertsFeed() {
           <h2 className="text-sm font-semibold">Active alerts</h2>
           <p className="text-xs text-muted-foreground">Live institutional manipulation events</p>
         </div>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{ALERTS.length} active</span>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{list.length} active</span>
       </div>
 
       <div className="space-y-2.5">
-        {ALERTS.map((a) => {
+        {list.map((a) => {
           const isOpen = open === a.id;
           return (
             <div key={a.id} className={`rounded-lg border ${sevStyle[a.severity]} bg-card/60 overflow-hidden`}>
