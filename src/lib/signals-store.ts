@@ -109,6 +109,8 @@ export const useSignalsStore = create<State>((set, get) => ({
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   init: () => {
     if (intervals.length) return;
+    // Sincronizar com backend (silencioso — mantém mock se falhar)
+    get().syncFromBackend();
     // New signal every 10s
     const newSig = window.setInterval(() => {
       if (!get().live) return;
