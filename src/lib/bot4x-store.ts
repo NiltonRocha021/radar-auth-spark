@@ -76,6 +76,44 @@ function genCtxTick(get: () => State): Tick {
   });
 }
 
+// Mapeia profile do backend ("calibradoRSI"/"calibradoAiScore") para CalibProfile local.
+function mapBackendProfile(p: string | undefined): CalibProfile {
+  if (p === "calibradoRSI") return "rsi";
+  if (p === "calibradoAiScore") return "aiscore";
+  if (p === "conservador" || p === "agressivo" || p === "scalper" || p === "intraday" || p === "swing" || p === "position" || p === "rsi" || p === "aiscore") {
+    return p as CalibProfile;
+  }
+  return "conservador";
+}
+
+// Converte uma execução do backend para o tipo Trade completo usado pelo histórico local.
+function executionToTrade(e: BackendBot4xExecution, profile: CalibProfile, leverage: number): Trade {
+  const openedAt = e.createdAt ? new Date(e.createdAt).getTime() : Date.now();
+  const pnl = e.pnl ?? 0;
+  const side: Side = e.side === "BUY" || e.side === "LONG" ? "LONG" : "SHORT";
+  const result: Trade["result"] =
+    e.status === "open" || e.status === "pending" ? "BLOCKED" : pnl >= 0 ? "WIN" : "LOSS";
+  const entry = e.entryPrice ?? 0;
+  return {
+    id: e.id,
+    day: new Date(openedAt).toISOString().slice(0, 10),
+    pair: e.pair,
+    side,
+    entry,
+    stop: entry,
+    target: entry,
+    result,
+    pnl,
+    pnlPct: pnl,
+    accumulated: 0,
+    profile,
+    leverage,
+    motivo: "",
+    hour: new Date(openedAt).getHours(),
+  };
+}
+
+
 // ─── STORE ────────────────────────────────────────────────────────────────────
 
 export const useBot4xStore = create<State>((set, get) => ({
