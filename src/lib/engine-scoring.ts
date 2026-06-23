@@ -481,7 +481,7 @@ export const mockBTCSnapshot: MarketSnapshot = {
   triggerPrice: 105200,
   manipulationScore: 42,
   volatility: "LOW",
-  rsi: 64,
+  rsi: 50, // neutro — 64 favorecia sinais SELL artificialmente no fallback BEARISH
   aiScore: 72,
   fearGreedIndex: 45,
   btcDominance: 54.2,
