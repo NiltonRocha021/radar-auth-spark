@@ -12,6 +12,12 @@ import type {
   SimulationProfile,
 } from "@/adapters/backend/calibrator.adapter";
 
+// CORREÇÃO: importar calcRSI do engine para garantir que backtest e engine
+// usem o mesmo algoritmo (Wilder smoothing). A função local usava média simples,
+// divergindo do engine e produzindo sinais inconsistentes entre os dois contextos.
+import { calcRSI as engineCalcRSI } from "./engine-scoring";
+
+
 // ============ Risk Config ============
 export const RISK_CONFIG = {
   positionFraction: 1 / 3,
