@@ -34,20 +34,17 @@ function sma(values: number[], i: number, period: number): number | null {
   for (let k = i - period + 1; k <= i; k++) s += values[k];
   return s / period;
 }
+// rsi: wrapper sobre engineCalcRSI para manter a assinatura (values[], i, period)
+// usada pelas estratégias abaixo. Constrói OHLCVs sintéticos (close-only) e
+// passa para o Wilder smoothing do engine — garantindo cálculo idêntico.
 function rsi(values: number[], i: number, period = 14): number | null {
   if (i <= period) return null;
-  let gains = 0;
-  let losses = 0;
-  for (let k = i - period + 1; k <= i; k++) {
-    const diff = values[k] - values[k - 1];
-    if (diff >= 0) gains += diff;
-    else losses -= diff;
-  }
-  const avgGain = gains / period;
-  const avgLoss = losses / period;
-  if (avgLoss === 0) return 100;
-  return 100 - 100 / (1 + avgGain / avgLoss);
+  const slice = values.slice(0, i + 1).map((close) => ({
+    time: 0, open: close, high: close, low: close, close, volume: 0,
+  }));
+  return engineCalcRSI(slice, period);
 }
+
 type Signal = "LONG" | "SHORT" | "FLAT";
 interface Ctx { closes: number[]; i: number; candles?: Candle[]; }
 
