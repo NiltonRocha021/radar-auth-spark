@@ -10,7 +10,7 @@ TAMANHO_MIN_BUFFER = 10
 # Janela historica aceita: 90 dias atras ate agora (dinamico, nao hardcoded)
 JANELA_HISTORICA_DIAS = 90
 
-buffer_volume = deque()
+buffer_volume = deque(maxlen=60)  # maxlen elimina o popleft() manual
 ultima_anomalia_ts = 0
 
 def get_data_minima_ms() -> int:
