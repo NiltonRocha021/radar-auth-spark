@@ -300,9 +300,11 @@ export const useBot4xStore = create<State>((set, get) => ({
     const t = get()._ticker;
     if (t) clearInterval(t);
     // In real mode, also unsubscribe WS
-    if (get().mode === "REAL") {
-      backendWs.off("bot4x:update");
+    if (wsUnsub) {
+      wsUnsub();
+      wsUnsub = null;
     }
+
     set({ _ticker: undefined });
   },
 
