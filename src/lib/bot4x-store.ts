@@ -229,44 +229,34 @@ export const useBot4xStore = create<State>((set, get) => ({
 
       const [config, executions] = await Promise.all([bot4xAdapter.getConfig(uid), bot4xAdapter.executions()]);
 
+      const profile = mapBackendProfile(config?.profile);
+      const leverage = get().leverage;
+
       // Map backend executions to Trade format for history
-      const mappedHistory: Trade[] = (executions ?? []).map((e: BackendBot4xExecution) => ({
-        id: e.id,
-        pair: e.pair,
-        side: e.side === "BUY" || e.side === "LONG" ? "LONG" : "SHORT",
-        result: e.pnl != null ? (e.pnl >= 0 ? "WIN" : "LOSS") : "OPEN",
-        pnlPct: e.pnl ?? 0,
-        openedAt: e.createdAt ? new Date(e.createdAt).getTime() : Date.now(),
-      }));
+      const mappedHistory: Trade[] = (executions ?? []).map((e: BackendBot4xExecution) =>
+        executionToTrade(e, profile, leverage),
+      );
 
       set({
         status: config?.active ? "RUNNING" : "IDLE",
-        profile: config?.profile ?? get().profile,
+        profile,
         circuitBreaker: (config?.circuitBreaker as State["circuitBreaker"]) ?? "none",
         history: mappedHistory,
         errorMsg: null,
       });
 
       // ── Subscribe to real-time backend events via WebSocket ───────────────
-      backendWs.on("bot4x:update", (raw) => {
+      wsUnsub = backendWs.on("bot4x:update", (raw) => {
         const event = raw as { type: string; [k: string]: unknown };
 
         switch (event.type) {
           case "EXECUTION": {
             // New fill from backend worker — prepend to history
             const ex = event.execution as BackendBot4xExecution;
+            const s = get();
+            const trade = executionToTrade(ex, s.profile, s.leverage);
             set((prev) => ({
-              history: [
-                {
-                  id: ex.id,
-                  pair: ex.pair,
-                  side: ex.side === "BUY" || ex.side === "LONG" ? "LONG" : "SHORT",
-                  result: ex.pnl != null ? (ex.pnl >= 0 ? "WIN" : "LOSS") : "OPEN",
-                  pnlPct: ex.pnl ?? 0,
-                  openedAt: ex.createdAt ? new Date(ex.createdAt).getTime() : Date.now(),
-                },
-                ...prev.history,
-              ].slice(0, 500),
+              history: [trade, ...prev.history].slice(0, 500),
             }));
             break;
           }
@@ -290,6 +280,7 @@ export const useBot4xStore = create<State>((set, get) => ({
             break;
         }
       });
+
     } catch (err) {
       console.error("[Bot4x] init real failed:", err);
       set({
