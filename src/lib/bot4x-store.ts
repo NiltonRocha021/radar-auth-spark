@@ -76,7 +76,49 @@ function genCtxTick(get: () => State): Tick {
   });
 }
 
+// Mapeia profile do backend ("calibradoRSI"/"calibradoAiScore") para CalibProfile local.
+function mapBackendProfile(p: string | undefined): CalibProfile {
+  if (p === "calibradoRSI") return "rsi";
+  if (p === "calibradoAiScore") return "aiscore";
+  if (p === "conservador" || p === "agressivo" || p === "scalper" || p === "intraday" || p === "swing" || p === "position" || p === "rsi" || p === "aiscore") {
+    return p as CalibProfile;
+  }
+  return "conservador";
+}
+
+// Converte uma execução do backend para o tipo Trade completo usado pelo histórico local.
+function executionToTrade(e: BackendBot4xExecution, profile: CalibProfile, leverage: number): Trade {
+  const openedAt = e.createdAt ? new Date(e.createdAt).getTime() : Date.now();
+  const pnl = e.pnl ?? 0;
+  const side: Side = e.side === "BUY" || e.side === "LONG" ? "LONG" : "SHORT";
+  const result: Trade["result"] =
+    e.status === "open" || e.status === "pending" ? "BLOCKED" : pnl >= 0 ? "WIN" : "LOSS";
+  const entry = e.entryPrice ?? 0;
+  return {
+    id: e.id,
+    day: new Date(openedAt).toISOString().slice(0, 10),
+    pair: e.pair,
+    side,
+    entry,
+    stop: entry,
+    target: entry,
+    result,
+    pnl,
+    pnlPct: pnl,
+    accumulated: 0,
+    profile,
+    leverage,
+    motivo: "",
+    hour: new Date(openedAt).getHours(),
+  };
+}
+
+
+// Unsubscribe handle from backendWs.on("bot4x:update", ...) — limpo no cleanup().
+let wsUnsub: (() => void) | null = null;
+
 // ─── STORE ────────────────────────────────────────────────────────────────────
+
 
 export const useBot4xStore = create<State>((set, get) => ({
   mode: "DEMO",
@@ -191,44 +233,34 @@ export const useBot4xStore = create<State>((set, get) => ({
 
       const [config, executions] = await Promise.all([bot4xAdapter.getConfig(uid), bot4xAdapter.executions()]);
 
+      const profile = mapBackendProfile(config?.profile);
+      const leverage = get().leverage;
+
       // Map backend executions to Trade format for history
-      const mappedHistory: Trade[] = (executions ?? []).map((e: BackendBot4xExecution) => ({
-        id: e.id,
-        pair: e.pair,
-        side: e.side === "BUY" || e.side === "LONG" ? "LONG" : "SHORT",
-        result: e.pnl != null ? (e.pnl >= 0 ? "WIN" : "LOSS") : "OPEN",
-        pnlPct: e.pnl ?? 0,
-        openedAt: e.createdAt ? new Date(e.createdAt).getTime() : Date.now(),
-      }));
+      const mappedHistory: Trade[] = (executions ?? []).map((e: BackendBot4xExecution) =>
+        executionToTrade(e, profile, leverage),
+      );
 
       set({
         status: config?.active ? "RUNNING" : "IDLE",
-        profile: config?.profile ?? get().profile,
+        profile,
         circuitBreaker: (config?.circuitBreaker as State["circuitBreaker"]) ?? "none",
         history: mappedHistory,
         errorMsg: null,
       });
 
       // ── Subscribe to real-time backend events via WebSocket ───────────────
-      backendWs.on("bot4x:update", (raw) => {
+      wsUnsub = backendWs.on("bot4x:update", (raw) => {
         const event = raw as { type: string; [k: string]: unknown };
 
         switch (event.type) {
           case "EXECUTION": {
             // New fill from backend worker — prepend to history
             const ex = event.execution as BackendBot4xExecution;
+            const s = get();
+            const trade = executionToTrade(ex, s.profile, s.leverage);
             set((prev) => ({
-              history: [
-                {
-                  id: ex.id,
-                  pair: ex.pair,
-                  side: ex.side === "BUY" || ex.side === "LONG" ? "LONG" : "SHORT",
-                  result: ex.pnl != null ? (ex.pnl >= 0 ? "WIN" : "LOSS") : "OPEN",
-                  pnlPct: ex.pnl ?? 0,
-                  openedAt: ex.createdAt ? new Date(ex.createdAt).getTime() : Date.now(),
-                },
-                ...prev.history,
-              ].slice(0, 500),
+              history: [trade, ...prev.history].slice(0, 500),
             }));
             break;
           }
@@ -252,6 +284,7 @@ export const useBot4xStore = create<State>((set, get) => ({
             break;
         }
       });
+
     } catch (err) {
       console.error("[Bot4x] init real failed:", err);
       set({
@@ -267,9 +300,11 @@ export const useBot4xStore = create<State>((set, get) => ({
     const t = get()._ticker;
     if (t) clearInterval(t);
     // In real mode, also unsubscribe WS
-    if (get().mode === "REAL") {
-      backendWs.off("bot4x:update");
+    if (wsUnsub) {
+      wsUnsub();
+      wsUnsub = null;
     }
+
     set({ _ticker: undefined });
   },
 
