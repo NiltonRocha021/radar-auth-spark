@@ -117,11 +117,17 @@ export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): En
   if (snapshot.volatility === "MEDIUM") score += 8;
   // LOW: no penalty, no bonus — handled by adaptive threshold below
 
-  // Channel zone — MIDDLE no longer penalized (valid breakout setup with volume)
+  // Channel zone — MIDDLE exige confluência de volume + AI para reduzir falsos positivos
   const zone = calcChannelZone(candles, snapshot.price);
   if (zone === "BOTTOM") score += 20;
   if (zone === "TOP") score += 20;
-  // MIDDLE: +0
+  // MIDDLE: sinal só se volume alto E AI forte — caso contrário bloqueia
+  if (zone === "MIDDLE") {
+    const vr = calcVolumeRatio(candles);
+    if (!(vr > 0.3 && snapshot.aiScore >= 70)) {
+      return { score: 0, threshold: 70, side: "HOLD" };
+    }
+  }
 
   // AI score
   if (snapshot.aiScore >= 75) score += 15;
@@ -132,6 +138,7 @@ export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): En
   const vr = calcVolumeRatio(candles);
   if (vr > 0.5) score += 15;
   else if (vr < 0) score -= 8;
+
 
   // Anti-FOMO hard block
   const drift = Math.abs((snapshot.price - snapshot.triggerPrice) / snapshot.triggerPrice);
