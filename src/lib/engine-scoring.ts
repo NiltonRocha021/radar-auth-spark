@@ -388,7 +388,10 @@ export function calcBTCCorrelation(candles: OHLCV[], btcCandles: OHLCV[]): numbe
   // existe em ambos os arrays, evitando acesso fora dos limites que poluía o
   // coeficiente de Pearson quando os arrays tinham tamanhos diferentes.
   const n = Math.min(30, candles.length - 1, btcCandles.length - 1);
-  if (n < 10) return 0.5;
+  // Dados insuficientes — retorna 0 em vez de 0.5 para não adicionar correlação
+  // positiva artificial que inflava o score de Position quando btcCandles vazio.
+  if (n < 10) return 0;
+
 
   // Retornos logarítmicos simples nas últimas n barras (alinhados pelo índice final)
   const startAsset = candles.length - 1 - n;
