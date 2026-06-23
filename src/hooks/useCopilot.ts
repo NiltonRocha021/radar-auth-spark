@@ -127,12 +127,17 @@ export function useCopilot(config: CopilotConfig) {
       return;
     }
 
-    const ws = new WebSocket(`${resolvedUrl}/copilot?token=${token}`);
+    // SEGURANÇA: JWT nunca vai na URL (fica em logs de servidor/proxies).
+    // Enviamos o token no primeiro frame após a conexão abrir (mensagem "auth").
+    const ws = new WebSocket(`${resolvedUrl}/copilot`);
 
     ws.onopen = () => {
       setIsConnected(true);
+      // Token enviado no primeiro frame — nunca na URL onde ficaria em logs.
+      ws.send(JSON.stringify({ type: "auth", token }));
       ws.send(JSON.stringify({ type: "init", userId, marketContext, traderProfile }));
     };
+
 
     ws.onclose = () => {
       setIsConnected(false);
