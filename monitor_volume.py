@@ -10,7 +10,7 @@ TAMANHO_MIN_BUFFER = 10
 # Janela historica aceita: 90 dias atras ate agora (dinamico, nao hardcoded)
 JANELA_HISTORICA_DIAS = 90
 
-buffer_volume = deque()
+buffer_volume = deque(maxlen=60)  # maxlen elimina o popleft() manual
 ultima_anomalia_ts = 0
 
 def get_data_minima_ms() -> int:
@@ -47,10 +47,9 @@ def validar_e_processar(payload):
             ultima_anomalia_ts = tempo_atual
             return False
 
-    # 4. Dado aprovado
+    # 4. Dado aprovado — deque(maxlen=60) descarta o mais antigo automaticamente
     buffer_volume.append({'ts': time.time(), 'vol': vol_atual})
-    if len(buffer_volume) > 60:
-        buffer_volume.popleft()
+
 
     print(f"[*] SINAL VALIDADO: {payload['signalId']} | Volume: {vol_atual:.2f}")
     return True

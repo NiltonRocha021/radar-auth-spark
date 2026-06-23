@@ -15,16 +15,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // onAuthStateChange dispara INITIAL_SESSION imediatamente com a sessão atual,
+    // eliminando a necessidade do getSession() redundante que causava race condition
+    // (dois setSession/setLoading simultâneos podiam sobrescrever um ao outro).
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
       setLoading(false);
     });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
     return () => sub.subscription.unsubscribe();
   }, []);
+
 
   return (
     <AuthContext.Provider value={{ session, user: session?.user ?? null, loading }}>

@@ -117,11 +117,17 @@ export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): En
   if (snapshot.volatility === "MEDIUM") score += 8;
   // LOW: no penalty, no bonus — handled by adaptive threshold below
 
-  // Channel zone — MIDDLE no longer penalized (valid breakout setup with volume)
+  // Channel zone — MIDDLE exige confluência de volume + AI para reduzir falsos positivos
   const zone = calcChannelZone(candles, snapshot.price);
   if (zone === "BOTTOM") score += 20;
   if (zone === "TOP") score += 20;
-  // MIDDLE: +0
+  // MIDDLE: sinal só se volume alto E AI forte — caso contrário bloqueia
+  if (zone === "MIDDLE") {
+    const vr = calcVolumeRatio(candles);
+    if (!(vr > 0.3 && snapshot.aiScore >= 70)) {
+      return { score: 0, threshold: 70, side: "HOLD" };
+    }
+  }
 
   // AI score
   if (snapshot.aiScore >= 75) score += 15;
@@ -132,6 +138,7 @@ export function calcScalperScore(snapshot: MarketSnapshot, candles: OHLCV[]): En
   const vr = calcVolumeRatio(candles);
   if (vr > 0.5) score += 15;
   else if (vr < 0) score -= 8;
+
 
   // Anti-FOMO hard block
   const drift = Math.abs((snapshot.price - snapshot.triggerPrice) / snapshot.triggerPrice);
@@ -381,7 +388,10 @@ export function calcBTCCorrelation(candles: OHLCV[], btcCandles: OHLCV[]): numbe
   // existe em ambos os arrays, evitando acesso fora dos limites que poluía o
   // coeficiente de Pearson quando os arrays tinham tamanhos diferentes.
   const n = Math.min(30, candles.length - 1, btcCandles.length - 1);
-  if (n < 10) return 0.5;
+  // Dados insuficientes — retorna 0 em vez de 0.5 para não adicionar correlação
+  // positiva artificial que inflava o score de Position quando btcCandles vazio.
+  if (n < 10) return 0;
+
 
   // Retornos logarítmicos simples nas últimas n barras (alinhados pelo índice final)
   const startAsset = candles.length - 1 - n;
@@ -428,8 +438,13 @@ export function calcPositionScore(snapshot: MarketSnapshot, candles: OHLCV[], re
   if (fg >= 60 && fg < 75) score -= 5;
 
   const corr = calcBTCCorrelation(candles, snapshot.btcCandles ?? []);
-  if (corr >= 0.8) score += 10;
-  if (corr < 0.6 && regime.trend === "BEARISH") score -= 25;
+  // corr === 0 significa dados insuficientes (fallback) — skip silencioso para
+  // não penalizar/bonificar com correlação sintética.
+  if (corr !== 0) {
+    if (corr >= 0.8) score += 10;
+    if (corr < 0.6 && regime.trend === "BEARISH") score -= 25;
+  }
+
 
   const wyckoff = detectWyckoff(candles);
   if (wyckoff === "ACCUMULATION") score += 15;
@@ -466,7 +481,7 @@ export const mockBTCSnapshot: MarketSnapshot = {
   triggerPrice: 105200,
   manipulationScore: 42,
   volatility: "LOW",
-  rsi: 64,
+  rsi: 50, // neutro — 64 favorecia sinais SELL artificialmente no fallback BEARISH
   aiScore: 72,
   fearGreedIndex: 45,
   btcDominance: 54.2,

@@ -1,3 +1,4 @@
+import { Component, type ReactNode, type ErrorInfo } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -11,6 +12,45 @@ import {
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
+
+// GlobalErrorBoundary: captura erros de runtime em componentes fora do ciclo
+// de rotas (ex: Zustand side effects, providers, lazy chunks). Sem isso, esses
+// erros resultam em tela branca sem nenhuma mensagem ao usuário.
+interface EBState { error: Error | null }
+class GlobalErrorBoundary extends Component<{ children: ReactNode }, EBState> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error): EBState {
+    return { error };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[GlobalErrorBoundary]", error, info.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ display:"flex", minHeight:"100vh", alignItems:"center", justifyContent:"center", padding:"1rem", background:"#000" }}>
+          <div style={{ maxWidth:"28rem", textAlign:"center", color:"#fff" }}>
+            <h1 style={{ fontSize:"1.25rem", fontWeight:600 }}>Algo deu errado</h1>
+            <p style={{ marginTop:"0.5rem", fontSize:"0.875rem", color:"#888" }}>
+              {this.state.error.message}
+            </p>
+            <button
+              onClick={() => { this.setState({ error: null }); window.location.href = "/"; }}
+              style={{ marginTop:"1.5rem", padding:"0.5rem 1rem", background:"#7c3aed", color:"#fff", border:"none", borderRadius:"0.375rem", cursor:"pointer" }}
+            >
+              Voltar ao início
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 
 function NotFoundComponent() {
   return (
@@ -114,11 +154,14 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster position="bottom-right" />
-      </AuthProvider>
-    </QueryClientProvider>
+    <GlobalErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Outlet />
+          <Toaster position="bottom-right" />
+        </AuthProvider>
+      </QueryClientProvider>
+    </GlobalErrorBoundary>
   );
+
 }
