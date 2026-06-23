@@ -438,8 +438,13 @@ export function calcPositionScore(snapshot: MarketSnapshot, candles: OHLCV[], re
   if (fg >= 60 && fg < 75) score -= 5;
 
   const corr = calcBTCCorrelation(candles, snapshot.btcCandles ?? []);
-  if (corr >= 0.8) score += 10;
-  if (corr < 0.6 && regime.trend === "BEARISH") score -= 25;
+  // corr === 0 significa dados insuficientes (fallback) — skip silencioso para
+  // não penalizar/bonificar com correlação sintética.
+  if (corr !== 0) {
+    if (corr >= 0.8) score += 10;
+    if (corr < 0.6 && regime.trend === "BEARISH") score -= 25;
+  }
+
 
   const wyckoff = detectWyckoff(candles);
   if (wyckoff === "ACCUMULATION") score += 15;
