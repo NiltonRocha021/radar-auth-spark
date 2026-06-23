@@ -114,7 +114,11 @@ function executionToTrade(e: BackendBot4xExecution, profile: CalibProfile, lever
 }
 
 
+// Unsubscribe handle from backendWs.on("bot4x:update", ...) — limpo no cleanup().
+let wsUnsub: (() => void) | null = null;
+
 // ─── STORE ────────────────────────────────────────────────────────────────────
+
 
 export const useBot4xStore = create<State>((set, get) => ({
   mode: "DEMO",
