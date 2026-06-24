@@ -394,20 +394,20 @@ function OrderGrid() {
   const orders = useBot4xStore((s) => s.orders);
   const close = useBot4xStore((s) => s.closeOrder);
   const slot = useBot4xStore(selectSlotSize);
-  const slots = [0, 1, 2];
+  const slots = Array.from({ length: MAX_SLOTS }, (_, i) => i);
 
   return (
     <section className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between mb-3">
         <span className="text-[11px] uppercase tracking-wider text-muted-foreground">Ordens ativas</span>
-        <span className="text-[11px] text-muted-foreground tabular-nums">3 slots · {fmt(slot)} USDT cada</span>
+        <span className="text-[11px] text-muted-foreground tabular-nums">10 slots · {fmt(slot)} USDT cada</span>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
         {slots.map((i) => {
           const o = orders[i];
           if (!o) {
             return (
-              <div key={i} className="h-32 rounded-md border border-dashed border-border flex items-center justify-center text-[12px] text-muted-foreground">
+              <div key={i} className="h-28 rounded-md border border-dashed border-border flex items-center justify-center text-[11px] text-muted-foreground">
                 Slot livre
               </div>
             );
