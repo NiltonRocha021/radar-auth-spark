@@ -413,6 +413,9 @@ function OrderGrid() {
           Exposição máx.: <span className="text-foreground font-semibold">{(MAX_SLOTS * RISK_PER_SLOT * 100).toFixed(0)}%</span>
         </span>
       </div>
+      <p className="mb-3 text-[10px] leading-snug text-muted-foreground/80 italic">
+        Simulação para fins educacionais. Não constitui recomendação financeira, de investimento ou de trading. Opere por sua conta e risco.
+      </p>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
         {slots.map((i) => {
           const o = orders[i];
