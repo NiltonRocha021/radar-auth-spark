@@ -127,7 +127,9 @@ async function persistBot4xConfig(patch: {
 
 export function runDnaAutoCorrection(): CorrectionLog | null {
   const snap = readSnapshot();
-  const bot4xState = useBot4xStore.getState();
+  // NOTE: do NOT cache bot4xState here. Each mutation block reads a fresh
+  // snapshot immediately before acting so it always sees the current value —
+  // including any mutations applied earlier in this same call.
   const signalsState = useSignalsStore.getState();
 
   // Severity tiers based on capital-loss criteria.
@@ -158,14 +160,15 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
 
   // 1) Profile degradation (tier ≥ 2 swaps to safer profile)
   if (tier >= 2 && canApply("profile")) {
-    const next = saferProfile(bot4xState.profile);
-    if (next && next !== bot4xState.profile) {
-      const prev = bot4xState.profile;
-      bot4xState.setProfile(next);
+    // Fresh read — a previous run in this same tick may have already mutated this.
+    const currentProfile = useBot4xStore.getState().profile;
+    const next = saferProfile(currentProfile);
+    if (next && next !== currentProfile) {
+      useBot4xStore.getState().setProfile(next);
       // Read back to confirm the store accepted the value (setProfile has a
       // localStorage side-effect but no clamp, so this is a safety read).
       const appliedProfile = useBot4xStore.getState().profile;
-      changes.push(`Perfil: ${prev} → ${appliedProfile}`);
+      changes.push(`Perfil: ${currentProfile} → ${appliedProfile}`);
       profilePatch.profile = appliedProfile;
       markApplied("profile");
     }
@@ -174,39 +177,46 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
   // 2) Calibrator parameters
   if (canApply("calib")) {
     let touched = false;
-    // Reduce leverage by 1 step (min 1) starting at tier 1
-    if (bot4xState.leverage > 1) {
-      const prevLev = bot4xState.leverage;
-      const nextLev = Math.max(1, bot4xState.leverage - 1);
-      bot4xState.setLeverage(nextLev);
-      // Read back from store so the Supabase patch reflects the value the store
-      // actually clamped to (setLeverage has its own Math.max/min guards).
+
+    // Reduce leverage by 1 step (min 1) starting at tier 1.
+    // Fresh read before mutating so we never act on a stale pre-correction value.
+    const currentLev = useBot4xStore.getState().leverage;
+    if (currentLev > 1) {
+      useBot4xStore.getState().setLeverage(Math.max(1, currentLev - 1));
+      // Read back: setLeverage has its own Math.max/min guards.
       const clampedLev = useBot4xStore.getState().leverage;
-      changes.push(`Alavancagem: ${prevLev}× → ${clampedLev}×`);
+      changes.push(`Alavancagem: ${currentLev}× → ${clampedLev}×`);
       profilePatch.leverage = clampedLev;
       touched = true;
     }
-    // Reduce allocation by 5% (min 10%) starting at tier 2
-    if (tier >= 2 && bot4xState.allocationPct > 10) {
-      const nextAlloc = Math.max(10, bot4xState.allocationPct - 5);
-      bot4xState.setAllocationPct(nextAlloc);
-      changes.push(`Alocação: ${bot4xState.allocationPct}% → ${nextAlloc}%`);
-      // allocation_pct lives in the DNA profile row (no column in bot4x_configs yet)
-      // Write it as a proxy via drawdown_today until a dedicated column is added.
-      touched = true;
+
+    // Reduce allocation by 5% (min 10%) starting at tier 2.
+    if (tier >= 2) {
+      const currentAlloc = useBot4xStore.getState().allocationPct;
+      if (currentAlloc > 10) {
+        useBot4xStore.getState().setAllocationPct(Math.max(10, currentAlloc - 5));
+        // Read back: setAllocationPct clamps via Math.min(100, Math.max(1, n)).
+        const clampedAlloc = useBot4xStore.getState().allocationPct;
+        changes.push(`Alocação: ${currentAlloc}% → ${clampedAlloc}%`);
+        // allocation_pct has no column in bot4x_configs yet.
+        // TODO: add column and move here: profilePatch.allocation_pct = clampedAlloc
+        touched = true;
+      }
     }
+
     if (touched) markApplied("calib");
   }
 
   // 3) Signal filters (raise scoreMin tier, force bot4xOnly)
   if (canApply("filters")) {
     let touched = false;
-    const tiers: Array<0 | 60 | 75 | 90> = [0, 60, 75, 90];
-    const curIdx = tiers.indexOf(signalsState.filters.scoreMin);
-    if (curIdx < tiers.length - 1) {
-      const nextScore = tiers[Math.min(tiers.length - 1, curIdx + 1)];
+    const scoreTiers: Array<0 | 60 | 75 | 90> = [0, 60, 75, 90];
+    const curIdx = scoreTiers.indexOf(signalsState.filters.scoreMin);
+    if (curIdx < scoreTiers.length - 1) {
+      const prevScore = signalsState.filters.scoreMin;
+      const nextScore = scoreTiers[Math.min(scoreTiers.length - 1, curIdx + 1)];
       signalsState.setFilter("scoreMin", nextScore);
-      changes.push(`Score min: ${signalsState.filters.scoreMin} → ${nextScore}`);
+      changes.push(`Score min: ${prevScore} → ${nextScore}`);
       touched = true;
     }
     if (tier >= 2 && !signalsState.filters.bot4xOnly) {
@@ -227,14 +237,16 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
   // overtrading_risk: flag when recentLosses ≥ 3 (same criterion as tier 1)
   dnaPatch.overtrading_risk = snap.recentLosses >= 3;
 
-  // operations_today: use the already-captured bot4xState reference.
-  // A second getState() here would be stale relative to any mutations
-  // (setProfile, setLeverage) that ran earlier in this same call.
-  if (typeof bot4xState.totalTradesToday === "number") {
-    dnaPatch.operations_today = bot4xState.totalTradesToday;
+  // operations_today and totalTradesToday: read fresh — all calib mutations
+  // above may have changed the store, so use a final getState() snapshot.
+  const finalState = useBot4xStore.getState();
+  if (typeof finalState.totalTradesToday === "number") {
+    dnaPatch.operations_today = finalState.totalTradesToday;
   }
 
-  // drawdown_today: dailyPnlPct expressed as a positive percentage loss (or 0)
+  // drawdown_today: dailyPnlPct expressed as a positive percentage loss (or 0).
+  // Use snap.dailyPnlPct — this is what triggered the correction and should not
+  // be re-read after mutations (leverage/profile changes don't affect dailyPnlPct).
   dnaPatch.drawdown_today = snap.dailyPnlPct < 0 ? Math.abs(snap.dailyPnlPct) : 0;
 
   // Fire-and-forget Supabase writes (non-blocking)
