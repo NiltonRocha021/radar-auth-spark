@@ -7,6 +7,10 @@ import { useLivePrices } from "@/hooks/useLivePrices";
 
 const IS_DEV = import.meta.env.DEV;
 
+// Feature flag — keep false until backend Fase 1 is live.
+// To enable: set VITE_BOT4X_REAL_ENABLED=true in .env and redeploy.
+const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
+
 export function TabPainel() {
   return (
     <div className="space-y-5">
