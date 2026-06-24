@@ -292,6 +292,7 @@ const PAIRS = [
   "DOGE/USDT",
   "MATIC/USDT",
 ];
+const MAX_SLOTS = 10; // keep in sync with bot4x-store.ts MAX_SLOTS
 const rand = (n: number) => Math.floor(Math.random() * n);
 const pick = <T,>(a: T[]) => a[rand(a.length)];
 
