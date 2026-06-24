@@ -243,6 +243,7 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
   const [showPw, setShowPw] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const {
     register,
     handleSubmit,
@@ -254,6 +255,22 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
     const { error } = await supabase.auth.signInWithPassword({ email: v.email, password: v.password });
     if (error) setFormErr(error.message);
   };
+
+  async function signInDemo() {
+    setFormErr(null);
+    setDemoLoading(true);
+    try {
+      const res = await fetch("/api/auth/demo-session", { method: "POST" });
+      if (!res.ok) throw new Error(`Demo session failed (${res.status})`);
+      const { access_token, refresh_token } = await res.json();
+      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+      if (error) throw error;
+    } catch (err) {
+      setFormErr(err instanceof Error ? err.message : "Demo sign-in failed");
+    } finally {
+      setDemoLoading(false);
+    }
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
@@ -290,16 +307,11 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
       <div className="text-center">
         <button
           type="button"
-          onClick={async () => {
-            setFormErr(null);
-            const { error } = await supabase.auth.signInWithPassword({
-              email: "demo@aisignalradar.com",
-              password: "demo12345",
-            });
-            if (error) setFormErr(error.message);
-          }}
-          className="text-sm text-muted-foreground hover:text-[var(--brand-cyan)] transition-colors"
+          onClick={signInDemo}
+          disabled={demoLoading}
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-[var(--brand-cyan)] transition-colors disabled:opacity-60"
         >
+          {demoLoading && <Loader2 className="size-3 animate-spin" />}
           New here? Try demo
         </button>
       </div>
