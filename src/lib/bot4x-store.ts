@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import {
   type ExecMode,
   type CalibProfile,
@@ -14,13 +15,11 @@ import { bot4xAdapter, type BackendBot4xExecution } from "@/adapters/backend/bot
 import { backendWs } from "@/adapters/backend/ws-client";
 
 // ─── FEATURE FLAG ─────────────────────────────────────────────────────────────
-// Set VITE_BOT4X_REAL_ENABLED=true in .env only after backend Fase 1 is live.
-// While false, REAL MODE button is disabled and no backend calls are made.
 const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
 
 // ─── RISK MODEL CONSTANTS ─────────────────────────────────────────────────────
-export const MAX_SLOTS     = 10;   // maximum simultaneous open positions
-export const RISK_PER_SLOT = 0.10; // 10% of active capital per slot
+export const MAX_SLOTS = 10;
+export const RISK_PER_SLOT = 0.1;
 
 // ─── STATE TYPE ───────────────────────────────────────────────────────────────
 
@@ -80,23 +79,29 @@ function genCtxTick(get: () => State): Tick {
   });
 }
 
-// Mapeia profile do backend ("calibradoRSI"/"calibradoAiScore") para CalibProfile local.
 function mapBackendProfile(p: string | undefined): CalibProfile {
   if (p === "calibradoRSI") return "rsi";
   if (p === "calibradoAiScore") return "aiscore";
-  if (p === "conservador" || p === "agressivo" || p === "scalper" || p === "intraday" || p === "swing" || p === "position" || p === "rsi" || p === "aiscore") {
+  if (
+    p === "conservador" ||
+    p === "agressivo" ||
+    p === "scalper" ||
+    p === "intraday" ||
+    p === "swing" ||
+    p === "position" ||
+    p === "rsi" ||
+    p === "aiscore"
+  ) {
     return p as CalibProfile;
   }
   return "conservador";
 }
 
-// Converte uma execução do backend para o tipo Trade completo usado pelo histórico local.
 function executionToTrade(e: BackendBot4xExecution, profile: CalibProfile, leverage: number): Trade {
   const openedAt = e.createdAt ? new Date(e.createdAt).getTime() : Date.now();
   const pnl = e.pnl ?? 0;
   const side: Side = e.side === "BUY" || e.side === "LONG" ? "LONG" : "SHORT";
-  const result: Trade["result"] =
-    e.status === "open" || e.status === "pending" ? "BLOCKED" : pnl >= 0 ? "WIN" : "LOSS";
+  const result: Trade["result"] = e.status === "open" || e.status === "pending" ? "BLOCKED" : pnl >= 0 ? "WIN" : "LOSS";
   const entry = e.entryPrice ?? 0;
   return {
     id: e.id,
@@ -117,241 +122,299 @@ function executionToTrade(e: BackendBot4xExecution, profile: CalibProfile, lever
   };
 }
 
-
-// Unsubscribe handle from backendWs.on("bot4x:update", ...) — limpo no cleanup().
 let wsUnsub: (() => void) | null = null;
 
 // ─── STORE ────────────────────────────────────────────────────────────────────
 
+export const useBot4xStore = create<State>()(
+  persist(
+    (set, get) => ({
+      mode: "DEMO",
+      totalCapital: 1000,
+      allocationPct: 30,
+      leverage: 3,
+      profile: "conservador",
+      slPct: 0.5,
+      tpPct: 1.0,
+      orders: [],
+      dailyPnlPct: 0,
+      trailingPeakPct: 0,
+      ticks: [],
+      ticksProcessed: 1247,
+      feedPaused: false,
+      history: [],
+      monitorTab: "tick",
+      preferredPairs: [],
+      avoidPairs: [],
 
-export const useBot4xStore = create<State>((set, get) => ({
-  mode: "DEMO",
-  totalCapital: 1000,
-  allocationPct: 30,
-  leverage: 3,
-  profile: (typeof window !== "undefined" && (localStorage.getItem("bot4x.profile") as CalibProfile)) || "conservador",
-  slPct: (typeof window !== "undefined" && Number(localStorage.getItem("bot4x.slPct"))) || 0.5,
-  tpPct: (typeof window !== "undefined" && Number(localStorage.getItem("bot4x.tpPct"))) || 1.0,
-  orders: [],
-  dailyPnlPct: 0,
-  trailingPeakPct: 0,
-  ticks: [],
-  ticksProcessed: 1247,
-  feedPaused: false,
-  history: [],
-  monitorTab: "tick",
-  preferredPairs:
-    (typeof window !== "undefined" && JSON.parse(localStorage.getItem("bot4x.preferredPairs") || "[]")) || [],
-  avoidPairs: (typeof window !== "undefined" && JSON.parse(localStorage.getItem("bot4x.avoidPairs") || "[]")) || [],
+      // Real mode initial state
+      status: "IDLE",
+      circuitBreaker: "none",
+      errorMsg: null,
+      realInited: false,
 
-  // Real mode initial state
-  status: "IDLE",
-  circuitBreaker: "none",
-  errorMsg: null,
-  realInited: false,
+      // ─── INIT ─────────────────────────────────────────────────────────────
+      init: async () => {
+        const s = get();
+        const mode = s.mode;
 
-  // ─── INIT ───────────────────────────────────────────────────────────────────
-  init: async () => {
-    const s = get();
-    const mode = s.mode;
+        // ── DEMO MODE ────────────────────────────────────────────────────────
+        if (mode === "DEMO" || !REAL_MODE_ENABLED) {
+          if (s._ticker) return;
 
-    // ── DEMO MODE: keep existing simulation 100% unchanged ──────────────────
-    if (mode === "DEMO" || !REAL_MODE_ENABLED) {
-      if (s._ticker) return; // already running
-      const history = genHistory(183);
-      set({ history });
-      get().seedOrders();
-
-      const ticker = setInterval(() => {
-        if (get().feedPaused) return;
-        const t = genCtxTick(get);
-        set((prev) => {
-          // 1) walk PnL of open orders (random walk, slight positive bias)
-          const walked = prev.orders.map((o) => {
-            const drift = (Math.random() - 0.48) * 0.18;
-            return { ...o, pnlPct: +(o.pnlPct + drift).toFixed(2) };
-          });
-          // 2) close orders that hit SL or TP
-          const slLimit = -prev.slPct;
-          const tpLimit = prev.tpPct;
-          const alive = walked.filter((o) => o.pnlPct > slLimit && o.pnlPct < tpLimit);
-
-          // 3) open new order if tick was approved and a slot is free
-          let nextOrders = alive;
-          const slotsFree = alive.length < MAX_SLOTS;
-          const pairBusy = alive.some((o) => o.pair === t.pair);
-          const pairAvoided = prev.avoidPairs.includes(t.pair);
-          if (t.verdict === "EXECUTE" && t.side && slotsFree && !pairBusy && !pairAvoided) {
-            const side: Side = t.side === "BUY" ? "LONG" : "SHORT";
-            const base = t.pair.startsWith("BTC")
-              ? 65000
-              : t.pair.startsWith("ETH")
-                ? 1800
-                : t.pair.startsWith("SOL")
-                  ? 150
-                  : t.pair.startsWith("BNB")
-                    ? 580
-                    : 1 + Math.random() * 40;
-            const entry = +(base * (0.99 + Math.random() * 0.02)).toFixed(2);
-            const slMult = prev.slPct / 100;
-            const tpMult = prev.tpPct / 100;
-            nextOrders = [
-              ...alive,
-              {
-                id: `o_${Date.now()}_${Math.floor(Math.random() * 9999)}`,
-                pair: t.pair,
-                side,
-                entry,
-                sl: +(entry * (side === "LONG" ? 1 - slMult : 1 + slMult)).toFixed(2),
-                tp: +(entry * (side === "LONG" ? 1 + tpMult : 1 - tpMult)).toFixed(2),
-                openedAt: Date.now(),
-                pnlPct: 0,
-              },
-            ];
+          // Só gera histórico fake se ainda não há histórico salvo
+          if (s.history.length === 0) {
+            set({ history: genHistory(183) });
           }
-          return {
-            ticks: [t, ...prev.ticks].slice(0, 40),
-            ticksProcessed: prev.ticksProcessed + 1,
-            orders: nextOrders,
-          };
-        });
-      }, 8000);
 
-      // seed a few ticks immediately
-      set({ ticks: Array.from({ length: 5 }, () => genCtxTick(get)), _ticker: ticker });
-      return;
-    }
+          get().seedOrders();
 
-    // ── REAL MODE: pull state from backend ──────────────────────────────────
-    if (get().realInited) return;
-    set({ status: "LOADING", realInited: true });
+          const ticker = setInterval(() => {
+            if (get().feedPaused) return;
+            const t = genCtxTick(get);
+            set((prev) => {
+              const walked = prev.orders.map((o) => {
+                const drift = (Math.random() - 0.48) * 0.18;
+                return { ...o, pnlPct: +(o.pnlPct + drift).toFixed(2) };
+              });
 
-    try {
-      // Get authenticated user ID from Supabase
-      const { supabase } = await import("@/integrations/supabase/client");
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      const uid = user?.id;
-      if (!uid) throw new Error("Usuário não autenticado");
+              const slLimit = -prev.slPct;
+              const tpLimit = prev.tpPct;
 
-      const [config, executions] = await Promise.all([bot4xAdapter.getConfig(uid), bot4xAdapter.executions()]);
+              // Ordens que fecharam (hit SL ou TP) viram Trade no histórico
+              const closed = walked.filter((o) => o.pnlPct <= slLimit || o.pnlPct >= tpLimit);
+              const alive = walked.filter((o) => o.pnlPct > slLimit && o.pnlPct < tpLimit);
 
-      const profile = mapBackendProfile(config?.profile);
-      const leverage = get().leverage;
+              const newTrades: Trade[] = closed.map((o) => ({
+                id: o.id,
+                day: new Date().toISOString().slice(0, 10),
+                pair: o.pair,
+                side: o.side,
+                entry: o.entry,
+                stop: o.sl,
+                target: o.tp,
+                result: o.pnlPct >= tpLimit ? "WIN" : "LOSS",
+                pnl: +((o.pnlPct * (prev.totalCapital * (prev.allocationPct / 100))) / 100).toFixed(2),
+                pnlPct: o.pnlPct,
+                accumulated: 0,
+                profile: prev.profile,
+                leverage: prev.leverage,
+                motivo: o.pnlPct >= tpLimit ? "TP atingido" : "SL atingido",
+                hour: new Date().getHours(),
+              }));
 
-      // Map backend executions to Trade format for history
-      const mappedHistory: Trade[] = (executions ?? []).map((e: BackendBot4xExecution) =>
-        executionToTrade(e, profile, leverage),
-      );
+              // Recalcula dailyPnlPct acumulado do dia
+              const today = new Date().toISOString().slice(0, 10);
+              const allTodayTrades = [...newTrades, ...prev.history.filter((h) => h.day === today)];
+              const dailyPnlPct = allTodayTrades.reduce((acc, t) => acc + t.pnlPct, 0);
 
-      set({
-        status: config?.active ? "RUNNING" : "IDLE",
-        profile,
-        circuitBreaker: (config?.circuitBreaker as State["circuitBreaker"]) ?? "none",
-        history: mappedHistory,
-        errorMsg: null,
-      });
+              // Abre nova ordem se tick aprovado
+              let nextOrders = alive;
+              const slotsFree = alive.length < MAX_SLOTS;
+              const pairBusy = alive.some((o) => o.pair === t.pair);
+              const pairAvoided = prev.avoidPairs.includes(t.pair);
+              if (t.verdict === "EXECUTE" && t.side && slotsFree && !pairBusy && !pairAvoided) {
+                const side: Side = t.side === "BUY" ? "LONG" : "SHORT";
+                const base = t.pair.startsWith("BTC")
+                  ? 65000
+                  : t.pair.startsWith("ETH")
+                    ? 1800
+                    : t.pair.startsWith("SOL")
+                      ? 150
+                      : t.pair.startsWith("BNB")
+                        ? 580
+                        : 1 + Math.random() * 40;
+                const entry = +(base * (0.99 + Math.random() * 0.02)).toFixed(2);
+                const slMult = prev.slPct / 100;
+                const tpMult = prev.tpPct / 100;
+                nextOrders = [
+                  ...alive,
+                  {
+                    id: `o_${Date.now()}_${Math.floor(Math.random() * 9999)}`,
+                    pair: t.pair,
+                    side,
+                    entry,
+                    sl: +(entry * (side === "LONG" ? 1 - slMult : 1 + slMult)).toFixed(2),
+                    tp: +(entry * (side === "LONG" ? 1 + tpMult : 1 - tpMult)).toFixed(2),
+                    openedAt: Date.now(),
+                    pnlPct: 0,
+                  },
+                ];
+              }
 
-      // ── Subscribe to real-time backend events via WebSocket ───────────────
-      wsUnsub = backendWs.on("bot4x:update", (raw) => {
-        const event = raw as { type: string; [k: string]: unknown };
-
-        switch (event.type) {
-          case "EXECUTION": {
-            // New fill from backend worker — prepend to history
-            const ex = event.execution as BackendBot4xExecution;
-            const s = get();
-            const trade = executionToTrade(ex, s.profile, s.leverage);
-            set((prev) => ({
-              history: [trade, ...prev.history].slice(0, 500),
-            }));
-            break;
-          }
-          case "CIRCUIT_BREAKER": {
-            // Backend triggered daily SL or profit lock
-            set({
-              status: "STOPPED",
-              circuitBreaker: (event.reason as State["circuitBreaker"]) ?? "emergency",
+              return {
+                ticks: [t, ...prev.ticks].slice(0, 40),
+                ticksProcessed: prev.ticksProcessed + 1,
+                orders: nextOrders,
+                dailyPnlPct: +dailyPnlPct.toFixed(3),
+                history: newTrades.length > 0 ? [...newTrades, ...prev.history].slice(0, 500) : prev.history,
+              };
             });
-            break;
-          }
-          case "STATUS": {
-            set({ status: event.status as State["status"] });
-            break;
-          }
-          case "CAPITAL_UPDATE": {
-            set({ dailyPnlPct: (event.dailyPnL as number) ?? 0 });
-            break;
-          }
-          default:
-            break;
+          }, 8000);
+
+          set({
+            ticks: Array.from({ length: 5 }, () => genCtxTick(get)),
+            _ticker: ticker,
+          });
+          return;
         }
-      });
 
-    } catch (err) {
-      console.error("[Bot4x] init real failed:", err);
-      set({
-        status: "ERROR",
-        errorMsg: "Não foi possível conectar ao backend. Tente novamente.",
-        realInited: false,
-      });
-    }
-  },
+        // ── REAL MODE ────────────────────────────────────────────────────────
+        if (get().realInited) return;
+        set({ status: "LOADING", realInited: true });
 
-  // ─── CLEANUP ────────────────────────────────────────────────────────────────
-  cleanup: () => {
-    const t = get()._ticker;
-    if (t) clearInterval(t);
-    // In real mode, also unsubscribe WS
-    if (wsUnsub) {
-      wsUnsub();
-      wsUnsub = null;
-    }
+        try {
+          const { supabase } = await import("@/integrations/supabase/client");
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          const uid = user?.id;
+          if (!uid) throw new Error("Usuário não autenticado");
 
-    set({ _ticker: undefined });
-  },
+          const [config, executions] = await Promise.all([bot4xAdapter.getConfig(uid), bot4xAdapter.executions()]);
 
-  // ─── SETTERS (unchanged) ────────────────────────────────────────────────────
-  setMode: (mode) => set({ mode }),
-  setTotalCapital: (n) => set({ totalCapital: Math.max(0, n) }),
-  setAllocationPct: (n) => set({ allocationPct: Math.min(100, Math.max(1, n)) }),
-  setLeverage: (n) => set({ leverage: Math.min(10, Math.max(1, n)) }),
-  setProfile: (profile) => {
-    if (typeof window !== "undefined") localStorage.setItem("bot4x.profile", profile);
-    set({ profile });
-  },
-  setSlPct: (n) => {
-    const v = Math.min(10, Math.max(0.1, +Number(n).toFixed(2)));
-    if (typeof window !== "undefined") localStorage.setItem("bot4x.slPct", String(v));
-    set({ slPct: v });
-  },
-  setTpPct: (n) => {
-    const v = Math.min(20, Math.max(0.1, +Number(n).toFixed(2)));
-    if (typeof window !== "undefined") localStorage.setItem("bot4x.tpPct", String(v));
-    set({ tpPct: v });
-  },
-  setPreferredPairs: (pairs) => {
-    if (typeof window !== "undefined") localStorage.setItem("bot4x.preferredPairs", JSON.stringify(pairs));
-    set({ preferredPairs: pairs });
-  },
-  setAvoidPairs: (pairs) => {
-    if (typeof window !== "undefined") localStorage.setItem("bot4x.avoidPairs", JSON.stringify(pairs));
-    set({ avoidPairs: pairs });
-  },
-  closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
-  seedOrders: () => {
-    const sample: Order[] = [
-      { id: "o1", pair: "BTC/USDT", side: "LONG",  entry: 43240, sl: 43168, tp: 43385, openedAt: Date.now() - 1000 * 60 * 4,  pnlPct: +0.18 },
-      { id: "o2", pair: "ETH/USDT", side: "SHORT", entry: 2251,  sl: 2257,  tp: 2239,  openedAt: Date.now() - 1000 * 60 * 12, pnlPct: -0.09 },
-      { id: "o3", pair: "SOL/USDT", side: "LONG",  entry: 171.4, sl: 170.5, tp: 173.1, openedAt: Date.now() - 1000 * 60 * 7,  pnlPct: +0.31 },
-    ];
-    set({ orders: sample });
-  },
-  setMonitorTab: (monitorTab) => set({ monitorTab }),
-  toggleFeedPaused: () => set((s) => ({ feedPaused: !s.feedPaused })),
-  clearTicks: () => set({ ticks: [] }),
-}));
+          const profile = mapBackendProfile(config?.profile);
+          const leverage = get().leverage;
+
+          const mappedHistory: Trade[] = (executions ?? []).map((e: BackendBot4xExecution) =>
+            executionToTrade(e, profile, leverage),
+          );
+
+          set({
+            status: config?.active ? "RUNNING" : "IDLE",
+            profile,
+            circuitBreaker: (config?.circuitBreaker as State["circuitBreaker"]) ?? "none",
+            history: mappedHistory,
+            errorMsg: null,
+          });
+
+          wsUnsub = backendWs.on("bot4x:update", (raw) => {
+            const event = raw as { type: string; [k: string]: unknown };
+            switch (event.type) {
+              case "EXECUTION": {
+                const ex = event.execution as BackendBot4xExecution;
+                const s = get();
+                const trade = executionToTrade(ex, s.profile, s.leverage);
+                set((prev) => ({
+                  history: [trade, ...prev.history].slice(0, 500),
+                }));
+                break;
+              }
+              case "CIRCUIT_BREAKER": {
+                set({
+                  status: "STOPPED",
+                  circuitBreaker: (event.reason as State["circuitBreaker"]) ?? "emergency",
+                });
+                break;
+              }
+              case "STATUS": {
+                set({ status: event.status as State["status"] });
+                break;
+              }
+              case "CAPITAL_UPDATE": {
+                set({ dailyPnlPct: (event.dailyPnL as number) ?? 0 });
+                break;
+              }
+              default:
+                break;
+            }
+          });
+        } catch (err) {
+          console.error("[Bot4x] init real failed:", err);
+          set({
+            status: "ERROR",
+            errorMsg: "Não foi possível conectar ao backend. Tente novamente.",
+            realInited: false,
+          });
+        }
+      },
+
+      // ─── CLEANUP ──────────────────────────────────────────────────────────
+      cleanup: () => {
+        const t = get()._ticker;
+        if (t) clearInterval(t);
+        if (wsUnsub) {
+          wsUnsub();
+          wsUnsub = null;
+        }
+        set({ _ticker: undefined });
+      },
+
+      // ─── SETTERS ──────────────────────────────────────────────────────────
+      setMode: (mode) => set({ mode }),
+      setTotalCapital: (n) => set({ totalCapital: Math.max(0, n) }),
+      setAllocationPct: (n) => set({ allocationPct: Math.min(100, Math.max(1, n)) }),
+      setLeverage: (n) => set({ leverage: Math.min(10, Math.max(1, n)) }),
+      setProfile: (profile) => set({ profile }),
+      setSlPct: (n) => set({ slPct: Math.min(10, Math.max(0.1, +Number(n).toFixed(2))) }),
+      setTpPct: (n) => set({ tpPct: Math.min(20, Math.max(0.1, +Number(n).toFixed(2))) }),
+      setPreferredPairs: (pairs) => set({ preferredPairs: pairs }),
+      setAvoidPairs: (pairs) => set({ avoidPairs: pairs }),
+      closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
+      seedOrders: () => {
+        const sample: Order[] = [
+          {
+            id: "o1",
+            pair: "BTC/USDT",
+            side: "LONG",
+            entry: 43240,
+            sl: 43168,
+            tp: 43385,
+            openedAt: Date.now() - 1000 * 60 * 4,
+            pnlPct: +0.18,
+          },
+          {
+            id: "o2",
+            pair: "ETH/USDT",
+            side: "SHORT",
+            entry: 2251,
+            sl: 2257,
+            tp: 2239,
+            openedAt: Date.now() - 1000 * 60 * 12,
+            pnlPct: -0.09,
+          },
+          {
+            id: "o3",
+            pair: "SOL/USDT",
+            side: "LONG",
+            entry: 171.4,
+            sl: 170.5,
+            tp: 173.1,
+            openedAt: Date.now() - 1000 * 60 * 7,
+            pnlPct: +0.31,
+          },
+        ];
+        set({ orders: sample });
+      },
+      setMonitorTab: (monitorTab) => set({ monitorTab }),
+      toggleFeedPaused: () => set((s) => ({ feedPaused: !s.feedPaused })),
+      clearTicks: () => set({ ticks: [] }),
+    }),
+    {
+      name: "bot4x-store-v1",
+      storage: createJSONStorage(() => localStorage),
+      // Campos persistidos — ticks e _ticker são runtime, não faz sentido salvar
+      partialize: (s) => ({
+        mode: s.mode,
+        totalCapital: s.totalCapital,
+        allocationPct: s.allocationPct,
+        leverage: s.leverage,
+        profile: s.profile,
+        slPct: s.slPct,
+        tpPct: s.tpPct,
+        dailyPnlPct: s.dailyPnlPct,
+        trailingPeakPct: s.trailingPeakPct,
+        history: s.history,
+        orders: s.orders,
+        preferredPairs: s.preferredPairs,
+        avoidPairs: s.avoidPairs,
+        monitorTab: s.monitorTab,
+        ticksProcessed: s.ticksProcessed,
+        circuitBreaker: s.circuitBreaker,
+      }),
+    },
+  ),
+);
 
 // ─── SELECTORS ────────────────────────────────────────────────────────────────
 
