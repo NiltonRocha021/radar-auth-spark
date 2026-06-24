@@ -101,27 +101,43 @@ export function useCopilotWs(config: CopilotConfig) {
   const [isRecording, setIsRecording] = useState(false);
   const [latency, setLatency] = useState(0);
 
-  /** Add a message to local state AND persist to Supabase. */
+  /** Add a message to local state AND persist to Supabase.
+   *  Persistence is skipped until hydratedRef is true so messages that arrive
+   *  during the initial loadHistory window are not written twice. */
   const addMessage = useCallback(
     (m: CopilotMessage) => {
       setMessages((p) => [...p, m]);
-      // Persist all roles (user, assistant, alert, system)
-      if (userId) persistMessage(userId, m);
+      if (userId && hydratedRef.current) persistMessage(userId, m);
     },
     [userId],
   );
 
   const hasShownAuthMsgRef = useRef(false);
-  const pendingMessageRef = useRef<string | null>(null);
+  // Stores the full CopilotMessage (not just the text string) so that on
+  // reconnect we can resend the WS frame without calling addMessage again.
+  // doSend already persisted the message to Supabase and added it to local
+  // state — storing the object here lets onStatus resend without duplicating.
+  const pendingMessageRef = useRef<CopilotMessage | null>(null);
   const authMsgIdRef = useRef<string | null>(null);
+
+  // True once loadHistory has resolved. addMessage skips Supabase inserts
+  // until then: messages arriving during the hydrate window are already in
+  // the DB (that is where we're loading them from), so persisting them again
+  // would create duplicate rows.
+  const hydratedRef = useRef(false);
 
   // ---------------------------------------------------------------------------
   // Hydrate history from Supabase on mount
   // ---------------------------------------------------------------------------
   useEffect(() => {
     if (!userId) return;
+    hydratedRef.current = false;
     loadHistory(userId).then((rows) => {
       if (rows.length > 0) setMessages(rows);
+      // Mark hydration complete AFTER updating state so any concurrent
+      // addMessage calls that race with this .then() don't start persisting
+      // before the loaded rows are visible in the UI.
+      hydratedRef.current = true;
     });
   }, [userId]);
 
@@ -178,17 +194,18 @@ export function useCopilotWs(config: CopilotConfig) {
         const pending = pendingMessageRef.current;
         pendingMessageRef.current = null;
         if (pending) {
+          // Only resend the WS frame — addMessage was already called (and the
+          // message already persisted to Supabase) when doSend ran originally.
+          // Calling addMessage here would create a duplicate DB row.
           backendWs.send(
             "chat_message",
             buildChatMessage(
               userId,
-              pending,
+              pending.content,
               marketContext as Record<string, unknown>,
               traderProfile as Record<string, unknown>,
             ),
           );
-          const userMsg = newMsg("user", pending);
-          addMessage(userMsg);
           setOrbState("thinking");
         }
       }
@@ -297,6 +314,11 @@ export function useCopilotWs(config: CopilotConfig) {
           traderProfile as Record<string, unknown>,
         ),
       );
+      if (!sent) {
+        // Store the full message object so onStatus can resend the WS frame
+        // without calling addMessage (which would duplicate the DB row).
+        pendingMessageRef.current = userMsg;
+      }
       return sent;
     },
     [userId, marketContext, traderProfile, addMessage],
@@ -313,7 +335,9 @@ export function useCopilotWs(config: CopilotConfig) {
       if (!token) {
         const status = await tryRefreshAndReconnect();
         if (status !== "open") {
-          pendingMessageRef.current = trimmed;
+          // WS not available: persist and enqueue for when it reconnects.
+          // doSend adds to UI state + persists; pendingMessageRef is set inside doSend.
+          doSend(trimmed);
           showUnauthMessage();
           return;
         }
@@ -325,7 +349,7 @@ export function useCopilotWs(config: CopilotConfig) {
         if (status !== "open") {
           const refreshed = await tryRefreshAndReconnect();
           if (refreshed !== "open") {
-            pendingMessageRef.current = trimmed;
+            doSend(trimmed);
             showUnauthMessage();
             return;
           }
@@ -333,8 +357,9 @@ export function useCopilotWs(config: CopilotConfig) {
       }
 
       const sent = doSend(trimmed);
+      // doSend sets pendingMessageRef internally when sent === false, so we
+      // only need to show the auth message here.
       if (!sent) {
-        pendingMessageRef.current = trimmed;
         showUnauthMessage();
       }
     },
@@ -349,12 +374,26 @@ export function useCopilotWs(config: CopilotConfig) {
       clearUnauthMessage();
       const pending = pendingMessageRef.current;
       pendingMessageRef.current = null;
-      if (pending) doSend(pending);
-      else setOrbState("idle");
+      if (pending) {
+        // Message is already in UI state and DB (doSend ran before we stored
+        // it). Only resend the WS frame here.
+        backendWs.send(
+          "chat_message",
+          buildChatMessage(
+            userId,
+            pending.content,
+            marketContext as Record<string, unknown>,
+            traderProfile as Record<string, unknown>,
+          ),
+        );
+        setOrbState("thinking");
+      } else {
+        setOrbState("idle");
+      }
     } else {
       setOrbState("idle");
     }
-  }, [tryRefreshAndReconnect, clearUnauthMessage, doSend]);
+  }, [tryRefreshAndReconnect, clearUnauthMessage, userId, marketContext, traderProfile]);
 
   function sendVoice(blob: Blob, mimeType: string) {
     const reader = new FileReader();
