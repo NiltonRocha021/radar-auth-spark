@@ -416,7 +416,7 @@ function OrderGrid() {
           const pnlColor = o.pnlPct >= 0 ? "#1D9E75" : "#E24B4A";
           const min = Math.floor((Date.now() - o.openedAt) / 60000);
           return (
-            <div key={o.id} className="h-32 rounded-md border border-border bg-background p-3 relative">
+            <div key={o.id} className="h-28 rounded-md border border-border bg-background p-2 relative">
               <button
                 onClick={() => close(o.id)}
                 className="absolute top-2 right-2 size-6 rounded hover:bg-secondary flex items-center justify-center text-muted-foreground"
