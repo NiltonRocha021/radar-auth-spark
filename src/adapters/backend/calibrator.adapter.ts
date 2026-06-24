@@ -3,12 +3,7 @@
 // NÃO substitui o store local — apenas expõe os dados do backend.
 import { api } from "./api.adapter";
 
-export type CalibratorState =
-  | "OPTIMAL"
-  | "WARNING"
-  | "RISK_DRIFT"
-  | "PROTECTION"
-  | "SHUTDOWN";
+export type CalibratorState = "OPTIMAL" | "WARNING" | "RISK_DRIFT" | "PROTECTION" | "SHUTDOWN";
 
 export type CalibratorTradeAllowance = "LOW" | "MEDIUM" | "HIGH" | "BLOCKED";
 
@@ -71,7 +66,15 @@ export const calibratorEndpoints = {
   simulate: (userId: string) => `/calibrator/simulate/${userId}`,
 } as const;
 
-export type SimulationProfile = "conservador" | "rsi" | "aiscore" | "agressivo" | "scalper" | "intraday" | "swing" | "position";
+export type SimulationProfile =
+  | "conservador"
+  | "rsi"
+  | "aiscore"
+  | "agressivo"
+  | "scalper"
+  | "intraday"
+  | "swing"
+  | "position";
 
 export interface BackendSimulationRequest {
   profile: SimulationProfile;
@@ -140,7 +143,9 @@ export interface SimulationResultUI {
   raw?: BackendSimulationResponse;
 }
 
-export function mapSimulationResult(r: BackendSimulationResponse & { by_pair?: PairStatUI[]; risk?: RiskSummaryUI }): SimulationResultUI {
+export function mapSimulationResult(
+  r: BackendSimulationResponse & { by_pair?: PairStatUI[]; risk?: RiskSummaryUI },
+): SimulationResultUI {
   return {
     trades: r.trades,
     wins: r.wins,
@@ -165,9 +170,7 @@ export function mapSimulationResult(r: BackendSimulationResponse & { by_pair?: P
 
 export const calibratorAdapter = {
   async getState(userId: string): Promise<CalibratorStateUI | null> {
-    const data = await api.get<BackendCalibratorPayload | null>(
-      calibratorEndpoints.state(userId),
-    );
+    const data = await api.get<BackendCalibratorPayload | null>(calibratorEndpoints.state(userId));
     return data ? mapCalibratorState(data) : null;
   },
   async sendFeedback(userId: string, payload: Record<string, unknown>) {
@@ -175,16 +178,10 @@ export const calibratorAdapter = {
   },
   async simulate(userId: string, req: BackendSimulationRequest): Promise<SimulationResultUI> {
     try {
-      const data = await api.post<BackendSimulationResponse>(
-        calibratorEndpoints.simulate(userId),
-        req,
-      );
+      const data = await api.post<BackendSimulationResponse>(calibratorEndpoints.simulate(userId), req);
       return mapSimulationResult(data);
     } catch (e: any) {
-      const isNetwork =
-        !e?.response ||
-        e?.code === "ERR_NETWORK" ||
-        e?.message === "Network Error";
+      const isNetwork = !e?.response || e?.code === "ERR_NETWORK" || e?.message === "Network Error";
       if (!isNetwork) throw e;
       const { fetchKlines, planFetch } = await import("@/lib/market-data");
       const { runBacktest } = await import("@/lib/calibrator-backtest");
@@ -207,7 +204,12 @@ export const calibratorAdapter = {
   },
   /**
    * Portfolio backtest: roda N pares simultâneos com gestão de risco
-   * unificada (máx 3 operações, 33% da banca cada, SL/TP por trade e diários).
+   * unificada — máx 10 operações simultâneas, 10% do equity por slot,
+   * SL/TP por trade e circuit breakers diários (-1.5% / +3%).
+   *
+   * MODELO DE RISCO (sync com bot4x-store.ts):
+   *   banca → allocationPct → capital ativo → 10% por slot → slot size
+   *   Pior caso: 10 slots × 10% × SL 0.5% = 0.5% do capital ativo.
    */
   async simulatePortfolio(
     _userId: string,
@@ -240,4 +242,3 @@ export const calibratorAdapter = {
     return mapSimulationResult(result);
   },
 };
-
