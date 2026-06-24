@@ -3,8 +3,12 @@
 //  - Stop/Take diário em % de equity (-1,5% / +3%).
 //  - Após +3% diário, trava o ganho e a cada +1% sobe o piso (trailing).
 //  - Stop diário aciona pausa de 24h (take diário NÃO pausa, apenas trava o dia).
-//  - Máx 3 operações simultâneas, cada uma usa 33% da banca atual.
+//  - Máx 10 operações simultâneas, cada uma usa 10% da banca atual.
 //  - Engine único: 1 par (single) ou N pares (portfolio unificado).
+//
+// MODELO DE RISCO EM 3 CAMADAS (sincronizado com bot4x-store.ts):
+//   banca total → allocationPct → capital ativo → RISK_PER_SLOT (10%) → slot size
+//   Pior caso: 10 slots × 10% × SL 0.5% = 0.5% do capital ativo por wipeout total.
 import type { Candle } from "./market-data";
 import type {
   BackendSimulationResponse,
@@ -17,12 +21,13 @@ import type {
 // divergindo do engine e produzindo sinais inconsistentes entre os dois contextos.
 import { calcRSI as engineCalcRSI } from "./engine-scoring";
 
-
 // ============ Risk Config ============
+// IMPORTANTE: manter em sync com bot4x-store.ts (MAX_SLOTS=10, RISK_PER_SLOT=0.10).
+// Alterar aqui sem alterar o store cria divergência entre backtest e execução real.
 export const RISK_CONFIG = {
-  positionFraction: 1 / 3,
-  maxConcurrent: 3,
-  trade: { sl: 0.005, tp: 0.01 }, // movimento de preço
+  positionFraction: 0.1, // 10% do equity por slot — sync com RISK_PER_SLOT
+  maxConcurrent: 10, // máx. simultâneas — sync com MAX_SLOTS
+  trade: { sl: 0.005, tp: 0.01 }, // movimento de preço (0.5% SL / 1.0% TP)
   daily: { sl: 0.015, tp: 0.03, trailStep: 0.01 }, // % de equity
   haltMs: 24 * 60 * 60 * 1000,
 } as const;
@@ -40,13 +45,22 @@ function sma(values: number[], i: number, period: number): number | null {
 function rsi(values: number[], i: number, period = 14): number | null {
   if (i <= period) return null;
   const slice = values.slice(0, i + 1).map((close) => ({
-    time: 0, open: close, high: close, low: close, close, volume: 0,
+    time: 0,
+    open: close,
+    high: close,
+    low: close,
+    close,
+    volume: 0,
   }));
   return engineCalcRSI(slice, period);
 }
 
 type Signal = "LONG" | "SHORT" | "FLAT";
-interface Ctx { closes: number[]; i: number; candles?: Candle[]; }
+interface Ctx {
+  closes: number[];
+  i: number;
+  candles?: Candle[];
+}
 
 // ===== ScalperEngine helpers (EMA, VWAP, ATR, volume anomaly) =====
 function ema(values: number[], i: number, period: number): number | null {
@@ -58,7 +72,8 @@ function ema(values: number[], i: number, period: number): number | null {
 }
 function rollingVwap(candles: Candle[], i: number, period: number): number | null {
   if (i + 1 < period) return null;
-  let pv = 0, vv = 0;
+  let pv = 0,
+    vv = 0;
   for (let k = i - period + 1; k <= i; k++) {
     const c = candles[k];
     const tp = (c.high + c.low + c.close) / 3;
@@ -71,7 +86,8 @@ function atr(candles: Candle[], i: number, period: number): number | null {
   if (i < period) return null;
   let s = 0;
   for (let k = i - period + 1; k <= i; k++) {
-    const c = candles[k], p = candles[k - 1];
+    const c = candles[k],
+      p = candles[k - 1];
     const tr = Math.max(c.high - c.low, Math.abs(c.high - p.close), Math.abs(c.low - p.close));
     s += tr;
   }
@@ -80,7 +96,8 @@ function atr(candles: Candle[], i: number, period: number): number | null {
 
 const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
   conservador: ({ closes, i }) => {
-    const f = sma(closes, i, 20), s = sma(closes, i, 50);
+    const f = sma(closes, i, 20),
+      s = sma(closes, i, 50);
     if (f == null || s == null) return "FLAT";
     return f > s ? "LONG" : "FLAT";
   },
@@ -92,7 +109,9 @@ const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
     return "FLAT";
   },
   aiscore: ({ closes, i }) => {
-    const f = sma(closes, i, 10), s = sma(closes, i, 30), r = rsi(closes, i, 14);
+    const f = sma(closes, i, 10),
+      s = sma(closes, i, 30),
+      r = rsi(closes, i, 14);
     if (f == null || s == null || r == null) return "FLAT";
     const score = (f > s ? 1 : -1) + (r > 55 ? 1 : r < 45 ? -1 : 0);
     if (score >= 2) return "LONG";
@@ -134,20 +153,8 @@ const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
     if (a / price < 0.0005) return "FLAT";
 
     // Confluências LONG
-    const longChecks = [
-      e9 > e21,
-      price > vwap,
-      mom > 0.0015,
-      volAnom >= 1.3,
-      bullishCandle && bodyRatio >= 0.55,
-    ];
-    const shortChecks = [
-      e9 < e21,
-      price < vwap,
-      mom < -0.0015,
-      volAnom >= 1.3,
-      !bullishCandle && bodyRatio >= 0.55,
-    ];
+    const longChecks = [e9 > e21, price > vwap, mom > 0.0015, volAnom >= 1.3, bullishCandle && bodyRatio >= 0.55];
+    const shortChecks = [e9 < e21, price < vwap, mom < -0.0015, volAnom >= 1.3, !bullishCandle && bodyRatio >= 0.55];
     const longScore = longChecks.filter(Boolean).length / longChecks.length;
     const shortScore = shortChecks.filter(Boolean).length / shortChecks.length;
     if (longScore >= 0.8) return "LONG";
@@ -182,13 +189,18 @@ const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
     const trendUp = e20 > e50 && price > e20;
     const trendDown = e20 < e50 && price < e20;
     // Volume crescente: média 5 > média 20
-    let v5 = 0, v20 = 0;
+    let v5 = 0,
+      v20 = 0;
     for (let k = i - 4; k <= i; k++) v5 += candles[k].volume;
     for (let k = i - 19; k <= i; k++) v20 += candles[k].volume;
-    const volRising = v5 / 5 > v20 / 20 * 1.1;
+    const volRising = v5 / 5 > (v20 / 20) * 1.1;
     // Estrutura: maior alta/baixa em 10 candles
-    let hh = -Infinity, ll = Infinity;
-    for (let k = i - 9; k <= i; k++) { hh = Math.max(hh, candles[k].high); ll = Math.min(ll, candles[k].low); }
+    let hh = -Infinity,
+      ll = Infinity;
+    for (let k = i - 9; k <= i; k++) {
+      hh = Math.max(hh, candles[k].high);
+      ll = Math.min(ll, candles[k].low);
+    }
     const breakoutUp = candles[i].close >= hh * 0.999;
     const breakoutDown = candles[i].close <= ll * 1.001;
     // Volatilidade mínima (ATR ≥ 0.15% do preço)
@@ -227,11 +239,13 @@ const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
     if (e50 == null || e200 == null || r == null || a == null) return "FLAT";
     const price = closes[i];
     const macdLine = (() => {
-      const f = ema(closes, i, 12); const s = ema(closes, i, 26);
+      const f = ema(closes, i, 12);
+      const s = ema(closes, i, 26);
       return f != null && s != null ? f - s : null;
     })();
     const macdPrev = (() => {
-      const f = ema(closes, i - 5, 12); const s = ema(closes, i - 5, 26);
+      const f = ema(closes, i - 5, 12);
+      const s = ema(closes, i - 5, 26);
       return f != null && s != null ? f - s : null;
     })();
     if (macdLine == null || macdPrev == null) return "FLAT";
@@ -239,17 +253,23 @@ const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
     const adxProxy = Math.abs(e50 - e200) / price;
     const strongTrend = adxProxy >= 0.015;
     // Volume institucional: média 20 acima da média 50
-    let v20 = 0, v50 = 0;
+    let v20 = 0,
+      v50 = 0;
     for (let k = i - 19; k <= i; k++) v20 += candles[k].volume;
     for (let k = i - 49; k <= i; k++) v50 += candles[k].volume;
-    const volInst = v20 / 20 > v50 / 50 * 1.15;
+    const volInst = v20 / 20 > (v50 / 50) * 1.15;
     // Rompimento 20 candles
-    let hh = -Infinity, ll = Infinity;
-    for (let k = i - 19; k <= i; k++) { hh = Math.max(hh, candles[k].high); ll = Math.min(ll, candles[k].low); }
+    let hh = -Infinity,
+      ll = Infinity;
+    for (let k = i - 19; k <= i; k++) {
+      hh = Math.max(hh, candles[k].high);
+      ll = Math.min(ll, candles[k].low);
+    }
     const breakoutUp = candles[i].close >= hh * 0.999;
     const breakoutDown = candles[i].close <= ll * 1.001;
     // Pullback de qualidade: preço encostou em EMA50 nos últimos 5 candles
-    let pullbackUp = false, pullbackDown = false;
+    let pullbackUp = false,
+      pullbackDown = false;
     for (let k = i - 4; k <= i; k++) {
       const e = ema(closes, k, 50);
       if (e == null) continue;
@@ -293,49 +313,40 @@ const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
     if (e200 == null || e400 == null) return "FLAT";
     const price = closes[i];
     // Estrutura macro: preço acima/abaixo da média 200 por ≥30 candles
-    let macroBull = 0, macroBear = 0;
+    let macroBull = 0,
+      macroBear = 0;
     for (let k = i - 29; k <= i; k++) {
       const e = ema(closes, k, 200);
       if (e == null) continue;
-      if (closes[k] > e) macroBull++; else macroBear++;
+      if (closes[k] > e) macroBull++;
+      else macroBear++;
     }
     const macroUp = macroBull >= 25;
     const macroDown = macroBear >= 25;
     // Ciclo: variação 90 candles
     const cycleRet = i >= 90 ? (closes[i] - closes[i - 90]) / closes[i - 90] : 0;
     // Fluxo institucional: volume médio 30 acima do 90
-    let v30 = 0, v90 = 0;
+    let v30 = 0,
+      v90 = 0;
     for (let k = i - 29; k <= i; k++) v30 += candles[k].volume;
     for (let k = i - 89; k <= i; k++) v90 += candles[k].volume;
-    const instFlow = v30 / 30 > v90 / 90 * 1.1;
+    const instFlow = v30 / 30 > (v90 / 90) * 1.1;
     // Tendência dominante (EMA200 inclinação)
     const e200Prev = ema(closes, i - 20, 200);
     const slopeUp = e200Prev != null && e200 > e200Prev;
     const slopeDown = e200Prev != null && e200 < e200Prev;
     // Correlação BTC/ETH não disponível por símbolo individual; usa consistência de fechamento
-    let upDays = 0, downDays = 0;
-    for (let k = i - 19; k <= i; k++) { if (closes[k] > closes[k - 1]) upDays++; else downDays++; }
+    let upDays = 0,
+      downDays = 0;
+    for (let k = i - 19; k <= i; k++) {
+      if (closes[k] > closes[k - 1]) upDays++;
+      else downDays++;
+    }
     const consUp = upDays >= 12;
     const consDown = downDays >= 12;
 
-    const longChecks = [
-      e200 > e400,
-      price > e200,
-      macroUp,
-      cycleRet > 0.05,
-      instFlow,
-      slopeUp,
-      consUp,
-    ];
-    const shortChecks = [
-      e200 < e400,
-      price < e200,
-      macroDown,
-      cycleRet < -0.05,
-      instFlow,
-      slopeDown,
-      consDown,
-    ];
+    const longChecks = [e200 > e400, price > e200, macroUp, cycleRet > 0.05, instFlow, slopeUp, consUp];
+    const shortChecks = [e200 < e400, price < e200, macroDown, cycleRet < -0.05, instFlow, slopeDown, consDown];
     const longScore = longChecks.filter(Boolean).length / longChecks.length;
     const shortScore = shortChecks.filter(Boolean).length / shortChecks.length;
     if (longScore >= 0.7) return "LONG";
@@ -345,7 +356,10 @@ const STRATEGIES: Record<SimulationProfile, (c: Ctx) => Signal> = {
 };
 
 // ============ Tipos ============
-export interface SymbolData { symbol: string; candles: Candle[]; }
+export interface SymbolData {
+  symbol: string;
+  candles: Candle[];
+}
 export interface PortfolioParams {
   profile: SimulationProfile;
   symbols: SymbolData[];
@@ -388,13 +402,15 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
   const fee = p.feePerTrade ?? 0.0008;
   const leverage = Math.max(1, Math.min(125, p.leverage || 1));
   const lev = leverage;
-  // Scalper override: SL 0,25% / TP 0,50% / até 6 operações simultâneas.
-  // Demais perfis seguem RISK_CONFIG global. Stop/Take diários inalterados.
+
+  // Todos os perfis usam o mesmo modelo de risco: 10 slots × 10% do equity.
+  // Scalper mantém SL/TP menores (0.25%/0.50%) por ser alta frequência,
+  // mas compartilha o mesmo pool de slots que os demais perfis.
   const isScalper = p.profile === "scalper";
-  const SL = isScalper ? 0.0025 : RISK_CONFIG.trade.sl;
-  const TP = isScalper ? 0.005 : RISK_CONFIG.trade.tp;
-  const MAX = isScalper ? 6 : RISK_CONFIG.maxConcurrent;
-  const FRAC = isScalper ? 1 / 6 : RISK_CONFIG.positionFraction;
+  const SL = isScalper ? 0.0025 : RISK_CONFIG.trade.sl; // Scalper: 0.25% | demais: 0.5%
+  const TP = isScalper ? 0.005 : RISK_CONFIG.trade.tp; // Scalper: 0.50% | demais: 1.0%
+  const MAX = RISK_CONFIG.maxConcurrent; // 10 slots para todos
+  const FRAC = RISK_CONFIG.positionFraction; // 10% do equity por slot
   const DSL = RISK_CONFIG.daily.sl;
   const DTP = RISK_CONFIG.daily.tp;
   const STEP = RISK_CONFIG.daily.trailStep;
@@ -438,7 +454,10 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
   const pairStats = new Map<string, PairStat>();
   const stat = (sym: string) => {
     let s = pairStats.get(sym);
-    if (!s) { s = { symbol: sym, trades: 0, wins: 0, losses: 0, pnl: 0 }; pairStats.set(sym, s); }
+    if (!s) {
+      s = { symbol: sym, trades: 0, wins: 0, losses: 0, pnl: 0 };
+      pairStats.set(sym, s);
+    }
     return s;
   };
 
@@ -461,10 +480,11 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
     const s = stat(pos.symbol);
     s.trades += 1;
     s.pnl += pnl;
-    if (pnl >= 0) s.wins += 1; else s.losses += 1;
+    if (pnl >= 0) s.wins += 1;
+    else s.losses += 1;
   };
 
-  const closeAll = (ts: number) => {
+  const closeAll = (_ts: number) => {
     for (const pos of open) {
       const ref = lastClose.get(pos.symbol) ?? pos.entryPrice;
       realizeClose(pos, ref);
@@ -483,21 +503,24 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
     const remaining: OpenPos[] = [];
     for (const pos of open) {
       const cInfo = candleAt.get(pos.symbol)!.get(ts);
-      if (!cInfo) { remaining.push(pos); continue; }
+      if (!cInfo) {
+        remaining.push(pos);
+        continue;
+      }
       const c = cInfo.candle;
       // Liquidação por alavancagem
       const worst = pos.side === "LONG" ? c.low : c.high;
-      const adverse = pos.side === "LONG"
-        ? (worst - pos.entryPrice) / pos.entryPrice
-        : (pos.entryPrice - worst) / pos.entryPrice;
+      const adverse =
+        pos.side === "LONG" ? (worst - pos.entryPrice) / pos.entryPrice : (pos.entryPrice - worst) / pos.entryPrice;
       if (adverse * lev <= -1) {
-        // liquidação total da posição
         const dir = pos.side === "LONG" ? 1 : -1;
         const ret = -1 - fee;
         const pnl = pos.notional * ret;
         cash += pnl;
         const s = stat(pos.symbol);
-        s.trades += 1; s.losses += 1; s.pnl += pnl;
+        s.trades += 1;
+        s.losses += 1;
+        s.pnl += pnl;
         liquidated = liquidated || cash <= 0;
         continue;
       }
@@ -506,8 +529,14 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
       const tpPrice = pos.side === "LONG" ? pos.entryPrice * (1 + TP) : pos.entryPrice * (1 - TP);
       const hitSl = pos.side === "LONG" ? c.low <= slPrice : c.high >= slPrice;
       const hitTp = pos.side === "LONG" ? c.high >= tpPrice : c.low <= tpPrice;
-      if (hitSl) { realizeClose(pos, slPrice); continue; }
-      if (hitTp) { realizeClose(pos, tpPrice); continue; }
+      if (hitSl) {
+        realizeClose(pos, slPrice);
+        continue;
+      }
+      if (hitTp) {
+        realizeClose(pos, tpPrice);
+        continue;
+      }
       remaining.push(pos);
     }
     open = remaining;
@@ -594,8 +623,14 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
   }
 
   const finalEquity = Math.max(0, cash);
-  let wins = 0, losses = 0, trades = 0;
-  for (const s of pairStats.values()) { wins += s.wins; losses += s.losses; trades += s.trades; }
+  let wins = 0,
+    losses = 0,
+    trades = 0;
+  for (const s of pairStats.values()) {
+    wins += s.wins;
+    losses += s.losses;
+    trades += s.trades;
+  }
   const pnl = finalEquity - p.initialBalance;
   const pnl_pct = (pnl / p.initialBalance) * 100;
   const win_rate = trades ? wins / trades : 0;
@@ -613,7 +648,7 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
   const symLabel = p.symbols.length === 1 ? p.symbols[0].symbol : `${p.symbols.length} pares`;
   const commentary = liquidated
     ? `LIQUIDADO • alavancagem ${lev}× ${p.profile} em ${symLabel}`
-    : `Gestão de risco ativa • ${symLabel} • alav ${lev}× • SL/TP ${SL * 100}%/${TP * 100}% por trade • SL/TP diário ${DSL * 100}%/${DTP * 100}% • ${dayStops} stop(s) diário(s) • ${dayTakes} take(s) diário(s)`;
+    : `Gestão de risco ativa • ${symLabel} • alav ${lev}× • SL/TP ${SL * 100}%/${TP * 100}% por trade • SL/TP diário ${DSL * 100}%/${DTP * 100}% • ${dayStops} stop(s) diário(s) • ${dayTakes} take(s) diário(s) • 10 slots × 10% equity`;
 
   return {
     trades,
@@ -630,10 +665,10 @@ export function runPortfolioBacktest(p: PortfolioParams): BacktestResponse {
       correction: liquidated
         ? "Reduzir alavancagem — capital foi liquidado"
         : dayStops > dayTakes
-        ? "Stops diários dominam — revisar perfil ou janela"
-        : pnl >= 0
-        ? "Parâmetros saudáveis — manter risco"
-        : "PnL negativo mesmo com risco controlado — refinar entradas",
+          ? "Stops diários dominam — revisar perfil ou janela"
+          : pnl >= 0
+            ? "Parâmetros saudáveis — manter risco"
+            : "PnL negativo mesmo com risco controlado — refinar entradas",
       expected_improvement: liquidated
         ? "Sobrevivência do capital + maior consistência"
         : "Maior estabilidade do Sharpe com SL/TP ativos",
