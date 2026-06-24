@@ -13,6 +13,7 @@ import {
 import { PROFILES } from "./bot4x-data";
 import { bot4xAdapter, type BackendBot4xExecution } from "@/adapters/backend/bot4x.adapter";
 import { backendWs } from "@/adapters/backend/ws-client";
+import { supabase } from "@/integrations/supabase/client";
 
 // ─── FEATURE FLAG ─────────────────────────────────────────────────────────────
 const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
@@ -21,9 +22,35 @@ const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
 export const MAX_SLOTS = 10;
 export const RISK_PER_SLOT = 0.1;
 
+// ─── USER-SCOPED STORAGE ──────────────────────────────────────────────────────
+// Cada usuário tem sua própria chave: "bot4x-store-v1:<uid>".
+// O storage dinâmico lê o userId do próprio state na hora de montar/hidratar.
+function makeUserStorage(getUserId: () => string | null) {
+  return {
+    getItem: (name: string) => {
+      const uid = getUserId();
+      const key = uid ? `${name}:${uid}` : name;
+      return localStorage.getItem(key);
+    },
+    setItem: (name: string, value: string) => {
+      const uid = getUserId();
+      const key = uid ? `${name}:${uid}` : name;
+      localStorage.setItem(key, value);
+    },
+    removeItem: (name: string) => {
+      const uid = getUserId();
+      const key = uid ? `${name}:${uid}` : name;
+      localStorage.removeItem(key);
+    },
+  };
+}
+
 // ─── STATE TYPE ───────────────────────────────────────────────────────────────
 
 type State = {
+  // Identity
+  userId: string | null;
+
   mode: ExecMode;
   totalCapital: number;
   allocationPct: number;
@@ -49,6 +76,7 @@ type State = {
   errorMsg: string | null;
   realInited: boolean;
 
+  setUserId: (uid: string | null) => void;
   init: () => void;
   cleanup: () => void;
   setMode: (m: ExecMode) => void;
@@ -126,9 +154,16 @@ let wsUnsub: (() => void) | null = null;
 
 // ─── STORE ────────────────────────────────────────────────────────────────────
 
+// Guardamos o userId fora do store para o storage customizado poder acessá-lo
+// sem criar dependência circular.
+let _currentUserId: string | null = null;
+
 export const useBot4xStore = create<State>()(
   persist(
     (set, get) => ({
+      // Identity
+      userId: null,
+
       mode: "DEMO",
       totalCapital: 1000,
       allocationPct: 30,
@@ -147,11 +182,22 @@ export const useBot4xStore = create<State>()(
       preferredPairs: [],
       avoidPairs: [],
 
-      // Real mode initial state
       status: "IDLE",
       circuitBreaker: "none",
       errorMsg: null,
       realInited: false,
+
+      // ─── SET USER ID ──────────────────────────────────────────────────────
+      // Chamado ao login/logout via supabase.auth.onAuthStateChange.
+      // Ao trocar de usuário, força rehidratação do storage correto.
+      setUserId: (uid) => {
+        const prev = get().userId;
+        if (prev === uid) return;
+        _currentUserId = uid;
+        set({ userId: uid });
+        // Rehidrata o store com os dados do novo usuário
+        useBot4xStore.persist.rehydrate();
+      },
 
       // ─── INIT ─────────────────────────────────────────────────────────────
       init: async () => {
@@ -162,7 +208,6 @@ export const useBot4xStore = create<State>()(
         if (mode === "DEMO" || !REAL_MODE_ENABLED) {
           if (s._ticker) return;
 
-          // Só gera histórico fake se ainda não há histórico salvo
           if (s.history.length === 0) {
             set({ history: genHistory(183) });
           }
@@ -181,7 +226,6 @@ export const useBot4xStore = create<State>()(
               const slLimit = -prev.slPct;
               const tpLimit = prev.tpPct;
 
-              // Ordens que fecharam (hit SL ou TP) viram Trade no histórico
               const closed = walked.filter((o) => o.pnlPct <= slLimit || o.pnlPct >= tpLimit);
               const alive = walked.filter((o) => o.pnlPct > slLimit && o.pnlPct < tpLimit);
 
@@ -203,12 +247,10 @@ export const useBot4xStore = create<State>()(
                 hour: new Date().getHours(),
               }));
 
-              // Recalcula dailyPnlPct acumulado do dia
               const today = new Date().toISOString().slice(0, 10);
               const allTodayTrades = [...newTrades, ...prev.history.filter((h) => h.day === today)];
               const dailyPnlPct = allTodayTrades.reduce((acc, t) => acc + t.pnlPct, 0);
 
-              // Abre nova ordem se tick aprovado
               let nextOrders = alive;
               const slotsFree = alive.length < MAX_SLOTS;
               const pairBusy = alive.some((o) => o.pair === t.pair);
@@ -264,7 +306,6 @@ export const useBot4xStore = create<State>()(
         set({ status: "LOADING", realInited: true });
 
         try {
-          const { supabase } = await import("@/integrations/supabase/client");
           const {
             data: { user },
           } = await supabase.auth.getUser();
@@ -392,9 +433,10 @@ export const useBot4xStore = create<State>()(
     }),
     {
       name: "bot4x-store-v1",
-      storage: createJSONStorage(() => localStorage),
-      // Campos persistidos — ticks e _ticker são runtime, não faz sentido salvar
+      storage: createJSONStorage(() => makeUserStorage(() => _currentUserId)),
+      // Campos persistidos — ticks e _ticker são runtime
       partialize: (s) => ({
+        userId: s.userId,
         mode: s.mode,
         totalCapital: s.totalCapital,
         allocationPct: s.allocationPct,
@@ -415,6 +457,37 @@ export const useBot4xStore = create<State>()(
     },
   ),
 );
+
+// ─── AUTH LISTENER — atualiza userId ao login/logout ─────────────────────────
+// Monte isso uma vez no entry-point da app (ex: __root.tsx ou App.tsx).
+// Aqui já inicializamos com o usuário atual se já estiver logado.
+supabase.auth.getSession().then(({ data }) => {
+  const uid = data.session?.user?.id ?? null;
+  _currentUserId = uid;
+  useBot4xStore.getState().setUserId(uid);
+});
+
+supabase.auth.onAuthStateChange((event, session) => {
+  const uid = session?.user?.id ?? null;
+  _currentUserId = uid;
+  useBot4xStore.getState().setUserId(uid);
+
+  // Ao fazer logout: limpa o estado em memória para não vazar dados
+  if (event === "SIGNED_OUT") {
+    useBot4xStore.setState({
+      userId: null,
+      history: [],
+      orders: [],
+      dailyPnlPct: 0,
+      trailingPeakPct: 0,
+      ticksProcessed: 1247,
+      circuitBreaker: "none",
+      status: "IDLE",
+      realInited: false,
+      errorMsg: null,
+    });
+  }
+});
 
 // ─── SELECTORS ────────────────────────────────────────────────────────────────
 
