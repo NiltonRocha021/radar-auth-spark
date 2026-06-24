@@ -18,6 +18,10 @@ import { backendWs } from "@/adapters/backend/ws-client";
 // While false, REAL MODE button is disabled and no backend calls are made.
 const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
 
+// ─── RISK MODEL CONSTANTS ─────────────────────────────────────────────────────
+export const MAX_SLOTS     = 10;   // maximum simultaneous open positions
+export const RISK_PER_SLOT = 0.10; // 10% of active capital per slot
+
 // ─── STATE TYPE ───────────────────────────────────────────────────────────────
 
 type State = {
