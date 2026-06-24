@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X, Shield, ShieldAlert, Zap, Lock } from "lucide-react";
-import { useBot4xStore, selectActiveCapital, selectSlotSize } from "@/lib/bot4x-store";
+import { useBot4xStore, selectActiveCapital, selectSlotSize, MAX_SLOTS } from "@/lib/bot4x-store";
 import { leverageRisk, slTpFromLeverage, fmt } from "@/lib/bot4x-data";
 import { useLivePrices } from "@/hooks/useLivePrices";
 
