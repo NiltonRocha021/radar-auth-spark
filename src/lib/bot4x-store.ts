@@ -359,5 +359,5 @@ export function selectActiveCapital(s: State) {
   return +(s.totalCapital * (s.allocationPct / 100)).toFixed(2);
 }
 export function selectSlotSize(s: State) {
-  return +(selectActiveCapital(s) / 3).toFixed(2);
+  return +(selectActiveCapital(s) * RISK_PER_SLOT).toFixed(2);
 }
