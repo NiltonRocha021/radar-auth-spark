@@ -9,19 +9,12 @@
 //  3) Signals page filters (raises scoreMin, enables bot4xOnly)
 //
 // Criteria: "negativa, perda de capital" (negative trajectory / capital loss).
-//
-// FIX: After each correction the DNA fields in `profiles` are persisted so
-// the data survives tab restarts. Fields written:
-//   dna_consistency, operations_today, drawdown_today, overtrading_risk
-// Bot4x config fields (leverage, allocation, profile) are written to
-//   bot4x_configs so the NestJS backend sees the updated values.
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useBot4xStore } from "./bot4x-store";
 import { useSignalsStore } from "./signals-store";
 import { PROFILE_RISK_LADDER, type CalibProfile } from "./bot4x-data";
-import { supabase } from "@/integrations/supabase/client";
 
 // Profile risk ladder (safest → riskiest) — fonte única em bot4x-data.ts
 // (derivada do `riskRank` de cada perfil). Auto-corrector caminha para a
@@ -69,67 +62,9 @@ function markApplied(axis: keyof typeof lastApplied) {
   lastApplied[axis] = Date.now();
 }
 
-// ---------------------------------------------------------------------------
-// Supabase persistence helpers
-// ---------------------------------------------------------------------------
-
-/** Persist DNA-derived metrics to the profiles row of the current user. */
-async function persistDnaMetrics(patch: {
-  dna_consistency?: number;
-  operations_today?: number;
-  drawdown_today?: number;
-  overtrading_risk?: boolean;
-}) {
-  try {
-    const { data } = await supabase.auth.getSession();
-    const userId = data.session?.user?.id;
-    if (!userId) return;
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq("id", userId);
-
-    if (error) console.error("[DNA] profiles persist error", error.message);
-  } catch (err) {
-    console.error("[DNA] persistDnaMetrics unexpected error", err);
-  }
-}
-
-/** Persist bot4x calibration fields (profile, leverage, allocation) to bot4x_configs. */
-async function persistBot4xConfig(patch: {
-  profile?: string;
-  leverage?: number;
-  // allocation_pct is not a column in bot4x_configs — store it in profiles as a
-  // user preference. If you add the column later, move it here.
-}) {
-  try {
-    const { data } = await supabase.auth.getSession();
-    const userId = data.session?.user?.id;
-    if (!userId) return;
-
-    if (Object.keys(patch).length === 0) return;
-
-    const { error } = await supabase
-      .from("bot4x_configs")
-      .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq("user_id", userId);
-
-    if (error) console.error("[DNA] bot4x_configs persist error", error.message);
-  } catch (err) {
-    console.error("[DNA] persistBot4xConfig unexpected error", err);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Core correction engine
-// ---------------------------------------------------------------------------
-
 export function runDnaAutoCorrection(): CorrectionLog | null {
   const snap = readSnapshot();
-  // NOTE: do NOT cache bot4xState here. Each mutation block reads a fresh
-  // snapshot immediately before acting so it always sees the current value —
-  // including any mutations applied earlier in this same call.
+  const bot4xState = useBot4xStore.getState();
   const signalsState = useSignalsStore.getState();
 
   // Severity tiers based on capital-loss criteria.
@@ -154,22 +89,13 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
   if (snap.openLossPct < -0.5) reasonParts.push(`ordens abertas ${snap.openLossPct.toFixed(2)}%`);
   const reason = reasonParts.join(" · ") || "perda de capital detectada";
 
-  // Accumulate Supabase patches — fire a single write per axis at the end.
-  const profilePatch: Parameters<typeof persistBot4xConfig>[0] = {};
-  const dnaPatch: Parameters<typeof persistDnaMetrics>[0] = {};
-
   // 1) Profile degradation (tier ≥ 2 swaps to safer profile)
   if (tier >= 2 && canApply("profile")) {
-    // Fresh read — a previous run in this same tick may have already mutated this.
-    const currentProfile = useBot4xStore.getState().profile;
-    const next = saferProfile(currentProfile);
-    if (next && next !== currentProfile) {
-      useBot4xStore.getState().setProfile(next);
-      // Read back to confirm the store accepted the value (setProfile has a
-      // localStorage side-effect but no clamp, so this is a safety read).
-      const appliedProfile = useBot4xStore.getState().profile;
-      changes.push(`Perfil: ${currentProfile} → ${appliedProfile}`);
-      profilePatch.profile = appliedProfile;
+    const next = saferProfile(bot4xState.profile);
+    if (next && next !== bot4xState.profile) {
+      const prev = bot4xState.profile;
+      bot4xState.setProfile(next);
+      changes.push(`Perfil: ${prev} → ${next}`);
       markApplied("profile");
     }
   }
@@ -177,46 +103,32 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
   // 2) Calibrator parameters
   if (canApply("calib")) {
     let touched = false;
-
-    // Reduce leverage by 1 step (min 1) starting at tier 1.
-    // Fresh read before mutating so we never act on a stale pre-correction value.
-    const currentLev = useBot4xStore.getState().leverage;
-    if (currentLev > 1) {
-      useBot4xStore.getState().setLeverage(Math.max(1, currentLev - 1));
-      // Read back: setLeverage has its own Math.max/min guards.
-      const clampedLev = useBot4xStore.getState().leverage;
-      changes.push(`Alavancagem: ${currentLev}× → ${clampedLev}×`);
-      profilePatch.leverage = clampedLev;
+    // Reduce leverage by 1 step (min 1) starting at tier 1
+    if (bot4xState.leverage > 1) {
+      const nextLev = Math.max(1, bot4xState.leverage - 1);
+      bot4xState.setLeverage(nextLev);
+      changes.push(`Alavancagem: ${bot4xState.leverage}× → ${nextLev}×`);
       touched = true;
     }
-
-    // Reduce allocation by 5% (min 10%) starting at tier 2.
-    if (tier >= 2) {
-      const currentAlloc = useBot4xStore.getState().allocationPct;
-      if (currentAlloc > 10) {
-        useBot4xStore.getState().setAllocationPct(Math.max(10, currentAlloc - 5));
-        // Read back: setAllocationPct clamps via Math.min(100, Math.max(1, n)).
-        const clampedAlloc = useBot4xStore.getState().allocationPct;
-        changes.push(`Alocação: ${currentAlloc}% → ${clampedAlloc}%`);
-        // allocation_pct has no column in bot4x_configs yet.
-        // TODO: add column and move here: profilePatch.allocation_pct = clampedAlloc
-        touched = true;
-      }
+    // Reduce allocation by 5% (min 10%) starting at tier 2
+    if (tier >= 2 && bot4xState.allocationPct > 10) {
+      const nextAlloc = Math.max(10, bot4xState.allocationPct - 5);
+      bot4xState.setAllocationPct(nextAlloc);
+      changes.push(`Alocação: ${bot4xState.allocationPct}% → ${nextAlloc}%`);
+      touched = true;
     }
-
     if (touched) markApplied("calib");
   }
 
   // 3) Signal filters (raise scoreMin tier, force bot4xOnly)
   if (canApply("filters")) {
     let touched = false;
-    const scoreTiers: Array<0 | 60 | 75 | 90> = [0, 60, 75, 90];
-    const curIdx = scoreTiers.indexOf(signalsState.filters.scoreMin);
-    if (curIdx < scoreTiers.length - 1) {
-      const prevScore = signalsState.filters.scoreMin;
-      const nextScore = scoreTiers[Math.min(scoreTiers.length - 1, curIdx + 1)];
+    const tiers: Array<0 | 60 | 75 | 90> = [0, 60, 75, 90];
+    const curIdx = tiers.indexOf(signalsState.filters.scoreMin);
+    if (curIdx < tiers.length - 1) {
+      const nextScore = tiers[Math.min(tiers.length - 1, curIdx + 1)];
       signalsState.setFilter("scoreMin", nextScore);
-      changes.push(`Score min: ${prevScore} → ${nextScore}`);
+      changes.push(`Score min: ${signalsState.filters.scoreMin} → ${nextScore}`);
       touched = true;
     }
     if (tier >= 2 && !signalsState.filters.bot4xOnly) {
@@ -228,30 +140,6 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
   }
 
   if (changes.length === 0) return null;
-
-  // ---- Derive DNA consistency score from tier (lower tier = higher consistency) ----
-  // Invert: tier 0 = 100%, tier 3 = ~40%.  Clamp 0–100.
-  const consistencyScore = Math.max(0, Math.min(100, 100 - tier * 20));
-  dnaPatch.dna_consistency = consistencyScore;
-
-  // overtrading_risk: flag when recentLosses ≥ 3 (same criterion as tier 1)
-  dnaPatch.overtrading_risk = snap.recentLosses >= 3;
-
-  // operations_today and totalTradesToday: read fresh — all calib mutations
-  // above may have changed the store, so use a final getState() snapshot.
-  const finalState = useBot4xStore.getState();
-  if (typeof finalState.totalTradesToday === "number") {
-    dnaPatch.operations_today = finalState.totalTradesToday;
-  }
-
-  // drawdown_today: dailyPnlPct expressed as a positive percentage loss (or 0).
-  // Use snap.dailyPnlPct — this is what triggered the correction and should not
-  // be re-read after mutations (leverage/profile changes don't affect dailyPnlPct).
-  dnaPatch.drawdown_today = snap.dailyPnlPct < 0 ? Math.abs(snap.dailyPnlPct) : 0;
-
-  // Fire-and-forget Supabase writes (non-blocking)
-  persistDnaMetrics(dnaPatch);
-  persistBot4xConfig(profilePatch);
 
   const log: CorrectionLog = { ts: Date.now(), reason, changes };
   recentCorrections.unshift(log);
