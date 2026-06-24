@@ -18,6 +18,10 @@ import { backendWs } from "@/adapters/backend/ws-client";
 // While false, REAL MODE button is disabled and no backend calls are made.
 const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
 
+// ─── RISK MODEL CONSTANTS ─────────────────────────────────────────────────────
+export const MAX_SLOTS     = 10;   // maximum simultaneous open positions
+export const RISK_PER_SLOT = 0.10; // 10% of active capital per slot
+
 // ─── STATE TYPE ───────────────────────────────────────────────────────────────
 
 type State = {
@@ -174,7 +178,7 @@ export const useBot4xStore = create<State>((set, get) => ({
 
           // 3) open new order if tick was approved and a slot is free
           let nextOrders = alive;
-          const slotsFree = alive.length < 3;
+          const slotsFree = alive.length < MAX_SLOTS;
           const pairBusy = alive.some((o) => o.pair === t.pair);
           const pairAvoided = prev.avoidPairs.includes(t.pair);
           if (t.verdict === "EXECUTE" && t.side && slotsFree && !pairBusy && !pairAvoided) {
@@ -338,26 +342,9 @@ export const useBot4xStore = create<State>((set, get) => ({
   closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
   seedOrders: () => {
     const sample: Order[] = [
-      {
-        id: "o1",
-        pair: "BTC/USDT",
-        side: "LONG",
-        entry: 43240,
-        sl: 43168,
-        tp: 43385,
-        openedAt: Date.now() - 1000 * 60 * 4,
-        pnlPct: +0.18,
-      },
-      {
-        id: "o2",
-        pair: "ETH/USDT",
-        side: "SHORT",
-        entry: 2251,
-        sl: 2257,
-        tp: 2239,
-        openedAt: Date.now() - 1000 * 60 * 12,
-        pnlPct: -0.09,
-      },
+      { id: "o1", pair: "BTC/USDT", side: "LONG",  entry: 43240, sl: 43168, tp: 43385, openedAt: Date.now() - 1000 * 60 * 4,  pnlPct: +0.18 },
+      { id: "o2", pair: "ETH/USDT", side: "SHORT", entry: 2251,  sl: 2257,  tp: 2239,  openedAt: Date.now() - 1000 * 60 * 12, pnlPct: -0.09 },
+      { id: "o3", pair: "SOL/USDT", side: "LONG",  entry: 171.4, sl: 170.5, tp: 173.1, openedAt: Date.now() - 1000 * 60 * 7,  pnlPct: +0.31 },
     ];
     set({ orders: sample });
   },
@@ -372,5 +359,5 @@ export function selectActiveCapital(s: State) {
   return +(s.totalCapital * (s.allocationPct / 100)).toFixed(2);
 }
 export function selectSlotSize(s: State) {
-  return +(selectActiveCapital(s) / 3).toFixed(2);
+  return +(selectActiveCapital(s) * RISK_PER_SLOT).toFixed(2);
 }
