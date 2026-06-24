@@ -178,7 +178,7 @@ export const useBot4xStore = create<State>((set, get) => ({
 
           // 3) open new order if tick was approved and a slot is free
           let nextOrders = alive;
-          const slotsFree = alive.length < 3;
+          const slotsFree = alive.length < MAX_SLOTS;
           const pairBusy = alive.some((o) => o.pair === t.pair);
           const pairAvoided = prev.avoidPairs.includes(t.pair);
           if (t.verdict === "EXECUTE" && t.side && slotsFree && !pairBusy && !pairAvoided) {
