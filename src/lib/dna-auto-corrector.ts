@@ -162,8 +162,11 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
     if (next && next !== bot4xState.profile) {
       const prev = bot4xState.profile;
       bot4xState.setProfile(next);
-      changes.push(`Perfil: ${prev} → ${next}`);
-      profilePatch.profile = next;
+      // Read back to confirm the store accepted the value (setProfile has a
+      // localStorage side-effect but no clamp, so this is a safety read).
+      const appliedProfile = useBot4xStore.getState().profile;
+      changes.push(`Perfil: ${prev} → ${appliedProfile}`);
+      profilePatch.profile = appliedProfile;
       markApplied("profile");
     }
   }
@@ -173,10 +176,14 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
     let touched = false;
     // Reduce leverage by 1 step (min 1) starting at tier 1
     if (bot4xState.leverage > 1) {
+      const prevLev = bot4xState.leverage;
       const nextLev = Math.max(1, bot4xState.leverage - 1);
       bot4xState.setLeverage(nextLev);
-      changes.push(`Alavancagem: ${bot4xState.leverage}× → ${nextLev}×`);
-      profilePatch.leverage = nextLev;
+      // Read back from store so the Supabase patch reflects the value the store
+      // actually clamped to (setLeverage has its own Math.max/min guards).
+      const clampedLev = useBot4xStore.getState().leverage;
+      changes.push(`Alavancagem: ${prevLev}× → ${clampedLev}×`);
+      profilePatch.leverage = clampedLev;
       touched = true;
     }
     // Reduce allocation by 5% (min 10%) starting at tier 2
@@ -220,10 +227,11 @@ export function runDnaAutoCorrection(): CorrectionLog | null {
   // overtrading_risk: flag when recentLosses ≥ 3 (same criterion as tier 1)
   dnaPatch.overtrading_risk = snap.recentLosses >= 3;
 
-  // operations_today: read directly from bot4x store
-  const bot4x = useBot4xStore.getState();
-  if (typeof bot4x.totalTradesToday === "number") {
-    dnaPatch.operations_today = bot4x.totalTradesToday;
+  // operations_today: use the already-captured bot4xState reference.
+  // A second getState() here would be stale relative to any mutations
+  // (setProfile, setLeverage) that ran earlier in this same call.
+  if (typeof bot4xState.totalTradesToday === "number") {
+    dnaPatch.operations_today = bot4xState.totalTradesToday;
   }
 
   // drawdown_today: dailyPnlPct expressed as a positive percentage loss (or 0)
