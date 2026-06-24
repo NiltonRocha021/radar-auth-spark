@@ -292,6 +292,7 @@ const PAIRS = [
   "DOGE/USDT",
   "MATIC/USDT",
 ];
+const MAX_SLOTS = 10; // keep in sync with bot4x-store.ts MAX_SLOTS
 const rand = (n: number) => Math.floor(Math.random() * n);
 const pick = <T,>(a: T[]) => a[rand(a.length)];
 
@@ -319,7 +320,7 @@ export function makeTick(ctx: MakeTickCtx): Tick {
   const filters: Record<FilterKey, boolean> = { F1: true, F2: true, F3: true, F4: true, F5: true, F6: true };
   const detail: Record<FilterKey, string> = {
     F1: `Top 10 USDT`,
-    F2: `${slotsUsed}/3 slots`,
+    F2: `${slotsUsed}/${MAX_SLOTS} slots`,
     F3: `Par livre`,
     F4: `Zona ${channelZone}`,
     F5: `RSI ${rsi} · aiScore ${aiScore} · liqGrab ${liquidityGrab ? "✓" : "✗"} · ${profile.name}`,
@@ -332,11 +333,11 @@ export function makeTick(ctx: MakeTickCtx): Tick {
 
   // F1: always pass (mocked top 10)
   // F2: grid saturation
-  if (slotsUsed >= 3) {
+  if (slotsUsed >= MAX_SLOTS) {
     filters.F2 = false;
     blockedAt = "F2";
     verdict = "GRID_SATURATED";
-    detail.F2 = `Grade 3/3 — saturada`;
+    detail.F2 = `Grade ${MAX_SLOTS}/${MAX_SLOTS} — saturada`;
   }
   // F3: pair busy
   else if (busyPairs.includes(pair)) {

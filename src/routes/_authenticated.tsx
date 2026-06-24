@@ -14,6 +14,12 @@ import { useTraderProfile } from "@/hooks/useTraderProfile";
 import { useMarketContext } from "@/hooks/useMarketContext";
 
 export const Route = createFileRoute("/_authenticated")({
+  // SEGURANÇA: guard server-side antes do render — evita um frame de conteúdo
+  // protegido aparecer antes do useEffect + navigate fazer o redirect.
+  beforeLoad: ({ context }) => {
+    const auth = (context as { auth?: { session?: unknown } }).auth;
+    if (auth && !auth.session) throw redirect({ to: "/login" });
+  },
   component: AuthGate,
 });
 
