@@ -231,11 +231,12 @@ export function ProfileForm() {
       </div>
 
       <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-border">
-        <Button type="button" variant="ghost" onClick={() => form.reset(info)} disabled={!isDirty}>
+        <Button type="button" variant="ghost" onClick={() => form.reset(info)} disabled={!isDirty || saving}>
           Discard
         </Button>
-        <Button type="submit" disabled={!isDirty} className="gap-1.5">
-          <Check className="size-4" /> Save changes
+        <Button type="submit" disabled={!isDirty || saving || !loaded || !user?.id} className="gap-1.5">
+          {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+          {saving ? "Saving…" : "Save changes"}
         </Button>
       </div>
     </form>
