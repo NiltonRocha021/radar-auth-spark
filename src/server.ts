@@ -138,21 +138,37 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   return brandedErrorResponse();
 }
 
+function withTraceHeader(response: Response, traceId: string): Response {
+  const headers = new Headers(response.headers);
+  headers.set("x-trace-id", traceId);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     const nonce = crypto.randomUUID().replace(/-/g, "");
+    const traceId =
+      request.headers.get("x-trace-id") ?? crypto.randomUUID();
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(response);
-      const contentType = normalized.headers.get("content-type") ?? "";
+      const traced = withTraceHeader(normalized, traceId);
+      const contentType = traced.headers.get("content-type") ?? "";
       if (contentType.includes("text/html")) {
-        return addSecurityHeaders(normalized, nonce);
+        return addSecurityHeaders(traced, nonce);
       }
-      return normalized;
+      return traced;
     } catch (error) {
-      console.error(error);
-      return addSecurityHeaders(brandedErrorResponse(), nonce);
+      console.error("[server] fetch failed", { traceId }, error);
+      return withTraceHeader(
+        addSecurityHeaders(brandedErrorResponse(), nonce),
+        traceId,
+      );
     }
   },
 };

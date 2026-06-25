@@ -2,6 +2,7 @@
 // Roteia eventos: signal:new, bot4x:update, copilot:message, price:update.
 // Exige token JWT do usuário autenticado (Supabase) — sem token, não conecta.
 import { authAdapter } from "./auth.adapter";
+import { generateTraceId, getTraceId } from "@/lib/trace-context";
 
 type Handler = (payload: unknown) => void;
 type StatusHandler = (status: WsStatus) => void;
@@ -197,7 +198,8 @@ class BackendWsClient {
 
   send(event: WsEvent, payload: unknown): boolean {
     if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify({ event, payload }));
+      const traceId = getTraceId() ?? generateTraceId();
+      this.socket.send(JSON.stringify({ event, payload, traceId }));
       return true;
     }
     return false;

@@ -1,6 +1,7 @@
 import axios, { type InternalAxiosRequestConfig } from "axios";
 import { supabase } from "@/integrations/supabase/client";
 import { Sentry } from "./sentry";
+import { generateTraceId, getTraceId, setTraceId } from "./trace-context";
 
 // InternalAxiosRequestConfig augmentado com nosso traceId para correlação.
 type TracedConfig = InternalAxiosRequestConfig & { _traceId?: string; _retry?: boolean };
@@ -42,13 +43,12 @@ apiClient.interceptors.request.use(async (config) => {
     return Promise.reject(new Error("API base URL não configurada"));
   }
   const traced = config as TracedConfig;
-  const traceId =
-    traced._traceId ??
-    (typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const traceId = traced._traceId ?? generateTraceId();
   traced._traceId = traceId;
   config.headers["x-trace-id"] = traceId;
+  // Propaga via contexto para que o interceptor de erro / WS possam ler
+  // o trace_id sem depender de error.config.
+  setTraceId(traceId);
 
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -71,8 +71,9 @@ apiClient.interceptors.response.use(
         return apiClient(original);
       }
     }
+    const traceId = original._traceId ?? getTraceId();
     Sentry.withScope((scope) => {
-      if (original._traceId) scope.setTag("trace_id", original._traceId);
+      if (traceId) scope.setTag("trace_id", traceId);
       scope.setContext("request", {
         url: original.url,
         method: original.method,
