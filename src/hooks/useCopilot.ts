@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+// Hook único do Copilot. Usa o cliente WebSocket compartilhado `backendWs`
+// (multiplexado) — sem criar uma segunda conexão dedicada. Toda autenticação
+// e reconexão é delegada ao backendWs; este hook apenas escuta o canal
+// "copilot" e envia mensagens via `backendWs.send`.
+import { useCallback, useEffect, useRef, useState } from "react";
+import { backendWs, type WsStatus } from "@/adapters/backend/ws-client";
+import { supabase } from "@/integrations/supabase/client";
+import { buildChatMessage, buildInit, normalizeInbound } from "@/adapters/backend/copilot.adapter";
+import { logger } from "@/lib/logger";
 
 export type OrbState = "idle" | "listening" | "thinking" | "speaking" | "alert";
 export type MessageRole = "user" | "assistant" | "alert" | "system";
@@ -62,56 +70,50 @@ export interface TraderProfile {
 
 export interface CopilotConfig {
   userId: string;
-  token: string;
+  /** Opcional — o token é obtido pelo backendWs via Supabase. */
+  token?: string;
+  /** @deprecated A URL é configurada via VITE_API_WS_URL no backendWs. */
   wsUrl?: string;
   marketContext?: MarketContext;
   traderProfile?: TraderProfile;
   onAlert?: (msg: CopilotMessage) => void;
 }
 
-// CORREÇÃO: remover (import.meta as any) — import.meta.env é tipado via vite/client.
-// Forçar wss:// em produção, igual ao ws-client.ts, para não transmitir JWT sem TLS.
-function resolveCopilotWsUrl(override?: string): string {
-  if (override) return override;
-  const envUrl = import.meta.env.VITE_API_WS_URL;
-  if (envUrl) return envUrl;
-  if (import.meta.env.PROD) {
-    console.error(
-      "[Copilot] VITE_API_WS_URL não definida em produção. " +
-        "Defina a variável de ambiente para habilitar WebSocket seguro (wss://).",
-    );
-    return "";
-  }
-  return "ws://localhost:3001";
+function newMsg(role: MessageRole, content: string, extras: Partial<CopilotMessage> = {}): CopilotMessage {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    role,
+    content,
+    timestamp: new Date(),
+    ...extras,
+  };
 }
 
 export function useCopilot(config: CopilotConfig) {
-  const { userId, token, wsUrl, marketContext = {}, traderProfile = {}, onAlert } = config;
+  const { userId, marketContext = {}, traderProfile = {}, onAlert } = config;
 
-  const socketRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initSentRef = useRef(false);
 
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [orbState, setOrbState] = useState<OrbState>("idle");
   const [isConnected, setIsConnected] = useState(false);
+  const [, setWsStatus] = useState<WsStatus>("idle");
   const [isRecording, setIsRecording] = useState(false);
-  const [latency, setLatency] = useState<number>(0);
+  const [latency, setLatency] = useState(0);
 
-  function buildMessage(role: MessageRole, content: string, extras: Partial<CopilotMessage> = {}): CopilotMessage {
-    return {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      role,
-      content,
-      timestamp: new Date(),
-      ...extras,
-    };
-  }
+  const addMessage = (m: CopilotMessage) => setMessages((p) => [...p, m]);
+  const hasShownAuthMsgRef = useRef(false);
+  const pendingMessageRef = useRef<string | null>(null);
+  const authMsgIdRef = useRef<string | null>(null);
 
-  function addMessage(msg: CopilotMessage) {
-    setMessages((prev) => [...prev, msg]);
-  }
+  const clearUnauthMessage = useCallback(() => {
+    const id = authMsgIdRef.current;
+    if (id) setMessages((p) => p.filter((m) => m.id !== id));
+    authMsgIdRef.current = null;
+    hasShownAuthMsgRef.current = false;
+  }, []);
 
   function playAudio(base64: string) {
     const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
@@ -120,124 +122,213 @@ export function useCopilot(config: CopilotConfig) {
     audio.play().catch(() => setOrbState("idle"));
   }
 
-  const connect = useCallback(() => {
-    const resolvedUrl = resolveCopilotWsUrl(wsUrl);
-    if (!resolvedUrl) {
-      // Sem URL em produção — não conectar sem TLS
-      return;
-    }
-
-    // SEGURANÇA: JWT nunca vai na URL (fica em logs de servidor/proxies).
-    // Enviamos o token no primeiro frame após a conexão abrir (mensagem "auth").
-    const ws = new WebSocket(`${resolvedUrl}/copilot`);
-
-    ws.onopen = () => {
-      setIsConnected(true);
-      // Token enviado no primeiro frame — nunca na URL onde ficaria em logs.
-      ws.send(JSON.stringify({ type: "auth", token }));
-      ws.send(JSON.stringify({ type: "init", userId, marketContext, traderProfile }));
-    };
-
-
-    ws.onclose = () => {
-      setIsConnected(false);
-      setOrbState("idle");
-      reconnectTimerRef.current = setTimeout(connect, 3000);
-    };
-
-    ws.onerror = () => ws.close();
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        handleServerMessage(data);
-      } catch {
-        /* ignore */
-      }
-    };
-
-    socketRef.current = ws;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, token, wsUrl]);
-
   useEffect(() => {
-    connect();
+    let cancelled = false;
+
+    const offStatus = backendWs.onStatus((s) => {
+      if (cancelled) return;
+      setWsStatus(s);
+      setIsConnected(s === "open");
+      if (s === "open" && !initSentRef.current) {
+        backendWs.send(
+          "copilot:init",
+          buildInit(userId, marketContext as Record<string, unknown>, traderProfile as Record<string, unknown>),
+        );
+        initSentRef.current = true;
+      }
+      if (s === "unauthenticated" && !hasShownAuthMsgRef.current) {
+        const m = newMsg(
+          "system",
+          "Você precisa estar autenticado para usar o Copilot. Clique em Reconectar para tentar novamente ou faça login.",
+          { metadata: { action: "reconnect" } },
+        );
+        authMsgIdRef.current = m.id;
+        addMessage(m);
+        hasShownAuthMsgRef.current = true;
+        setOrbState("idle");
+      }
+      if (s === "open") {
+        if (authMsgIdRef.current) {
+          const id = authMsgIdRef.current;
+          setMessages((p) => p.filter((mm) => mm.id !== id));
+          authMsgIdRef.current = null;
+        }
+        hasShownAuthMsgRef.current = false;
+        const pending = pendingMessageRef.current;
+        pendingMessageRef.current = null;
+        if (pending) {
+          backendWs.send(
+            "chat_message",
+            buildChatMessage(
+              userId,
+              pending,
+              marketContext as Record<string, unknown>,
+              traderProfile as Record<string, unknown>,
+            ),
+          );
+          addMessage(newMsg("user", pending));
+          setOrbState("thinking");
+        }
+      }
+    });
+
+    backendWs.connect("/copilot");
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        initSentRef.current = false;
+        backendWs.connect("/copilot");
+      }
+      if (event === "SIGNED_OUT") {
+        initSentRef.current = false;
+        backendWs.close();
+      }
+    });
+
+    // Escuta todos os eventos do canal "copilot" (copilot:message, copilot:*).
+    const off = backendWs.onChannel("copilot", (payload) => {
+      const data = normalizeInbound(payload);
+      if (!data) return;
+      switch (data.type) {
+        case "thinking":
+          setOrbState("thinking");
+          break;
+        case "chat_response":
+          addMessage(newMsg("assistant", data.text ?? "", { metadata: data.metadata }));
+          setOrbState("idle");
+          if (typeof data.latency === "number") setLatency(data.latency);
+          break;
+        case "voice_response":
+          addMessage(newMsg("assistant", data.text ?? "", { metadata: data.metadata }));
+          if (data.audio_base64) playAudio(data.audio_base64);
+          setOrbState("idle");
+          break;
+        case "transcript":
+          addMessage(newMsg("user", data.text ?? ""));
+          setOrbState("thinking");
+          break;
+        case "proactive_alert": {
+          const alert = newMsg("alert", data.content ?? "", { agent: data.agent });
+          addMessage(alert);
+          setOrbState("alert");
+          onAlert?.(alert);
+          setTimeout(() => setOrbState("idle"), 4000);
+          break;
+        }
+        case "system_message":
+          addMessage(newMsg("system", data.content ?? ""));
+          break;
+      }
+    });
+
     return () => {
-      socketRef.current?.close();
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      cancelled = true;
+      off();
+      offStatus();
+      sub.subscription.unsubscribe();
     };
-  }, [connect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
-  function handleServerMessage(data: Record<string, unknown>) {
-    switch (data.type) {
-      case "thinking":
-        setOrbState("thinking");
-        break;
-      case "chat_response": {
-        addMessage(
-          buildMessage("assistant", data.text as string, { metadata: data.metadata as Record<string, unknown> }),
-        );
-        setOrbState("idle");
-        if (data.latency) setLatency(data.latency as number);
-        break;
-      }
-      case "voice_response": {
-        addMessage(
-          buildMessage("assistant", data.text as string, { metadata: data.metadata as Record<string, unknown> }),
-        );
-        if (data.audio_base64) playAudio(data.audio_base64 as string);
-        setOrbState("idle");
-        break;
-      }
-      case "transcript":
-        addMessage(buildMessage("user", data.text as string));
-        setOrbState("thinking");
-        break;
-      case "proactive_alert": {
-        const alert = buildMessage("alert", data.content as string, { agent: data.agent as string });
-        addMessage(alert);
-        setOrbState("alert");
-        onAlert?.(alert);
-        setTimeout(() => setOrbState("idle"), 4000);
-        break;
-      }
-      case "system_message":
-        addMessage(buildMessage("system", data.content as string));
-        break;
-    }
-  }
+  const showUnauthMessage = useCallback(() => {
+    if (hasShownAuthMsgRef.current) return;
+    const m = newMsg(
+      "system",
+      "Sua sessão expirou. Faça login novamente ou clique em Reconectar para tentar novamente.",
+      { metadata: { action: "reconnect" } },
+    );
+    authMsgIdRef.current = m.id;
+    addMessage(m);
+    hasShownAuthMsgRef.current = true;
+    setOrbState("idle");
+  }, []);
 
-  const sendMessage = useCallback(
+  const tryRefreshAndReconnect = useCallback(async (): Promise<WsStatus> => {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session?.access_token) return "unauthenticated";
+    initSentRef.current = false;
+    return backendWs.connect("/copilot");
+  }, []);
+
+  const doSend = useCallback(
     (text: string) => {
-      if (!text.trim() || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
-      addMessage(buildMessage("user", text));
+      addMessage(newMsg("user", text));
       setOrbState("thinking");
-      socketRef.current.send(
-        JSON.stringify({
-          type: "chat_message",
+      return backendWs.send(
+        "chat_message",
+        buildChatMessage(
           userId,
-          message: text,
-          context: { market: marketContext, trader: traderProfile },
-        }),
+          text,
+          marketContext as Record<string, unknown>,
+          traderProfile as Record<string, unknown>,
+        ),
       );
     },
     [userId, marketContext, traderProfile],
   );
 
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+
+      const { data } = await supabase.auth.getSession();
+      let token = data.session?.access_token;
+      if (!token) {
+        const status = await tryRefreshAndReconnect();
+        if (status !== "open") {
+          pendingMessageRef.current = trimmed;
+          showUnauthMessage();
+          return;
+        }
+        token = (await supabase.auth.getSession()).data.session?.access_token;
+      }
+
+      if (!backendWs.isAuthenticatedOpen()) {
+        const status = await backendWs.connect("/copilot");
+        if (status !== "open") {
+          const refreshed = await tryRefreshAndReconnect();
+          if (refreshed !== "open") {
+            pendingMessageRef.current = trimmed;
+            showUnauthMessage();
+            return;
+          }
+        }
+      }
+
+      const sent = doSend(trimmed);
+      if (!sent) {
+        pendingMessageRef.current = trimmed;
+        showUnauthMessage();
+      }
+    },
+    [doSend, showUnauthMessage, tryRefreshAndReconnect],
+  );
+
+  const reconnect = useCallback(async () => {
+    setOrbState("thinking");
+    const status = await tryRefreshAndReconnect();
+    if (status === "open") {
+      clearUnauthMessage();
+      const pending = pendingMessageRef.current;
+      pendingMessageRef.current = null;
+      if (pending) doSend(pending);
+      else setOrbState("idle");
+    } else {
+      setOrbState("idle");
+    }
+  }, [tryRefreshAndReconnect, clearUnauthMessage, doSend]);
+
   function sendVoice(blob: Blob, mimeType: string) {
-    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = (reader.result as string).split(",")[1];
-      socketRef.current!.send(
-        JSON.stringify({
-          type: "voice_input",
-          userId,
-          audio_base64: base64,
-          mime_type: mimeType,
-          context: { market: marketContext, trader: traderProfile },
-        }),
-      );
+      backendWs.send("voice_input", {
+        userId,
+        audio_base64: base64,
+        mime_type: mimeType,
+        context: { market: marketContext, trader: traderProfile },
+      });
     };
     reader.readAsDataURL(blob);
   }
@@ -263,7 +354,7 @@ export function useCopilot(config: CopilotConfig) {
       setIsRecording(true);
       setOrbState("listening");
     } catch (err) {
-      console.error("[Copilot] Microphone denied", err);
+      logger.error("[Copilot] microphone denied", { error: err });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -274,9 +365,7 @@ export function useCopilot(config: CopilotConfig) {
     setOrbState("thinking");
   }, []);
 
-  function clearHistory() {
-    setMessages([]);
-  }
+  const clearHistory = () => setMessages([]);
 
   return {
     messages,
@@ -288,5 +377,9 @@ export function useCopilot(config: CopilotConfig) {
     startRecording,
     stopRecording,
     clearHistory,
+    reconnect,
   };
 }
+
+/** @deprecated Use `useCopilot` — `useCopilotWs` foi consolidado no mesmo hook. */
+export const useCopilotWs = useCopilot;
