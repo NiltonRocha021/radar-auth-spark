@@ -78,28 +78,36 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
         const apiKey = process.env.LOVABLE_API_KEY
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+        const cronSecret = process.env.EMAIL_QUEUE_CRON_SECRET
 
-        if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
-          console.error('Missing required environment variables')
+        if (!apiKey || !supabaseUrl || !supabaseServiceKey || !cronSecret) {
+          console.error('Missing required environment variables', {
+            apiKey: !!apiKey,
+            supabaseUrl: !!supabaseUrl,
+            supabaseServiceKey: !!supabaseServiceKey,
+            cronSecret: !!cronSecret,
+          })
           return Response.json(
             { error: 'Server configuration error' },
             { status: 500 }
           )
         }
 
-        // Verify the caller is authorized with the service role key.
-        // In the TanStack stack, the pg_cron job sends the service role key as a Bearer token.
+        // SEG: authenticate pg_cron using a dedicated, narrowly-scoped secret
+        // (EMAIL_QUEUE_CRON_SECRET). The Supabase service role key is NEVER
+        // accepted as a caller credential — it gives unrestricted DB access
+        // and must only be used server-side to build a Supabase client.
         const authHeader = request.headers.get('Authorization')
         if (!authHeader?.startsWith('Bearer ')) {
           return Response.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         const token = authHeader.slice('Bearer '.length).trim()
-        // SEG-05: comparação em tempo constante. O '!==' padrão tem timing
-        // dependente do conteúdo — base teórica para ataques de timing.
-        if (!safeCompareSecret(token, supabaseServiceKey)) {
+        // SEG-05: constant-time comparison to avoid timing side-channels.
+        if (!safeCompareSecret(token, cronSecret)) {
           return Response.json({ error: 'Forbidden' }, { status: 403 })
         }
+
 
         const supabase: SupabaseClient<any, any> = createClient(supabaseUrl, supabaseServiceKey)
 
