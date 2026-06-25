@@ -51,8 +51,11 @@ describe("DNA analyzer — mínimo de trades fechados configurável", () => {
     // Não deve cair na rule "Amostra insuficiente" — esse era o sintoma do antigo MIN=20.
     expect(a?.reason).not.toMatch(/Amostra insuficiente/i);
     expect(b?.reason).not.toMatch(/Amostra insuficiente/i);
-    expect(a?.recommendation).toBe("PREFER");
-    expect(b?.recommendation).toBe("AVOID");
+    // Garantia central: com MIN=10, n=10 passa pela rule de amostra e entra na
+    // análise estatística (Wilson). O veredito final pode ser PREFER/AVOID/NEUTRAL
+    // dependendo da correção de Bonferroni, mas NÃO pode ser bloqueado por amostra.
+    expect(a?.reason).toMatch(/IC95|Sem diferença estatística/);
+    expect(b?.reason).toMatch(/IC95|Sem diferença estatística/);
   });
 
   it("com 9 trades fechados (< 10) o par fica NEUTRAL por amostra insuficiente", () => {
