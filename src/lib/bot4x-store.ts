@@ -609,7 +609,7 @@ supabase.auth.onAuthStateChange((event, session) => {
       orders: [],
       dailyPnlPct: 0,
       trailingPeakPct: 0,
-      ticksProcessed: 1247,
+      ticksProcessed: 0,
       circuitBreaker: "none",
       status: "IDLE",
       realInited: false,
