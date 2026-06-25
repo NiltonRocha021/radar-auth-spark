@@ -99,6 +99,7 @@ type State = {
   setTpPct: (n: number) => void;
   setPreferredPairs: (pairs: string[]) => void;
   setAvoidPairs: (pairs: string[]) => void;
+  setDnaMinSample: (n: number) => void;
   closeOrder: (id: string) => void;
   seedOrders: () => void;
   setMonitorTab: (t: "tick" | "order" | "shutdown") => void;
