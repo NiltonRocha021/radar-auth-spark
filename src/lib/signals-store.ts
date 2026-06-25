@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { useShallow } from "zustand/react/shallow";
+import { createSelector } from "reselect";
 import { type Signal, type AssetClass } from "./signals-data";
 import { backendWs } from "@/adapters/backend/ws-client";
 
