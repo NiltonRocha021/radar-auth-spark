@@ -45,6 +45,7 @@ const WS_URL = resolveWsUrl();
 class BackendWsClient {
   private socket: WebSocket | null = null;
   private handlers = new Map<WsEvent, Set<Handler>>();
+  private channels = new Map<string, Set<Handler>>();
   private statusHandlers = new Set<StatusHandler>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private connecting = false;
