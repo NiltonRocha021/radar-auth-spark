@@ -11,7 +11,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
   const setHover = useSignalsStore((s) => s.setHover);
   const pin = useSignalsStore((s) => s.pin);
   const openDetail = useSignalsStore((s) => s.openDetail);
-  const flashing = flashIds.has(signal.id);
+  const flashing = flashIds.includes(signal.id);
 
   const ringByStatus: Record<string, string> = {
     new: "0 0 0 1px #378ADD, 0 0 22px color-mix(in oklab, #378ADD 35%, transparent)",

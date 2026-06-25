@@ -38,7 +38,7 @@ type State = {
   hoverId: string | null;
   detailId: string | null;
   toasts: SignalToast[];
-  flashIds: Set<string>;
+  flashIds: string[];
   lastSyncAt: number | null;
   _intervalIds: Set<number>;
   _wsUnsub: (() => void) | null;
@@ -88,7 +88,7 @@ export const useSignalsStore = create<State>((set, get) => ({
   hoverId: null,
   detailId: null,
   toasts: [],
-  flashIds: new Set(),
+  flashIds: [],
   _intervalIds: new Set<number>(),
   _wsUnsub: null,
   setView: (v) => set({ view: v }),
