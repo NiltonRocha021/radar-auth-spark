@@ -583,7 +583,7 @@ function TradeSection({
         </div>
         <div className="inline-flex items-center gap-1">
           <button
-            onClick={() => setPage(Math.max(1, safePage - 1))}
+            onClick={() => goToPage(safePage - 1)}
             disabled={safePage <= 1}
             className="inline-flex items-center justify-center size-7 rounded border border-border text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
@@ -591,7 +591,7 @@ function TradeSection({
           </button>
           <span className="text-[11px] text-foreground tabular-nums px-2">{safePage}/{pageCount}</span>
           <button
-            onClick={() => setPage(Math.min(pageCount, safePage + 1))}
+            onClick={() => goToPage(safePage + 1)}
             disabled={safePage >= pageCount}
             className="inline-flex items-center justify-center size-7 rounded border border-border text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
