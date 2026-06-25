@@ -1,5 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import { useBackendAuth } from "@/hooks/useBackendAuth";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
@@ -29,13 +31,28 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function Dashboard() {
+  const { userId, ready } = useBackendAuth();
+  const navigate = useNavigate();
   const init = useDashboardStore((s) => s.init);
   const cleanup = useDashboardStore((s) => s.cleanup);
 
   useEffect(() => {
+    if (ready && !userId) navigate({ to: "/login" });
+  }, [ready, userId, navigate]);
+
+  useEffect(() => {
+    if (!ready || !userId) return;
     init();
     return () => cleanup();
-  }, [init, cleanup]);
+  }, [ready, userId, init, cleanup]);
+
+  if (!ready || !userId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
