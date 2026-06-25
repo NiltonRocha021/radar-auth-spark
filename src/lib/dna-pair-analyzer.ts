@@ -36,7 +36,7 @@ export type PairAnalysisResult = {
 
 // Minimum closed trades (WIN+LOSS) per pair before any PREFER/AVOID verdict.
 // Below this, the sample is too small to distinguish signal from noise.
-const MIN_SAMPLE = 20;
+const MIN_SAMPLE = 10;
 
 // ─── STATISTICAL HELPERS ──────────────────────────────────────────────────────
 
