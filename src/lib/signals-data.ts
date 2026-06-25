@@ -25,6 +25,8 @@ export type Signal = {
   session: Session;
   ageMin: number;
   status: SignalStatus;
+  /** true = dado de demonstração, não usar para trading real */
+  isMock?: boolean;
 };
 
 const exchanges = ["Binance", "Bybit", "OKX", "Coinbase"];
