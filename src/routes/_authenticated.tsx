@@ -10,7 +10,9 @@ import { useDnaAutoCorrector } from "@/lib/dna-auto-corrector";
 import { useTraderProfile } from "@/hooks/useTraderProfile";
 import { useMarketContext } from "@/hooks/useMarketContext";
 import { useCopilotUI } from "@/lib/copilot-ui-store";
+import { useStoreCleanup } from "@/hooks/useStoreCleanup";
 import { Skeleton } from "@/components/ui/skeleton";
+
 
 // PERF-01: code-split widgets pesados. CopilotPanel só monta após o
 // usuário interagir com o Copilot (useCopilotUI.open).
@@ -47,6 +49,8 @@ function AuthGate() {
 
   const initBot4x = useBot4xStore((s) => s.init);
   useDnaAutoCorrector(!!session);
+  useStoreCleanup();
+
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });

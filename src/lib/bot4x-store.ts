@@ -206,8 +206,12 @@ export const useBot4xStore = create<State>()(
       setUserId: (uid) => {
         const prev = get().userId;
         if (prev === uid) return;
+        // Limpa tickers/WS antes de trocar de usuário para não vazar handles
+        // do usuário anterior nem misturar streams entre contas.
+        get().cleanup();
         _currentUserId = uid;
-        set({ userId: uid });
+        set({ userId: uid, realInited: false });
+
         // Rehidrata o store com os dados do novo usuário
         useBot4xStore.persist.rehydrate();
         // Carrega histórico real do banco ao logar
@@ -251,7 +255,11 @@ export const useBot4xStore = create<State>()(
 
         // ── DEMO MODE ────────────────────────────────────────────────────────
         if (mode === "DEMO" || !REAL_MODE_ENABLED) {
-          if (s._ticker) return;
+          // Guard explícito: setInterval pode retornar 0 em alguns runtimes,
+          // então não basta `if (s._ticker)`.
+          if (s._ticker !== undefined && s._ticker !== null) return;
+
+
 
           if (s.history.length === 0) {
             const uid = get().userId;
@@ -584,8 +592,10 @@ supabase.auth.onAuthStateChange((event, session) => {
   _currentUserId = uid;
   useBot4xStore.getState().setUserId(uid);
 
-  // Ao fazer logout: limpa o estado em memória para não vazar dados
+  // Ao fazer logout: encerra ticker/WS antes de zerar o estado em memória
+  // para evitar memory leaks e callbacks rodando contra um store já limpo.
   if (event === "SIGNED_OUT") {
+    useBot4xStore.getState().cleanup();
     useBot4xStore.setState({
       userId: null,
       history: [],
@@ -600,6 +610,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     });
   }
 });
+
 
 // ─── SELECTORS ────────────────────────────────────────────────────────────────
 

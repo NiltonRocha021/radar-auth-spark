@@ -38,6 +38,7 @@ type State = {
   toasts: SignalToast[];
   flashIds: Set<string>;
   lastSyncAt: number | null;
+  _intervalIds: Set<number>;
   syncFromBackend: () => Promise<void>;
   // actions
   setView: (v: ViewMode) => void;
@@ -56,7 +57,6 @@ type State = {
   cleanup: () => void;
 };
 
-let intervals: number[] = [];
 
 export const useSignalsStore = create<State>((set, get) => ({
   signals: initialSignals,
@@ -86,7 +86,9 @@ export const useSignalsStore = create<State>((set, get) => ({
   detailId: null,
   toasts: [],
   flashIds: new Set(),
+  _intervalIds: new Set<number>(),
   setView: (v) => set({ view: v }),
+
   setSort: (s) => set({ sort: s }),
   setLive: (v) => set({ live: v }),
   toggleAdv: () => set((s) => ({ advOpen: !s.advOpen })),
@@ -148,7 +150,7 @@ export const useSignalsStore = create<State>((set, get) => ({
     }
   },
   init: () => {
-    if (intervals.length) return;
+    if (get()._intervalIds.size > 0) return;
     // Sincronizar com backend (silencioso — mantém mock se falhar)
     get().syncFromBackend();
     // New signal every 10s
@@ -201,13 +203,14 @@ export const useSignalsStore = create<State>((set, get) => ({
         return { signals: copy };
       });
     }, 60000);
-    intervals = [newSig, flash, expire];
+    set({ _intervalIds: new Set<number>([newSig, flash, expire]) });
   },
   cleanup: () => {
-    intervals.forEach((id) => clearInterval(id));
-    intervals = [];
+    get()._intervalIds.forEach((id) => clearInterval(id));
+    set({ _intervalIds: new Set<number>() });
   },
 }));
+
 
 export function selectFilteredSorted(state: State): Signal[] {
   const { signals, filters, sort } = state;
