@@ -33,47 +33,10 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthGate() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
-  const copilotOpen = useCopilotUI((s) => s.open);
-  // Uma vez aberto, mantenha montado para preservar estado/conversa.
-  const [copilotEverOpened, setCopilotEverOpened] = useState(false);
-  useEffect(() => {
-    if (copilotOpen) setCopilotEverOpened(true);
-  }, [copilotOpen]);
-
-  // PERF-01: só busca perfil/contexto de mercado quando o Copilot está
-  // (ou já foi) aberto — evita canal Realtime e fetch desnecessários em
-  // toda rota autenticada.
-  const copilotActive = copilotEverOpened;
-  const { profile } = useTraderProfile(copilotActive ? session?.user?.id : undefined);
-  const { marketContext } = useMarketContext(copilotActive ? session?.user?.id : undefined);
-
-  const initBot4x = useBot4xStore((s) => s.init);
-  useDnaAutoCorrector(!!session);
-  useStoreCleanup();
-
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });
   }, [loading, session, navigate]);
-
-  useEffect(() => {
-    if (session) initBot4x();
-  }, [session, initBot4x]);
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== "b" && e.key !== "B") return;
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const tag = target.tagName.toLowerCase();
-      if (tag === "input" || tag === "textarea" || target.isContentEditable) return;
-      if (target.closest("[contenteditable='true']")) return;
-      e.preventDefault();
-      navigate({ to: "/bot4x" });
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [navigate]);
 
   if (loading || !session) {
     // UX-01: skeleton que aproxima o shell (sidebar + topbar + conteúdo)
@@ -106,6 +69,52 @@ function AuthGate() {
       </div>
     );
   }
+
+  // Sessão confirmada: monta o app autenticado. Todos os hooks que dependem
+  // de session vivem em AuthenticatedApp, garantindo que side effects
+  // (initBot4x, useDnaAutoCorrector, useTraderProfile, useMarketContext) só
+  // disparam após autenticação bem-sucedida.
+  return <AuthenticatedApp session={session} />;
+}
+
+function AuthenticatedApp({ session }: { session: NonNullable<ReturnType<typeof useAuth>["session"]> }) {
+  const navigate = useNavigate();
+  const copilotOpen = useCopilotUI((s) => s.open);
+  // Uma vez aberto, mantenha montado para preservar estado/conversa.
+  const [copilotEverOpened, setCopilotEverOpened] = useState(false);
+  useEffect(() => {
+    if (copilotOpen) setCopilotEverOpened(true);
+  }, [copilotOpen]);
+
+  // PERF-01: só busca perfil/contexto de mercado quando o Copilot está
+  // (ou já foi) aberto — evita canal Realtime e fetch desnecessários em
+  // toda rota autenticada.
+  const copilotActive = copilotEverOpened;
+  const { profile } = useTraderProfile(copilotActive ? session.user.id : undefined);
+  const { marketContext } = useMarketContext(copilotActive ? session.user.id : undefined);
+
+  const initBot4x = useBot4xStore((s) => s.init);
+  useDnaAutoCorrector(true);
+  useStoreCleanup();
+
+  useEffect(() => {
+    initBot4x();
+  }, [initBot4x]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "b" && e.key !== "B") return;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName.toLowerCase();
+      if (tag === "input" || tag === "textarea" || target.isContentEditable) return;
+      if (target.closest("[contenteditable='true']")) return;
+      e.preventDefault();
+      navigate({ to: "/bot4x" });
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [navigate]);
 
   return (
     <>
