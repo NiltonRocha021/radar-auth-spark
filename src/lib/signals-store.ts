@@ -90,6 +90,7 @@ export const useSignalsStore = create<State>((set, get) => ({
   toasts: [],
   flashIds: new Set(),
   _intervalIds: new Set<number>(),
+  _wsUnsub: null,
   setView: (v) => set({ view: v }),
 
   setSort: (s) => set({ sort: s }),
