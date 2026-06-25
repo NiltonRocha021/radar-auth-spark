@@ -266,6 +266,7 @@ export function useFilteredSignals(): Signal[] {
   return useSignalsStore(useShallow((state) => selectFilteredSorted(state)));
 }
 
+export function selectStats(signals: Signal[]) {
   const total = signals.length;
   const buy = signals.filter((s) => s.direction === "BUY").length;
   const sell = signals.filter((s) => s.direction === "SELL").length;
@@ -275,3 +276,4 @@ export function useFilteredSignals(): Signal[] {
   const expired = signals.filter((s) => s.status === "expired").length;
   return { total, buy, sell, avg, inst, high, expired };
 }
+
