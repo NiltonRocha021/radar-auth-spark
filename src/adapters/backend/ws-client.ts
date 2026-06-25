@@ -97,7 +97,11 @@ class BackendWsClient {
     const url = `${WS_URL}${path}`;
     let ws: WebSocket;
     try {
-      ws = new WebSocket(url);
+      // Token JWT enviado no subprotocolo Sec-WebSocket-Protocol — viaja no
+      // handshake HTTP/S (criptografado sob TLS), não no corpo das mensagens.
+      // Evita expor o token em logs de proxy/APM que normalmente capturam
+      // payloads de frames WS.
+      ws = new WebSocket(url, [`bearer.${token}`]);
     } catch {
       this.connecting = false;
       this.setStatus("error");
@@ -106,11 +110,11 @@ class BackendWsClient {
     }
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({ type: "auth", token }));
       this.connecting = false;
       this.reconnectAttempts = 0;
       this.setStatus("open");
     };
+
 
     ws.onclose = (ev) => {
       this.connecting = false;
