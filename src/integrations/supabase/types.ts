@@ -494,6 +494,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_preferences: {
+        Row: {
+          compact_pill: boolean
+          onboarding_done: boolean
+          updated_at: string
+          user_id: string
+          wishlist: string[]
+        }
+        Insert: {
+          compact_pill?: boolean
+          onboarding_done?: boolean
+          updated_at?: string
+          user_id: string
+          wishlist?: string[]
+        }
+        Update: {
+          compact_pill?: boolean
+          onboarding_done?: boolean
+          updated_at?: string
+          user_id?: string
+          wishlist?: string[]
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -1,56 +1,57 @@
 import { useEffect, useState, useCallback } from "react";
-
-const KEY = "asr.wishlist.v1";
-const EVT = "asr:wishlist-change";
-
-function read(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function write(ids: string[]) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(ids));
-    window.dispatchEvent(new CustomEvent(EVT));
-  } catch {
-    /* ignore */
-  }
-}
+import { supabase } from "@/integrations/supabase/client";
+import { loadPrefs, savePrefs } from "./user-prefs-db";
 
 export function useWishlist() {
   const [ids, setIds] = useState<string[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    setIds(read());
-    const sync = () => setIds(read());
-    window.addEventListener(EVT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(EVT, sync);
-      window.removeEventListener("storage", sync);
-    };
+    supabase.auth.getUser().then(({ data }) => {
+      const uid = data.user?.id ?? null;
+      setUserId(uid);
+      if (uid) {
+        loadPrefs(uid).then((p) => {
+          if (p) setIds(p.wishlist);
+        });
+      }
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_, session) => {
+      const uid = session?.user?.id ?? null;
+      setUserId(uid);
+      if (uid) {
+        loadPrefs(uid).then((p) => {
+          if (p) setIds(p.wishlist ?? []);
+        });
+      } else {
+        setIds([]);
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   const has = useCallback((id: string) => ids.includes(id), [ids]);
 
-  const toggle = useCallback((id: string) => {
-    const curr = read();
-    const next = curr.includes(id) ? curr.filter((x) => x !== id) : [...curr, id];
-    write(next);
-    setIds(next);
-    return next.includes(id);
-  }, []);
+  const toggle = useCallback(
+    (id: string) => {
+      const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+      setIds(next);
+      if (userId) savePrefs(userId, { wishlist: next });
+      return next.includes(id);
+    },
+    [ids, userId],
+  );
 
-  const remove = useCallback((id: string) => {
-    const next = read().filter((x) => x !== id);
-    write(next);
-    setIds(next);
-  }, []);
+  const remove = useCallback(
+    (id: string) => {
+      const next = ids.filter((x) => x !== id);
+      setIds(next);
+      if (userId) savePrefs(userId, { wishlist: next });
+    },
+    [ids, userId],
+  );
 
   return { ids, has, toggle, remove };
 }
