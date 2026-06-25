@@ -127,10 +127,15 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      const contentType = normalized.headers.get("content-type") ?? "";
+      if (contentType.includes("text/html")) {
+        return addSecurityHeaders(normalized);
+      }
+      return normalized;
     } catch (error) {
       console.error(error);
-      return brandedErrorResponse();
+      return addSecurityHeaders(brandedErrorResponse());
     }
   },
 };
