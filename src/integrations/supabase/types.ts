@@ -440,6 +440,30 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_policies: {
+        Row: {
+          action: string
+          created_at: string
+          description: string | null
+          max_attempts: number
+          window_seconds: number
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          description?: string | null
+          max_attempts: number
+          window_seconds: number
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          description?: string | null
+          max_attempts?: number
+          window_seconds?: number
+        }
+        Relationships: []
+      }
       rate_limits: {
         Row: {
           action: string
@@ -457,6 +481,27 @@ export type Database = {
           action?: string
           count?: number
           user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
+      rate_limits_by_key: {
+        Row: {
+          action: string
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          action: string
+          count?: number
+          key: string
+          window_start?: string
+        }
+        Update: {
+          action?: string
+          count?: number
+          key?: string
           window_start?: string
         }
         Relationships: []
@@ -654,6 +699,15 @@ export type Database = {
     Functions: {
       check_rate_limit: {
         Args: { p_action: string; p_max: number; p_user_id: string }
+        Returns: boolean
+      }
+      check_rate_limit_by_key: {
+        Args: {
+          p_action: string
+          p_key: string
+          p_max: number
+          p_window_seconds?: number
+        }
         Returns: boolean
       }
       cleanup_old_user_notifications: {
