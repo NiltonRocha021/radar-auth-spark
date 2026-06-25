@@ -97,26 +97,24 @@ export async function loadConfig(userId: string): Promise<Bot4xConfigRow | null>
 }
 
 export async function saveConfig(userId: string, config: Partial<Bot4xConfigRow>): Promise<void> {
-  const row: Record<string, unknown> = {
+  const row = {
     user_id: userId,
     updated_at: new Date().toISOString(),
+    ...(config.active !== undefined && { active: config.active }),
+    ...(config.profile !== undefined && { profile: config.profile }),
+    ...(config.leverage !== undefined && { leverage: config.leverage }),
+    ...(config.activeCapital !== undefined && { active_capital: config.activeCapital }),
+    ...(config.circuitBreaker !== undefined && { circuit_breaker: config.circuitBreaker }),
+    ...(config.dailyPnl !== undefined && { daily_pnl: config.dailyPnl }),
+    ...(config.openSlots !== undefined && { open_slots: config.openSlots }),
+    // Novas colunas com nomes corretos (ARCH-02).
+    ...(config.slPct !== undefined && { sl_pct: config.slPct }),
+    ...(config.tpPct !== undefined && { tp_pct: config.tpPct }),
+    ...(config.allocationPct !== undefined && { allocation_pct: config.allocationPct }),
+    ...(config.totalCapital !== undefined && { total_capital: config.totalCapital }),
+    ...(config.preferredPairs !== undefined && { preferred_pairs: config.preferredPairs }),
+    ...(config.avoidPairs !== undefined && { avoid_pairs: config.avoidPairs }),
   };
-
-  if (config.active !== undefined) row.active = config.active;
-  if (config.profile !== undefined) row.profile = config.profile;
-  if (config.leverage !== undefined) row.leverage = config.leverage;
-  if (config.activeCapital !== undefined) row.active_capital = config.activeCapital;
-  if (config.circuitBreaker !== undefined) row.circuit_breaker = config.circuitBreaker;
-  if (config.dailyPnl !== undefined) row.daily_pnl = config.dailyPnl;
-  if (config.openSlots !== undefined) row.open_slots = config.openSlots;
-
-  // Novas colunas com nomes corretos.
-  if (config.slPct !== undefined) row.sl_pct = config.slPct;
-  if (config.tpPct !== undefined) row.tp_pct = config.tpPct;
-  if (config.allocationPct !== undefined) row.allocation_pct = config.allocationPct;
-  if (config.totalCapital !== undefined) row.total_capital = config.totalCapital;
-  if (config.preferredPairs !== undefined) row.preferred_pairs = config.preferredPairs;
-  if (config.avoidPairs !== undefined) row.avoid_pairs = config.avoidPairs;
 
   const { error } = await supabase
     .from("bot4x_configs")
