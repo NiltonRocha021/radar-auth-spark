@@ -108,8 +108,10 @@ class BackendWsClient {
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: "auth", token }));
       this.connecting = false;
+      this.reconnectAttempts = 0;
       this.setStatus("open");
     };
+
     ws.onclose = (ev) => {
       this.connecting = false;
       this.socket = null;
