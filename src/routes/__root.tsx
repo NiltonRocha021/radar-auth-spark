@@ -16,6 +16,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { backendWs } from "@/adapters/backend/ws-client";
 import { initSentry } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
+import { registerPWA } from "@/lib/pwa/register";
 
 // Idempotente — múltiplas chamadas (HMR, SSR rehydrate) são no-op.
 initSentry();
@@ -203,6 +204,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "theme-color", content: "#0a0a0a" },
     ],
     links: [
       {
@@ -239,6 +241,8 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
+    // PWA-01: o wrapper recusa dev/preview/iframe/?sw=off internamente.
+    registerPWA();
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
         backendWs.resetAndReconnect();
