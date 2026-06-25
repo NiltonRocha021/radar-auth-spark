@@ -440,6 +440,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          action: string
+          count: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          action: string
+          count?: number
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          action?: string
+          count?: number
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       signals: {
         Row: {
           ai_reasoning: string | null
@@ -631,10 +652,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_rate_limit: {
+        Args: { p_action: string; p_max: number; p_user_id: string }
+        Returns: boolean
+      }
       cleanup_old_user_notifications: {
         Args: { dismissed_after_days?: number; max_age_days?: number }
         Returns: number
       }
+      cleanup_rate_limits: { Args: never; Returns: number }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
