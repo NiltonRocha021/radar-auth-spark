@@ -13,6 +13,7 @@ import { useCopilotUI } from "@/lib/copilot-ui-store";
 import { useStoreCleanup } from "@/hooks/useStoreCleanup";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAuthSession } from "@/lib/server-auth";
+import { OfflineBanner } from "@/components/offline-banner";
 
 
 // PERF-01: code-split widgets pesados. CopilotPanel só monta após o
@@ -139,6 +140,7 @@ function AuthenticatedApp({ session }: { session: NonNullable<ReturnType<typeof 
 
   return (
     <>
+      <OfflineBanner />
       <Outlet />
       <Suspense fallback={null}>
         <Bot4xFloatingWidget />
