@@ -1,22 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/apiClient";
+// Wrapper fino sobre o useSignalsStore — fonte única de verdade.
+// Polling removido: o store agora recebe sinais via WebSocket (backendWs)
+// e usa um fallback de 60s apenas quando o WS está offline.
+import { useSignalsStore } from "@/lib/signals-store";
+import type { Signal } from "@/lib/signals-data";
 
-export interface BackendSignal {
-  id: string;
-  asset: string;
-  direction: "BUY" | "SELL";
-  entry: number;
-  score: number;
-  tf?: string;
-  exchange?: string;
-  [key: string]: unknown;
-}
+export type { Signal };
 
 export function useSignals() {
-  return useQuery({
-    queryKey: ["signals"],
-    queryFn: () => api.get<BackendSignal[]>("/signals"),
-    refetchInterval: 10_000,
-    staleTime: 5_000,
-  });
+  const signals = useSignalsStore((s) => s.signals);
+  const lastSyncAt = useSignalsStore((s) => s.lastSyncAt);
+  return {
+    signals,
+    isLoading: lastSyncAt === null,
+    lastSyncAt,
+  };
 }
