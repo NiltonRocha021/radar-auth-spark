@@ -1,5 +1,10 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 import { supabase } from "@/integrations/supabase/client";
+import { Sentry } from "./sentry";
+
+// InternalAxiosRequestConfig augmentado com nosso traceId para correlação.
+type TracedConfig = InternalAxiosRequestConfig & { _traceId?: string; _retry?: boolean };
+
 
 // Em produção, EXIGIR VITE_API_BASE_URL. Em dev, cair para localhost.
 // Sem esse fail-fast, o app começaria a enviar o JWT do usuário para
