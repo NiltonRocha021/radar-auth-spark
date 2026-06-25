@@ -25,7 +25,7 @@ function brandedErrorResponse(): Response {
   });
 }
 
-function addSecurityHeaders(response: Response): Response {
+function addSecurityHeaders(response: Response, nonce: string): Response {
   const headers = new Headers(response.headers);
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL ?? "";
@@ -36,16 +36,21 @@ function addSecurityHeaders(response: Response): Response {
   const supabaseWss = supabaseUrl ? supabaseUrl.replace(/^https?:/, "wss:") : "";
 
   const scriptSrc = isDev
-    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-    : "script-src 'self' 'unsafe-inline'";
+    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'`
+    : `script-src 'self' 'nonce-${nonce}'`;
 
+  // TODO(csp): substituir 'unsafe-inline' por 'nonce-${nonce}' em style-src
+  // assim que o pipeline do Tailwind v4 não emitir mais <style> inline sem
+  // controle nosso (atualmente quebraria SSR styles).
+  const styleSrc = "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com";
+
+  // Hosts explícitos — sem schemes genéricos como "wss:" ou "https:" que
+  // efetivamente permitem qualquer origem.
   const connectSrc = [
     "connect-src 'self'",
     supabaseUrl,
     supabaseWss,
     apiBase,
-    "wss:",
-    "https:",
   ]
     .filter(Boolean)
     .join(" ");
@@ -55,7 +60,7 @@ function addSecurityHeaders(response: Response): Response {
     [
       "default-src 'self'",
       scriptSrc,
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      styleSrc,
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       connectSrc,
@@ -80,6 +85,7 @@ function addSecurityHeaders(response: Response): Response {
     headers,
   });
 }
+
 
 function isCatastrophicSsrErrorBody(body: string, responseStatus: number): boolean {
   let payload: unknown;
@@ -124,18 +130,19 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const nonce = crypto.randomUUID().replace(/-/g, "");
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(response);
       const contentType = normalized.headers.get("content-type") ?? "";
       if (contentType.includes("text/html")) {
-        return addSecurityHeaders(normalized);
+        return addSecurityHeaders(normalized, nonce);
       }
       return normalized;
     } catch (error) {
       console.error(error);
-      return addSecurityHeaders(brandedErrorResponse());
+      return addSecurityHeaders(brandedErrorResponse(), nonce);
     }
   },
 };
