@@ -1,18 +1,41 @@
 import axios from "axios";
 import { supabase } from "@/integrations/supabase/client";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
+// Em produção, EXIGIR VITE_API_BASE_URL. Em dev, cair para localhost.
+// Sem esse fail-fast, o app começaria a enviar o JWT do usuário para
+// http://localhost:3001 no navegador final — risco real se houver qualquer
+// processo escutando essa porta na máquina do cliente.
+function resolveApiBaseUrl(): string {
+  const envUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  if (envUrl) return envUrl;
+  if (import.meta.env.PROD) {
+    console.error(
+      "[apiClient] VITE_API_BASE_URL não definida em produção. " +
+        "Bloqueando chamadas REST para evitar enviar o token a um host local.",
+    );
+    return "";
+  }
+  return "http://localhost:3001/api";
+}
+
+const BASE_URL = resolveApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
+  timeout: 15_000,
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true,
+  // withCredentials removido: a autenticação é Bearer JWT no header.
+  // Cookies de sessão não são usados; manter `withCredentials: true` abriria
+  // superfície de CSRF sem mitigação correspondente.
 });
 
 // Anexa o token JWT do Supabase em cada requisição
 apiClient.interceptors.request.use(async (config) => {
+  if (!BASE_URL) {
+    return Promise.reject(new Error("API base URL não configurada"));
+  }
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (token) {

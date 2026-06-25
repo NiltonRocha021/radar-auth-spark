@@ -1,6 +1,17 @@
 import { sendLovableEmail } from '@lovable.dev/email-js'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { createFileRoute } from '@tanstack/react-router'
+import { timingSafeEqual } from 'node:crypto'
+
+// Comparação de segredos em tempo constante. Retorna false sem vazar o
+// comprimento real do segredo (TextEncoder evita issues com UTF-8 multibyte).
+function safeCompareSecret(a: string, b: string): boolean {
+  const enc = new TextEncoder()
+  const bufA = enc.encode(a)
+  const bufB = enc.encode(b)
+  if (bufA.length !== bufB.length) return false
+  return timingSafeEqual(bufA, bufB)
+}
 
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
@@ -84,7 +95,9 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
         }
 
         const token = authHeader.slice('Bearer '.length).trim()
-        if (token !== supabaseServiceKey) {
+        // SEG-05: comparação em tempo constante. O '!==' padrão tem timing
+        // dependente do conteúdo — base teórica para ataques de timing.
+        if (!safeCompareSecret(token, supabaseServiceKey)) {
           return Response.json({ error: 'Forbidden' }, { status: 403 })
         }
 

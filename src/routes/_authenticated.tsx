@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Outlet } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
@@ -14,12 +14,24 @@ import { useTraderProfile } from "@/hooks/useTraderProfile";
 import { useMarketContext } from "@/hooks/useMarketContext";
 
 export const Route = createFileRoute("/_authenticated")({
-  // SEGURANÇA: guard server-side antes do render — evita um frame de conteúdo
-  // protegido aparecer antes do useEffect + navigate fazer o redirect.
-  beforeLoad: ({ context }) => {
-    const auth = (context as { auth?: { session?: unknown } }).auth;
-    if (auth && !auth.session) throw redirect({ to: "/login" });
-  },
+  // SEG-01: a proteção desta área é 100% client-side (AuthGate abaixo).
+  // O `context.auth` nunca foi populado pelo root route, então o
+  // `beforeLoad` server-side anterior era código morto que dava a falsa
+  // impressão de proteção SSR.
+  //
+  // Por que não migramos para SSR de sessão neste momento:
+  //   1) A sessão Supabase deste projeto é persistida em `localStorage`
+  //      (cliente auto-gerado pela integração Lovable Cloud) — não há
+  //      cookie HTTP para o servidor ler.
+  //   2) Mudar a estratégia exigiria editar `src/integrations/supabase/
+  //      client.ts`, que é auto-gerenciado pelo template e marcado como
+  //      "do not edit" — risco operacional alto na próxima sincronização.
+  //
+  // Mitigação atual: AuthGate renderiza spinner até `loading` resolver,
+  // só então monta `<Outlet />` — não há vazamento visual de conteúdo
+  // protegido no estado atual do código. Qualquer refator que mude essa
+  // garantia de loading PRECISA reintroduzir a proteção (de preferência
+  // via cookies SSR + migração coordenada da integração).
   component: AuthGate,
 });
 

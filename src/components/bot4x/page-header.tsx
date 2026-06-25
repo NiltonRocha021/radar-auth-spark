@@ -1,10 +1,13 @@
 import { Cpu } from "lucide-react";
-import { useBot4xStore } from "@/lib/bot4x-store";
+import { useBot4xStore, getEffectiveMode, REAL_MODE_ENABLED } from "@/lib/bot4x-store";
 
 export function Bot4xHeader() {
   const mode = useBot4xStore((s) => s.mode);
   const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const isDemo = mode === "DEMO";
+  // ARCH-01: usar SEMPRE o modo efetivo. Se o flag de build estiver off,
+  // o `mode` persistido pode estar "REAL" mas o motor que roda é o DEMO.
+  const effectiveMode = getEffectiveMode(mode);
+  const isDemo = effectiveMode === "DEMO";
 
   return (
     <header className="flex items-start justify-between gap-3 flex-wrap">
@@ -44,6 +47,11 @@ export function Bot4xHeader() {
           </span>
           {isDemo ? "DEMO MODE" : "REAL MODE"}
         </span>
+        {!REAL_MODE_ENABLED && (
+          <span className="text-[10px] text-muted-foreground" title="VITE_BOT4X_REAL_ENABLED=false neste build">
+            modo real indisponível
+          </span>
+        )}
         <span className="text-[10px] text-muted-foreground tabular-nums">Atualizado {now}</span>
       </div>
     </header>
