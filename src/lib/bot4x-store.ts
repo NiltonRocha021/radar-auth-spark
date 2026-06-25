@@ -592,8 +592,10 @@ supabase.auth.onAuthStateChange((event, session) => {
   _currentUserId = uid;
   useBot4xStore.getState().setUserId(uid);
 
-  // Ao fazer logout: limpa o estado em memória para não vazar dados
+  // Ao fazer logout: encerra ticker/WS antes de zerar o estado em memória
+  // para evitar memory leaks e callbacks rodando contra um store já limpo.
   if (event === "SIGNED_OUT") {
+    useBot4xStore.getState().cleanup();
     useBot4xStore.setState({
       userId: null,
       history: [],
@@ -608,6 +610,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     });
   }
 });
+
 
 // ─── SELECTORS ────────────────────────────────────────────────────────────────
 
