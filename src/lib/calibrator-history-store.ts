@@ -105,7 +105,15 @@ export const calibratorHistoryStore = {
       .select()
       .single();
     if (error || !data) {
-      console.error("[calibrator-history] add:", error?.message);
+      console.error("[calibrator-history] add() falhou ao inserir em calibrator_runs", {
+        userId,
+        profile: entry.params.profile,
+        symbol: entry.params.symbol,
+        periodDays: entry.params.periodDays,
+        supabaseError: error
+          ? { message: error.message, code: error.code, details: error.details, hint: error.hint }
+          : "sem linha retornada",
+      });
       return {
         id: `local_${Date.now()}`,
         createdAt: new Date().toISOString(),
