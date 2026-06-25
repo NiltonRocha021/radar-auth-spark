@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { Card } from "@/components/ui/card";
@@ -51,21 +52,31 @@ const PROFILES: { value: ProfileFilter; label: string }[] = [
 
 function CalibratorHistoryPage() {
   const navigate = useNavigate();
-  const [entries, setEntries] = useState<CalibratorHistoryEntry[]>(() =>
-    calibratorHistoryStore.list(),
-  );
+  const { user } = useAuth();
+  const userId = user?.id;
+  const [entries, setEntries] = useState<CalibratorHistoryEntry[]>([]);
   const [profile, setProfile] = useState<ProfileFilter>("all");
   const [symbol, setSymbol] = useState("");
   const [outcome, setOutcome] = useState<OutcomeFilter>("all");
 
   useEffect(() => {
-    const unsub = calibratorHistoryStore.subscribe(() => {
-      setEntries(calibratorHistoryStore.list());
-    });
+    let alive = true;
+    const refresh = () => {
+      if (!userId) {
+        setEntries([]);
+        return;
+      }
+      calibratorHistoryStore.list(userId).then((data) => {
+        if (alive) setEntries(data);
+      });
+    };
+    refresh();
+    const unsub = calibratorHistoryStore.subscribe(refresh);
     return () => {
+      alive = false;
       unsub();
     };
-  }, []);
+  }, [userId]);
 
   const filtered = useMemo(() => {
     const sym = symbol.trim().toUpperCase();
@@ -121,8 +132,8 @@ function CalibratorHistoryPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    if (confirm("Limpar todo o histórico de simulações?"))
-                      calibratorHistoryStore.clear();
+                    if (userId && confirm("Limpar todo o histórico de simulações?"))
+                      calibratorHistoryStore.clear(userId);
                   }}
                 >
                   <Trash2 className="size-4 mr-2" /> Limpar
@@ -259,7 +270,7 @@ function CalibratorHistoryPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => calibratorHistoryStore.remove(e.id)}
+                              onClick={() => userId && calibratorHistoryStore.remove(userId, e.id)}
                               className="h-7 px-2 ml-1 text-muted-foreground hover:text-destructive"
                               title="Remover"
                             >
