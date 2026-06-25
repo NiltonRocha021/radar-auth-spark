@@ -340,6 +340,8 @@ function SignUpForm() {
   const [showPw, setShowPw] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [signedUp, setSignedUp] = useState(false);
+  const [signedUpEmail, setSignedUpEmail] = useState("");
   const {
     register,
     handleSubmit,
@@ -353,7 +355,7 @@ function SignUpForm() {
 
   const onSubmit = async (v: z.infer<typeof signUpSchema>) => {
     setFormErr(null);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: v.email,
       password: v.password,
       options: {
@@ -361,8 +363,40 @@ function SignUpForm() {
         data: { full_name: v.fullName },
       },
     });
-    if (error) setFormErr(error.message);
+    if (error) { setFormErr(error.message); return; }
+    // Supabase retorna session=null quando email confirmation está habilitado.
+    // Quando session != null, o usuário já está logado (confirmação desativada)
+    // e o onAuthStateChange do root cuida do redirecionamento.
+    if (!data.session) {
+      setSignedUpEmail(v.email);
+      setSignedUp(true);
+    }
   };
+
+  if (signedUp) {
+    return (
+      <div className="text-center py-4">
+        <div className="mx-auto size-14 rounded-full flex items-center justify-center mb-4 bg-emerald-500/20">
+          <Check className="size-7 text-emerald-400" />
+        </div>
+        <h2 className="text-lg font-medium">Verifique seu email</h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Enviamos um link de confirmação para
+        </p>
+        <p className="text-sm font-medium mt-0.5">{signedUpEmail}</p>
+        <p className="text-xs text-muted-foreground mt-3">
+          Clique no link do email para ativar sua conta e fazer login.
+        </p>
+        <button
+          type="button"
+          onClick={() => { setSignedUp(false); setSignedUpEmail(""); }}
+          className="mt-6 text-sm text-[var(--brand-cyan)] hover:underline"
+        >
+          Usar outro email
+        </button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
