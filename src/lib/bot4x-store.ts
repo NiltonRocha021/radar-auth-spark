@@ -193,6 +193,7 @@ export const useBot4xStore = create<State>()(
       monitorTab: "tick",
       preferredPairs: [],
       avoidPairs: [],
+      dnaMinSample: 10,
 
       status: "IDLE",
       circuitBreaker: "none",
