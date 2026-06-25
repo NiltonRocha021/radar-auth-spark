@@ -59,8 +59,11 @@ hoisted.builder = wireBuilder();
 hoisted.from = vi.fn(() => hoisted.builder);
 
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: (...args: unknown[]) => (hoisted.from as AnyMock)(...args) },
+  supabase: {
+    from: (...args: unknown[]) => (hoisted.from as unknown as (...a: unknown[]) => unknown)(...args),
+  },
 }));
+
 
 
 vi.mock("../logger", () => ({
