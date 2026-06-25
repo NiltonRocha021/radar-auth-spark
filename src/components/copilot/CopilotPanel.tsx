@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
-import { useCopilotWs } from '@/hooks/useCopilotWs';
+import { useCopilot } from '@/hooks/useCopilot';
 import type { MarketContext, TraderProfile, CopilotMessage } from '@/hooks/useCopilot';
 import { CopilotOrb } from './CopilotOrb';
 import { CopilotMessageBubble } from './CopilotMessage';
@@ -32,7 +32,7 @@ export function CopilotPanel({
 
   const { messages, orbState, isConnected, isRecording, latency,
     sendMessage, startRecording, stopRecording, clearHistory, reconnect } =
-    useCopilotWs({ userId, token, marketContext, traderProfile, onAlert });
+    useCopilot({ userId, token, marketContext, traderProfile, onAlert });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

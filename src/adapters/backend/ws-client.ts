@@ -45,6 +45,7 @@ const WS_URL = resolveWsUrl();
 class BackendWsClient {
   private socket: WebSocket | null = null;
   private handlers = new Map<WsEvent, Set<Handler>>();
+  private channels = new Map<string, Set<Handler>>();
   private statusHandlers = new Set<StatusHandler>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private connecting = false;
@@ -134,10 +135,15 @@ class BackendWsClient {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        const event: WsEvent = data?.event ?? data?.type;
-        if (!event) return;
-        const set = this.handlers.get(event);
-        set?.forEach((h) => h(data?.payload ?? data));
+        const event: WsEvent | undefined = data?.event ?? data?.type;
+        const payload = data?.payload ?? data;
+        // Roteamento por canal: usa data.channel se presente; senão, deriva
+        // do prefixo do evento (ex.: "copilot:message" → canal "copilot").
+        const channel: string | undefined =
+          data?.channel ??
+          (typeof event === "string" && event.includes(":") ? event.split(":")[0] : undefined);
+        if (channel) this.channels.get(channel)?.forEach((h) => h(payload));
+        if (event) this.handlers.get(event)?.forEach((h) => h(payload));
       } catch {
         /* ignore */
       }
@@ -170,6 +176,17 @@ class BackendWsClient {
     if (!this.handlers.has(event)) this.handlers.set(event, new Set());
     this.handlers.get(event)!.add(handler);
     return () => this.handlers.get(event)?.delete(handler);
+  }
+
+  /**
+   * Assina todos os eventos de um canal lógico (ex.: "copilot", "signal").
+   * O canal é determinado por `data.channel` no frame ou, por compatibilidade,
+   * pelo prefixo do evento (`copilot:message` → canal `copilot`).
+   */
+  onChannel(channel: string, handler: Handler): () => void {
+    if (!this.channels.has(channel)) this.channels.set(channel, new Set());
+    this.channels.get(channel)!.add(handler);
+    return () => this.channels.get(channel)?.delete(handler);
   }
 
   onStatus(handler: StatusHandler): () => void {
