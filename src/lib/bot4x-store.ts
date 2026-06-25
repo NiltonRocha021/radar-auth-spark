@@ -273,6 +273,15 @@ export const useBot4xStore = create<State>()(
                 hour: new Date().getHours(),
               }));
 
+              if (newTrades.length > 0) {
+                const uid = get().userId;
+                if (uid) {
+                  newTrades.forEach((t) => saveTrade(uid, t));
+                }
+              }
+
+
+
               const today = new Date().toISOString().slice(0, 10);
               const allTodayTrades = [...newTrades, ...prev.history.filter((h) => h.day === today)];
               const dailyPnlPct = allTodayTrades.reduce((acc, t) => acc + t.pnlPct, 0);
