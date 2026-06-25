@@ -53,7 +53,7 @@ export async function saveTradeWithOutbox(userId: string, trade: Trade): Promise
     .from("trade_outbox")
     .insert({
       user_id: userId,
-      trade_data: trade as unknown as Record<string, unknown>,
+      trade_data: trade as unknown as import("@/integrations/supabase/types").Json,
       status: "pending",
     });
 
