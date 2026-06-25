@@ -255,7 +255,11 @@ export const useBot4xStore = create<State>()(
 
         // ── DEMO MODE ────────────────────────────────────────────────────────
         if (mode === "DEMO" || !REAL_MODE_ENABLED) {
-          if (s._ticker) return;
+          // Guard explícito: setInterval pode retornar 0 em alguns runtimes,
+          // então não basta `if (s._ticker)`.
+          if (s._ticker !== undefined && s._ticker !== null) return;
+
+
 
           if (s.history.length === 0) {
             const uid = get().userId;
