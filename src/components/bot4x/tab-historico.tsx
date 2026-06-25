@@ -404,7 +404,6 @@ function TradeSection({
 
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
-  const slice = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const setF = (patch: Partial<Filters>) => { setFilters({ ...filters, ...patch }); setPage(1); };
 
