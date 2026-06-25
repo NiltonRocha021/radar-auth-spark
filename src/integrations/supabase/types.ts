@@ -226,6 +226,7 @@ export type Database = {
           agent: string | null
           content: string
           created_at: string
+          expires_at: string | null
           id: string
           metadata: Json | null
           role: string
@@ -235,6 +236,7 @@ export type Database = {
           agent?: string | null
           content: string
           created_at?: string
+          expires_at?: string | null
           id?: string
           metadata?: Json | null
           role: string
@@ -244,6 +246,7 @@ export type Database = {
           agent?: string | null
           content?: string
           created_at?: string
+          expires_at?: string | null
           id?: string
           metadata?: Json | null
           role?: string
@@ -732,6 +735,7 @@ export type Database = {
         }
         Returns: number
       }
+      purge_expired_copilot_history: { Args: never; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
