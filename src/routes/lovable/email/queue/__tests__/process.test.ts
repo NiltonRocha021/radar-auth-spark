@@ -131,7 +131,7 @@ describe('email queue processor — TTL fallback', () => {
     )
 
     // Warning must be emitted with diagnostic context.
-    const warnCall = warnSpy.mock.calls.find((c) =>
+    const warnCall = warnSpy.mock.calls.find((c: unknown[]) =>
       String(c[0]).includes('timestamp de enfileiramento')
     )
     expect(warnCall).toBeTruthy()
