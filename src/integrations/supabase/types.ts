@@ -143,6 +143,66 @@ export type Database = {
         }
         Relationships: []
       }
+      calibrator_runs: {
+        Row: {
+          created_at: string
+          full_result: Json | null
+          id: string
+          initial_balance: number
+          leverage: number
+          losses: number
+          max_drawdown: number
+          period_days: number
+          pnl: number
+          pnl_pct: number
+          profile: string
+          sharpe: number
+          symbol: string
+          trades: number
+          user_id: string
+          win_rate: number
+          wins: number
+        }
+        Insert: {
+          created_at?: string
+          full_result?: Json | null
+          id?: string
+          initial_balance: number
+          leverage?: number
+          losses?: number
+          max_drawdown?: number
+          period_days: number
+          pnl?: number
+          pnl_pct?: number
+          profile: string
+          sharpe?: number
+          symbol: string
+          trades?: number
+          user_id: string
+          win_rate?: number
+          wins?: number
+        }
+        Update: {
+          created_at?: string
+          full_result?: Json | null
+          id?: string
+          initial_balance?: number
+          leverage?: number
+          losses?: number
+          max_drawdown?: number
+          period_days?: number
+          pnl?: number
+          pnl_pct?: number
+          profile?: string
+          sharpe?: number
+          symbol?: string
+          trades?: number
+          user_id?: string
+          win_rate?: number
+          wins?: number
+        }
+        Relationships: []
+      }
       copilot_history: {
         Row: {
           agent: string | null
