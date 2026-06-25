@@ -32,7 +32,7 @@ export function CopilotPanel({
 
   const { messages, orbState, isConnected, isRecording, latency,
     sendMessage, startRecording, stopRecording, clearHistory, reconnect } =
-    useCopilotWs({ userId, token, marketContext, traderProfile, onAlert });
+    useCopilot({ userId, token, marketContext, traderProfile, onAlert });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
