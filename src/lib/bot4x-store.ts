@@ -484,7 +484,10 @@ export const useBot4xStore = create<State>()(
       },
       setAvoidPairs: (pairs) => {
         set({ avoidPairs: pairs });
+        const uid = get().userId;
+        if (uid) saveConfig(uid, { avoidPairs: pairs });
       },
+
       closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
       seedOrders: () => {
         const sample: Order[] = [
