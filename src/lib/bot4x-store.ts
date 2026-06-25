@@ -14,7 +14,7 @@ import { PROFILES } from "./bot4x-data";
 import { bot4xAdapter, type BackendBot4xExecution } from "@/adapters/backend/bot4x.adapter";
 import { backendWs } from "@/adapters/backend/ws-client";
 import { supabase } from "@/integrations/supabase/client";
-import { saveTrade, loadTrades } from "./bot4x-trades-db";
+import { saveTrade, loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
 import { loadConfig, saveConfig } from "./bot4x-config-db";
 import type { CalibProfile as CalibProfileType } from "./bot4x-data";
 
@@ -416,6 +416,12 @@ export const useBot4xStore = create<State>()(
                 set((prev) => ({
                   history: [trade, ...prev.history].slice(0, 500),
                 }));
+                // REAL mode: persist via outbox to survive replication failures.
+                if (s.userId) {
+                  void saveTradeWithOutbox(s.userId, trade).catch((err) =>
+                    console.error("[Bot4x] saveTradeWithOutbox failed:", err),
+                  );
+                }
                 break;
               }
               case "CIRCUIT_BREAKER": {

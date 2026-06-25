@@ -59,3 +59,38 @@ Vantagens: um único deploy, observabilidade unificada, fim das duas
 camadas de validação de JWT. Custo: reescrever o motor real do bot e os
 streams WS num modelo serverless — não trivial e fora do escopo das
 Fases 1/2 desta auditoria.
+
+---
+
+## Outbox Pattern para trades em modo REAL
+
+Em modo REAL, o NestJS fecha a ordem na exchange e em seguida tenta
+replicar o trade no Supabase. Se a replicação falhar (rede, RLS, schema
+drift), os dados divergem permanentemente e o usuário perde o registro
+financeiro.
+
+Para mitigar isso no lado que controlamos (Supabase + cliente), foi
+implementado um Outbox Pattern leve:
+
+- Tabela `public.trade_outbox` com colunas `user_id`, `trade_data` (JSONB),
+  `status` (`pending` / `processed` / `failed`), `attempts`, `last_error`,
+  `processed_at`. Índice parcial em `(status, created_at) WHERE status =
+  'pending'` para o worker de reconciliação.
+- RLS: o usuário só lê/escreve o próprio outbox (diagnóstico); o
+  `service_role` tem acesso total para o worker server-side.
+- `saveTradeWithOutbox(userId, trade)` em `src/lib/bot4x-trades-db.ts`:
+  1. INSERT no `trade_outbox` como `pending` — fonte de verdade.
+  2. Tenta `saveTrade()` direto em `bot4x_trades` como otimização.
+  3. Em sucesso, marca a linha do outbox como `processed`.
+  4. Em falha, deixa `pending` — um worker server-side reconcilia depois.
+- O `useBot4xStore` chama `saveTradeWithOutbox()` no handler do evento
+  WebSocket `bot4x:update` tipo `EXECUTION` (apenas modo REAL).
+
+Garantias:
+
+- Nenhum trade real é perdido por falha transitória de write em
+  `bot4x_trades` — o registro existe no outbox até ser conciliado.
+- Idempotência: `saveTrade` faz UPSERT por `id`; o worker pode
+  re-aplicar `pending` sem duplicar.
+- Observabilidade: o usuário pode listar o próprio outbox para
+  diagnóstico (linhas `pending`/`failed` indicam problemas de replicação).

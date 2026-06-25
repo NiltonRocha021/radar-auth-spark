@@ -42,6 +42,40 @@ export async function saveTrade(userId: string, trade: Trade): Promise<void> {
   }
 }
 
+/**
+ * Outbox Pattern: garante que o trade nunca se perca mesmo se o write
+ * direto em `bot4x_trades` falhar. Insere no outbox como fonte de verdade
+ * e tenta o write direto como otimização — um worker server-side
+ * reconcilia rows com status='pending'.
+ */
+export async function saveTradeWithOutbox(userId: string, trade: Trade): Promise<void> {
+  const { error: outboxError } = await supabase
+    .from("trade_outbox")
+    .insert({
+      user_id: userId,
+      trade_data: trade as unknown as import("@/integrations/supabase/types").Json,
+      status: "pending",
+    });
+
+  if (outboxError) {
+    console.error("[bot4x-trades-db] outbox insert error:", outboxError.message);
+    throw outboxError;
+  }
+
+  try {
+    await saveTrade(userId, trade);
+    await supabase
+      .from("trade_outbox")
+      .update({ status: "processed", processed_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .contains("trade_data", { id: trade.id });
+  } catch (err) {
+    // Falhou — o worker de reconciliação processará depois via status='pending'.
+    console.warn("[bot4x-trades-db] direct save failed, outbox will reconcile:", err);
+  }
+}
+
 export async function loadTrades(userId: string, limitDays = 90): Promise<Trade[]> {
   const since = new Date();
   since.setDate(since.getDate() - limitDays);
