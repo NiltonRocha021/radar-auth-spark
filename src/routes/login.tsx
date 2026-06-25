@@ -405,8 +405,14 @@ function SignUpForm() {
       <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer pt-1">
         <input type="checkbox" {...register("terms")} className="mt-0.5 size-4 rounded border-border bg-secondary accent-[var(--brand-blue)]" />
         <span>
-          I agree to the <span className="text-[var(--brand-cyan)]">Terms of Service</span> and{" "}
-          <span className="text-[var(--brand-cyan)]">Privacy Policy</span>
+          I agree to the{" "}
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-cyan)] hover:underline">
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-cyan)] hover:underline">
+            Privacy Policy
+          </a>
         </span>
       </label>
       {errors.terms && <p className="text-xs text-destructive">{errors.terms.message as string}</p>}
