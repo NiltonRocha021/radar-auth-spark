@@ -49,6 +49,8 @@ function AuthGate() {
 
   const initBot4x = useBot4xStore((s) => s.init);
   useDnaAutoCorrector(!!session);
+  useStoreCleanup();
+
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/login" });
