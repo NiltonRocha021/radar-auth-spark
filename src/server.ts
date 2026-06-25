@@ -86,6 +86,10 @@ function addSecurityHeaders(response: Response, nonce: string): Response {
     .filter(Boolean)
     .join(" ");
 
+  const frameAncestors = isDev
+    ? "frame-ancestors 'self' https://*.lovable.app https://lovable.dev https://*.lovable.dev"
+    : "frame-ancestors 'none'";
+
   headers.set(
     "Content-Security-Policy",
     [
@@ -95,14 +99,18 @@ function addSecurityHeaders(response: Response, nonce: string): Response {
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       connectSrc,
-      "frame-ancestors 'none'",
+      frameAncestors,
       "base-uri 'self'",
       "form-action 'self'",
       "object-src 'none'",
     ].join("; "),
   );
 
-  headers.set("X-Frame-Options", "DENY");
+  if (!isDev) {
+    headers.set("X-Frame-Options", "DENY");
+  } else {
+    headers.delete("X-Frame-Options");
+  }
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set(
