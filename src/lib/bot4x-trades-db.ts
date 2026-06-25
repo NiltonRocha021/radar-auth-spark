@@ -50,27 +50,39 @@ export async function saveTrade(userId: string, trade: Trade): Promise<void> {
  * reconcilia rows com status='pending'.
  */
 export async function saveTradeWithOutbox(userId: string, trade: Trade): Promise<void> {
-  const { error: outboxError } = await supabase
+  const { data: outboxRow, error: outboxError } = await supabase
     .from("trade_outbox")
     .insert({
       user_id: userId,
       trade_data: trade as unknown as import("@/integrations/supabase/types").Json,
       status: "pending",
-    });
+    })
+    .select("id")
+    .single();
 
-  if (outboxError) {
-    logger.error("[bot4x-trades-db] outbox insert error", { error: outboxError, message: outboxError.message });
-    throw outboxError;
+  if (outboxError || !outboxRow) {
+    logger.error("[bot4x-trades-db] outbox insert error", {
+      error: outboxError,
+      message: outboxError?.message,
+    });
+    throw outboxError ?? new Error("outbox insert returned no row");
   }
 
   try {
     await saveTrade(userId, trade);
-    await supabase
+    // Filtra pelo PK da linha recém-inserida — nunca por JSONB — para
+    // evitar race condition com workers concorrentes ou trades duplicados.
+    const { error: updateError } = await supabase
       .from("trade_outbox")
       .update({ status: "processed", processed_at: new Date().toISOString() })
-      .eq("user_id", userId)
-      .eq("status", "pending")
-      .contains("trade_data", { id: trade.id });
+      .eq("id", outboxRow.id);
+    if (updateError) {
+      logger.error("[bot4x-trades-db] outbox mark-processed error", {
+        error: updateError,
+        message: updateError.message,
+        outboxId: outboxRow.id,
+      });
+    }
   } catch (err) {
     // Falhou — o worker de reconciliação processará depois via status='pending'.
     console.warn("[bot4x-trades-db] direct save failed, outbox will reconcile:", err);
