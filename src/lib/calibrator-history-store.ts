@@ -3,6 +3,7 @@
 // `subscribe` é preservado para invalidação em consumidores reativos.
 import { supabase } from "@/integrations/supabase/client";
 import type {
+import { logger } from "./logger";
   SimulationProfile,
   SimulationResultUI,
 } from "@/adapters/backend/calibrator.adapter";
@@ -73,7 +74,7 @@ export const calibratorHistoryStore = {
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) {
-      console.error("[calibrator-history] list:", error.message);
+      logger.error("[calibrator-history] list", { error: error, message: error.message });
       return [];
     }
     return (data ?? []).map(rowToEntry);
@@ -105,7 +106,7 @@ export const calibratorHistoryStore = {
       .select()
       .single();
     if (error || !data) {
-      console.error("[calibrator-history] add() falhou ao inserir em calibrator_runs", {
+      logger.error("[calibrator-history] add() falhou ao inserir em calibrator_runs", {
         userId,
         profile: entry.params.profile,
         symbol: entry.params.symbol,
@@ -134,7 +135,7 @@ export const calibratorHistoryStore = {
       .eq("id", id)
       .maybeSingle();
     if (error) {
-      console.error("[calibrator-history] get:", error.message);
+      logger.error("[calibrator-history] get", { error: error, message: error.message });
       return undefined;
     }
     return data ? rowToEntry(data) : undefined;
@@ -146,7 +147,7 @@ export const calibratorHistoryStore = {
       .delete()
       .eq("user_id", userId)
       .eq("id", id);
-    if (error) console.error("[calibrator-history] remove:", error.message);
+    if (error) logger.error("[calibrator-history] remove", { error: error, message: error.message });
     notify();
   },
 
@@ -155,7 +156,7 @@ export const calibratorHistoryStore = {
       .from("calibrator_runs")
       .delete()
       .eq("user_id", userId);
-    if (error) console.error("[calibrator-history] clear:", error.message);
+    if (error) logger.error("[calibrator-history] clear", { error: error, message: error.message });
     notify();
   },
 
@@ -195,7 +196,7 @@ export async function recordSimulation(
   try {
     return await calibratorHistoryStore.add(userId, entry);
   } catch (err) {
-    console.error(
+    logger.error(
       "[calibrator-history] recordSimulation falhou ao persistir no Supabase",
       {
         userId,

@@ -8,6 +8,7 @@
 // serão dropadas em migração futura. A leitura faz fallback para elas
 // caso uma linha legada não tenha sido alcançada pelo backfill.
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "./logger";
 
 export interface Bot4xConfigRow {
   userId: string;
@@ -60,7 +61,7 @@ export async function loadConfig(userId: string): Promise<Bot4xConfigRow | null>
     .maybeSingle();
 
   if (error) {
-    console.error("[bot4x-config-db] loadConfig error:", error.message);
+    logger.error("[bot4x-config-db] loadConfig error", { error: error, message: error.message });
     return null;
   }
   if (!data) return null;
@@ -119,5 +120,5 @@ export async function saveConfig(userId: string, config: Partial<Bot4xConfigRow>
   const { error } = await supabase
     .from("bot4x_configs")
     .upsert(row, { onConflict: "user_id" });
-  if (error) console.error("[bot4x-config-db] saveConfig error:", error.message);
+  if (error) logger.error("[bot4x-config-db] saveConfig error", { error: error, message: error.message });
 }
