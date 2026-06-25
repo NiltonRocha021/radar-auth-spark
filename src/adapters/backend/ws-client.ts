@@ -135,10 +135,15 @@ class BackendWsClient {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        const event: WsEvent = data?.event ?? data?.type;
-        if (!event) return;
-        const set = this.handlers.get(event);
-        set?.forEach((h) => h(data?.payload ?? data));
+        const event: WsEvent | undefined = data?.event ?? data?.type;
+        const payload = data?.payload ?? data;
+        // Roteamento por canal: usa data.channel se presente; senão, deriva
+        // do prefixo do evento (ex.: "copilot:message" → canal "copilot").
+        const channel: string | undefined =
+          data?.channel ??
+          (typeof event === "string" && event.includes(":") ? event.split(":")[0] : undefined);
+        if (channel) this.channels.get(channel)?.forEach((h) => h(payload));
+        if (event) this.handlers.get(event)?.forEach((h) => h(payload));
       } catch {
         /* ignore */
       }
