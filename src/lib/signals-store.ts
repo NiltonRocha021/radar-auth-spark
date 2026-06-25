@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { initialSignals, type Signal, type AssetClass } from "./signals-data";
+import { type Signal, type AssetClass } from "./signals-data";
 import { backendWs } from "@/adapters/backend/ws-client";
 
 
@@ -62,7 +62,10 @@ type State = {
 
 
 export const useSignalsStore = create<State>((set, get) => ({
-  signals: initialSignals,
+  // Em produção começa vazio — sinais reais chegam via syncFromBackend()/WS.
+  // Em dev os mocks são carregados em init() via import dinâmico (tree-shaken
+  // do bundle de produção).
+  signals: [],
   filters: {
     search: "",
     assetClass: "All",
@@ -162,6 +165,14 @@ export const useSignalsStore = create<State>((set, get) => ({
   },
   init: () => {
     if (get()._intervalIds.size > 0 || get()._wsUnsub) return;
+
+    // Mocks SOMENTE em dev — import dinâmico para que o chunk não entre no
+    // bundle de produção (tree-shaking pelo guard `import.meta.env.DEV`).
+    if (import.meta.env.DEV) {
+      void import("./signals-data.mock").then(({ mockSignals }) => {
+        set((st) => (st.signals.length === 0 ? { signals: mockSignals } : st));
+      });
+    }
 
     // Sync inicial
     get().syncFromBackend();
