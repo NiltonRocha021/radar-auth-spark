@@ -25,7 +25,7 @@ function brandedErrorResponse(): Response {
   });
 }
 
-function addSecurityHeaders(response: Response, nonce: string): Response {
+async function addSecurityHeaders(response: Response, nonce: string): Promise<Response> {
   const headers = new Headers(response.headers);
 
   // ──────────────────────────────────────────────────────────────────────
@@ -128,7 +128,12 @@ function addSecurityHeaders(response: Response, nonce: string): Response {
     );
   }
 
-  return new Response(response.body, {
+  const contentType = headers.get("content-type") ?? "";
+  const body = contentType.includes("text/html")
+    ? (await response.text()).replace(/<script(?![^>]*\bnonce=)/g, `<script nonce="${nonce}"`)
+    : response.body;
+
+  return new Response(body, {
     status: response.status,
     statusText: response.statusText,
     headers,
@@ -205,7 +210,7 @@ export default {
     } catch (error) {
       console.error("[server] fetch failed", { traceId }, error);
       return withTraceHeader(
-        addSecurityHeaders(brandedErrorResponse(), nonce),
+        await addSecurityHeaders(brandedErrorResponse(), nonce),
         traceId,
       );
     }
