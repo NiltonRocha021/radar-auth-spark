@@ -556,6 +556,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_user_notifications: {
+        Args: { dismissed_after_days?: number; max_age_days?: number }
+        Returns: number
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
