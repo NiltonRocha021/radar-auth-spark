@@ -61,12 +61,48 @@ function makeBuilder(): Builder {
   return b;
 }
 
-const builder = makeBuilder();
-const fromMock = vi.fn(() => builder);
+const { builder, fromMock } = vi.hoisted(() => {
+  // Definido dentro de vi.hoisted para ficar disponível no factory de vi.mock,
+  // que é içado para o topo do arquivo.
+  const mk = () => {
+    const b: Record<string, unknown> = {};
+    b.__upsertResult = { error: null };
+    b.__insertResult = { data: { id: "outbox-1" }, error: null };
+    b.__updateResult = { error: null };
+    b.__selectResult = { data: [], error: null };
+    b.__deleteResult = { error: null };
+    return b;
+  };
+  const b = mk();
+  return { builder: b, fromMock: { current: null as unknown as ReturnType<typeof Object> } };
+});
+
+// Reconstrói o builder com mocks "reais" do vitest (fora do hoisted, que roda antes do vi).
+function wireBuilder() {
+  builder.upsert = vi.fn(() => Promise.resolve(builder.__upsertResult));
+  builder.single = vi.fn(() => Promise.resolve(builder.__insertResult));
+  builder.select = vi.fn((arg?: string) => {
+    if (arg === "id") return { single: builder.single };
+    return builder;
+  });
+  builder.insert = vi.fn(() => ({ select: builder.select }));
+  builder.update = vi.fn(() => ({ eq: vi.fn(() => Promise.resolve(builder.__updateResult)) }));
+  builder.delete = vi.fn(() => ({
+    eq: vi.fn(() => ({ eq: vi.fn(() => Promise.resolve(builder.__deleteResult)) })),
+  }));
+  builder.limit = vi.fn(() => Promise.resolve(builder.__selectResult));
+  builder.order = vi.fn(() => ({ limit: builder.limit }));
+  builder.gte = vi.fn(() => ({ order: builder.order }));
+  builder.eq = vi.fn(() => ({ gte: builder.gte }));
+}
+wireBuilder();
+const fromImpl = vi.fn(() => builder);
+fromMock.current = fromImpl;
 
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: fromMock },
+  supabase: { from: (...args: unknown[]) => fromMock.current(...args) },
 }));
+
 
 vi.mock("../logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn(), log: vi.fn() },
