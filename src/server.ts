@@ -79,6 +79,16 @@ function addSecurityHeaders(response: Response, nonce: string): Response {
     "camera=(), microphone=(), geolocation=(), interest-cohort=()",
   );
 
+  // HSTS apenas em produção — em dev pode rodar em http://localhost e
+  // ligar HSTS lá travaria o navegador em https. 2 anos + includeSubDomains
+  // + preload são os requisitos para submissão à preload list do Chromium.
+  if (!isDev) {
+    headers.set(
+      "Strict-Transport-Security",
+      "max-age=63072000; includeSubDomains; preload",
+    );
+  }
+
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
