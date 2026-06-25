@@ -16,8 +16,11 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
+    // Pré-renderiza apenas as páginas estáticas/legais. `enabled:false` no
+    // nível raiz evita que o crawler tente rotas autenticadas (que retornam
+    // 401 no SSR sem sessão) e quebre o build.
     prerender: {
-      enabled: true,
+      enabled: false,
     },
     pages: [
       { path: "/terms", prerender: { enabled: true } },
