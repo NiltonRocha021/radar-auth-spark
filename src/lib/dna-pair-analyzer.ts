@@ -101,7 +101,15 @@ function trendOf(trades: Trade[]): PairTrend {
 
 // ─── MAIN FUNCTION ────────────────────────────────────────────────────────────
 
-export function analyzePairs(history: Trade[]): PairAnalysisResult {
+export function analyzePairs(
+  history: Trade[],
+  options: { minSample?: number } = {},
+): PairAnalysisResult {
+  const minSampleRaw = options.minSample ?? DEFAULT_DNA_MIN_SAMPLE;
+  const MIN_SAMPLE = Math.max(
+    DNA_MIN_SAMPLE_BOUNDS.min,
+    Math.min(DNA_MIN_SAMPLE_BOUNDS.max, Math.floor(minSampleRaw)),
+  );
   // Sort newest-first by timestamp embedded in id (`o_<ts>_...`)
   const sorted = [...history].sort((a, b) => {
     const ta = Number((a.id.match(/^o_(\d+)/) ?? [])[1] ?? 0);
