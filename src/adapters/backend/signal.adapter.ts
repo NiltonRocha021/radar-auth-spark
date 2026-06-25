@@ -59,11 +59,19 @@ export function mapSignal(s: BackendSignal): SignalUI {
 
 export const signalAdapter = {
   async list(): Promise<SignalUI[]> {
-    const data = await api.get<BackendSignal[]>(endpoints.signals.list);
-    return (data ?? []).map(mapSignal);
+    try {
+      const data = await api.get<BackendSignal[]>(endpoints.signals.list);
+      return (data ?? []).map(mapSignal);
+    } catch {
+      return [];
+    }
   },
   async byId(id: string): Promise<SignalUI | null> {
-    const data = await api.get<BackendSignal | null>(endpoints.signals.byId(id));
-    return data ? mapSignal(data) : null;
+    try {
+      const data = await api.get<BackendSignal | null>(endpoints.signals.byId(id));
+      return data ? mapSignal(data) : null;
+    } catch {
+      return null;
+    }
   },
 };

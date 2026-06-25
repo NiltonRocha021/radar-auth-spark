@@ -170,11 +170,19 @@ export function mapSimulationResult(
 
 export const calibratorAdapter = {
   async getState(userId: string): Promise<CalibratorStateUI | null> {
-    const data = await api.get<BackendCalibratorPayload | null>(calibratorEndpoints.state(userId));
-    return data ? mapCalibratorState(data) : null;
+    try {
+      const data = await api.get<BackendCalibratorPayload | null>(calibratorEndpoints.state(userId));
+      return data ? mapCalibratorState(data) : null;
+    } catch {
+      return null;
+    }
   },
   async sendFeedback(userId: string, payload: Record<string, unknown>) {
-    return api.post(calibratorEndpoints.feedback(userId), payload);
+    try {
+      return await api.post(calibratorEndpoints.feedback(userId), payload);
+    } catch {
+      return null;
+    }
   },
   async simulate(userId: string, req: BackendSimulationRequest): Promise<SimulationResultUI> {
     try {
