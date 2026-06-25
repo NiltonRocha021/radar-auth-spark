@@ -254,7 +254,7 @@ function TickFeed() {
           </span>
           <span className="text-[12px] font-semibold text-foreground truncate">Feed de Ticks</span>
           <span className="text-[10px] text-muted-foreground tabular-nums hidden sm:inline">
-            · {processed.toLocaleString()} processados
+            {processed === 0 ? "· Aguardando primeiro tick..." : `· ${processed.toLocaleString()} processados`}
           </span>
         </div>
         <button
