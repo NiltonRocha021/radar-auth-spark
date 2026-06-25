@@ -60,4 +60,27 @@ export const logger = {
       }
     }
   },
+  /**
+   * Erros catastróficos que devem disparar alertas imediatos.
+   * Sempre emite no console e captura no Sentry com level=fatal.
+   */
+  fatal: (message: string, context?: Context) => {
+    if (isProd) {
+      const line = JSON.stringify({
+        level: "fatal",
+        message,
+        ...(context ?? {}),
+        ts: new Date().toISOString(),
+      });
+      console.error(line);
+    } else {
+      console.error("[FATAL]", message, context ?? "");
+    }
+    const err = context?.error;
+    if (err instanceof Error) {
+      Sentry.captureException(err, { level: "fatal", extra: { message, ...context } });
+    } else {
+      Sentry.captureMessage(message, { level: "fatal", extra: context });
+    }
+  },
 };
