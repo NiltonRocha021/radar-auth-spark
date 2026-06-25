@@ -497,6 +497,10 @@ export const useBot4xStore = create<State>()(
         const uid = get().userId;
         if (uid) saveConfig(uid, { avoidPairs: pairs });
       },
+      setDnaMinSample: (n) => {
+        const clamped = Math.max(5, Math.min(100, Math.floor(Number(n) || 10)));
+        set({ dnaMinSample: clamped });
+      },
 
       closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
       seedOrders: () => {
