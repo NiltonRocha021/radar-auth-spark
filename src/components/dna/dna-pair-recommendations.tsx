@@ -105,7 +105,14 @@ export function DnaPairRecommendations() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setResult(analyzePairs(useBot4xStore.getState().history, { minSample: MIN_SAMPLE }))}
+              onClick={() => {
+                const next = analyzePairs(useBot4xStore.getState().history, { minSample: MIN_SAMPLE });
+                setResult(next);
+                const closed = next.analyses.reduce((s, a) => s + a.total, 0);
+                toast.success("DNA recalculado", {
+                  description: `${next.analyses.length} par(es) · ${closed} trade(s) fechado(s) · ${next.preferred.length} PREFER · ${next.avoid.length} AVOID`,
+                });
+              }}
               className="h-8 gap-1.5 text-xs"
             >
               <RefreshCcw className="size-3.5" /> Atualizar
