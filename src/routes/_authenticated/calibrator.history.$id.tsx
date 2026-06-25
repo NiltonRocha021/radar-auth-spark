@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { Card } from "@/components/ui/card";
@@ -45,18 +46,28 @@ export const Route = createFileRoute("/_authenticated/calibrator/history/$id")({
 function CalibratorHistoryDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const [entry, setEntry] = useState<CalibratorHistoryEntry | undefined>(() =>
-    calibratorHistoryStore.get(id),
-  );
+  const { user } = useAuth();
+  const userId = user?.id;
+  const [entry, setEntry] = useState<CalibratorHistoryEntry | undefined>(undefined);
 
   useEffect(() => {
-    const unsub = calibratorHistoryStore.subscribe(() => {
-      setEntry(calibratorHistoryStore.get(id));
-    });
+    let alive = true;
+    const refresh = () => {
+      if (!userId) {
+        setEntry(undefined);
+        return;
+      }
+      calibratorHistoryStore.get(userId, id).then((e) => {
+        if (alive) setEntry(e);
+      });
+    };
+    refresh();
+    const unsub = calibratorHistoryStore.subscribe(refresh);
     return () => {
+      alive = false;
       unsub();
     };
-  }, [id]);
+  }, [id, userId]);
 
   if (!entry) {
     return (

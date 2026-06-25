@@ -132,8 +132,8 @@ function CalibratorHistoryPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    if (confirm("Limpar todo o histórico de simulações?"))
-                      calibratorHistoryStore.clear();
+                    if (userId && confirm("Limpar todo o histórico de simulações?"))
+                      calibratorHistoryStore.clear(userId);
                   }}
                 >
                   <Trash2 className="size-4 mr-2" /> Limpar
@@ -270,7 +270,7 @@ function CalibratorHistoryPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => calibratorHistoryStore.remove(e.id)}
+                              onClick={() => userId && calibratorHistoryStore.remove(userId, e.id)}
                               className="h-7 px-2 ml-1 text-muted-foreground hover:text-destructive"
                               title="Remover"
                             >
