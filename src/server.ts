@@ -28,12 +28,43 @@ function brandedErrorResponse(): Response {
 function addSecurityHeaders(response: Response, nonce: string): Response {
   const headers = new Headers(response.headers);
 
+  // ──────────────────────────────────────────────────────────────────────
+  // connect-src — hosts EXPLÍCITOS derivados das envs públicas.
+  // Schemes genéricos (`wss:`, `https:`) anulam a proteção da CSP contra
+  // SSRF / exfiltração via fetch ou WebSocket, então NÃO os usamos.
+  //
+  // Para liberar um novo host backend, adicione-o aqui E documente a env
+  // correspondente no `.env.example`. Mantenha as duas fontes em sincronia
+  // — uma origem que não esteja listada aqui será bloqueada pelo browser
+  // mesmo que o código tente conectar.
+  // ──────────────────────────────────────────────────────────────────────
   const supabaseUrl = process.env.VITE_SUPABASE_URL ?? "";
   const apiBase = process.env.VITE_API_BASE_URL ?? "";
+  const apiWs = process.env.VITE_API_WS_URL ?? "";
   const isDev = process.env.NODE_ENV !== "production";
 
-  // Derive wss:// origin from supabase URL for realtime
-  const supabaseWss = supabaseUrl ? supabaseUrl.replace(/^https?:/, "wss:") : "";
+  // Normaliza para SCHEME + HOST (sem path), evitando que um path acidental
+  // em VITE_API_BASE_URL gere uma diretiva CSP inválida.
+  const toOrigin = (raw: string): string => {
+    if (!raw) return "";
+    try {
+      return new URL(raw).origin;
+    } catch {
+      return "";
+    }
+  };
+
+  const supabaseOrigin = toOrigin(supabaseUrl);
+  // Realtime do Supabase usa o mesmo host via wss://.
+  const supabaseWss = supabaseOrigin ? supabaseOrigin.replace(/^https?:/, "wss:") : "";
+  const apiOrigin = toOrigin(apiBase);
+  const apiWsOrigin = toOrigin(apiWs);
+
+  // Em desenvolvimento local, libera o HMR/dev server do Vite e o backend
+  // NestJS rodando em localhost — sem isso, `pnpm dev` quebra com a CSP.
+  const devOrigins = isDev
+    ? ["http://localhost:*", "ws://localhost:*", "http://127.0.0.1:*", "ws://127.0.0.1:*"]
+    : [];
 
   const scriptSrc = isDev
     ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'`
@@ -44,13 +75,13 @@ function addSecurityHeaders(response: Response, nonce: string): Response {
   // controle nosso (atualmente quebraria SSR styles).
   const styleSrc = "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com";
 
-  // Hosts explícitos — sem schemes genéricos como "wss:" ou "https:" que
-  // efetivamente permitem qualquer origem.
   const connectSrc = [
     "connect-src 'self'",
-    supabaseUrl,
+    supabaseOrigin,
     supabaseWss,
-    apiBase,
+    apiOrigin,
+    apiWsOrigin,
+    ...devOrigins,
   ]
     .filter(Boolean)
     .join(" ");
