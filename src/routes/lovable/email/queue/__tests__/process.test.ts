@@ -13,12 +13,16 @@ vi.mock('@lovable.dev/email-js', () => ({
 type Result = { data?: unknown; error?: unknown }
 
 function makeBuilder(result: Result = { data: null, error: null }) {
+  const thenable = {
+    ...result,
+    then: (resolve: (v: Result) => void) => resolve(result),
+  }
   const builder: any = {
     select: vi.fn(() => builder),
     insert: vi.fn(() => Promise.resolve(result)),
     update: vi.fn(() => builder),
-    eq: vi.fn(() => Promise.resolve(result)),
-    in: vi.fn(() => Promise.resolve(result)),
+    eq: vi.fn(() => thenable),
+    in: vi.fn(() => builder),
     single: vi.fn(() => Promise.resolve(result)),
   }
   return builder
