@@ -108,8 +108,9 @@ function CalibratorHistoryDetailPage() {
   }
 
   function remove() {
+    if (!userId) return;
     if (!confirm("Remover esta simulação do histórico?")) return;
-    calibratorHistoryStore.remove(entry!.id);
+    calibratorHistoryStore.remove(userId, entry!.id);
     navigate({ to: "/calibrator/history" });
   }
 
