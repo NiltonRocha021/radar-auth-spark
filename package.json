@@ -1,6 +1,9 @@
 {
   "name": "tanstack_start_ts",
   "private": true,
+  "lovableNotes": {
+    "nitro": "INTENCIONAL: nitro publica apenas builds beta date-stamped no dist-tag `latest` (3.0.260610-beta em 2026-06). O único release sem pre-release tag é 3.0.0, que NÃO satisfaz o peerDependency `nitro: >=3.0.260603-beta` declarado por @lovable.dev/vite-tanstack-config — usar 3.0.0 quebra o build. Mantemos a beta mais recente; ela está na allowlist do workflow dependency-audit. Revisitar quando o upstream publicar um release estável >= 3.0.260603."
+  },
   "sideEffects": false,
   "type": "module",
   "scripts": {
