@@ -14,6 +14,7 @@ import { PROFILES } from "./bot4x-data";
 import { bot4xAdapter, type BackendBot4xExecution } from "@/adapters/backend/bot4x.adapter";
 import { backendWs } from "@/adapters/backend/ws-client";
 import { supabase } from "@/integrations/supabase/client";
+import { saveTrade, loadTrades } from "./bot4x-trades-db";
 
 // ─── FEATURE FLAG ─────────────────────────────────────────────────────────────
 const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
@@ -197,6 +198,16 @@ export const useBot4xStore = create<State>()(
         set({ userId: uid });
         // Rehidrata o store com os dados do novo usuário
         useBot4xStore.persist.rehydrate();
+        // Carrega histórico real do banco ao logar
+        if (uid) {
+          loadTrades(uid)
+            .then((trades) => {
+              if (trades.length > 0) set({ history: trades });
+            })
+            .catch(() => {
+              /* silently ignore — localStorage fallback já foi carregado */
+            });
+        }
       },
 
       // ─── INIT ─────────────────────────────────────────────────────────────
@@ -209,7 +220,22 @@ export const useBot4xStore = create<State>()(
           if (s._ticker) return;
 
           if (s.history.length === 0) {
-            set({ history: genHistory(183) });
+            const uid = get().userId;
+            if (uid) {
+              loadTrades(uid)
+                .then((trades) => {
+                  if (trades.length > 0) {
+                    set({ history: trades });
+                  } else {
+                    set({ history: genHistory(183) });
+                  }
+                })
+                .catch(() => {
+                  set({ history: genHistory(183) });
+                });
+            } else {
+              set({ history: genHistory(183) });
+            }
           }
 
           get().seedOrders();
