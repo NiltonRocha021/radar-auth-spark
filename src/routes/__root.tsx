@@ -13,6 +13,11 @@ import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
 import { backendWs } from "@/adapters/backend/ws-client";
+import { initSentry } from "@/lib/sentry";
+
+// Idempotente — múltiplas chamadas (HMR, SSR rehydrate) são no-op.
+initSentry();
+
 
 
 // GlobalErrorBoundary: captura erros de runtime em componentes fora do ciclo
