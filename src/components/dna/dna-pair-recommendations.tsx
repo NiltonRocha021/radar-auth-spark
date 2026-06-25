@@ -74,16 +74,38 @@ export function DnaPairRecommendations() {
               <h2 className="text-sm font-semibold">Recomendações de Pares (DNA)</h2>
             </div>
             <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-              Classificação estatística via intervalo de confiança de Wilson com correção de Bonferroni. Requer mínimo
-              de {MIN_SAMPLE} trades fechados por par. Pares PREFER são priorizados pelo Bot4x; pares AVOID têm execução
-              bloqueada.
+              Classificação estatística via intervalo de confiança de Wilson com correção de Bonferroni. Veredito
+              (PREFER/AVOID) só é liberado a partir de{" "}
+              <span className="font-semibold text-foreground" title={`Configurável (${DNA_MIN_SAMPLE_BOUNDS.min}–${DNA_MIN_SAMPLE_BOUNDS.max})`}>
+                {MIN_SAMPLE} trades fechados
+              </span>{" "}
+              por par (padrão 10). Pares PREFER são priorizados pelo Bot4x; pares AVOID têm execução bloqueada.
             </p>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-end">
+            <div className="flex flex-col gap-1">
+              <Label
+                htmlFor="dna-min-sample"
+                className="text-[10px] uppercase tracking-wide text-muted-foreground"
+                title={`Mínimo de trades fechados por par para liberar PREFER/AVOID (${DNA_MIN_SAMPLE_BOUNDS.min}–${DNA_MIN_SAMPLE_BOUNDS.max}).`}
+              >
+                Mín. trades
+              </Label>
+              <Input
+                id="dna-min-sample"
+                type="number"
+                min={DNA_MIN_SAMPLE_BOUNDS.min}
+                max={DNA_MIN_SAMPLE_BOUNDS.max}
+                step={1}
+                value={MIN_SAMPLE}
+                onChange={(e) => setDnaMinSample(Number(e.target.value))}
+                className="h-8 w-20 text-xs tabular-nums"
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setResult(analyzePairs(useBot4xStore.getState().history))}
+              onClick={() => setResult(analyzePairs(useBot4xStore.getState().history, { minSample: MIN_SAMPLE }))}
               className="h-8 gap-1.5 text-xs"
             >
               <RefreshCcw className="size-3.5" /> Atualizar
