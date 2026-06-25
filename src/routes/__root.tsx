@@ -196,6 +196,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        backendWs.resetAndReconnect();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   return (
     <GlobalErrorBoundary>
       <QueryClientProvider client={queryClient}>
@@ -208,3 +218,4 @@ function RootComponent() {
   );
 
 }
+
