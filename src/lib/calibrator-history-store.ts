@@ -178,7 +178,29 @@ export async function recordSimulation(
     fullResult: result,
   };
   if (!userId) {
+    console.warn(
+      "[calibrator-history] recordSimulation ignorado: usuário não autenticado",
+      { profile: params.profile, symbol: params.symbol, periodDays: params.periodDays },
+    );
     return { id: `anon_${Date.now()}`, createdAt: new Date().toISOString(), ...entry };
   }
-  return calibratorHistoryStore.add(userId, entry);
+  try {
+    return await calibratorHistoryStore.add(userId, entry);
+  } catch (err) {
+    console.error(
+      "[calibrator-history] recordSimulation falhou ao persistir no Supabase",
+      {
+        userId,
+        profile: params.profile,
+        symbol: params.symbol,
+        periodDays: params.periodDays,
+        initialBalance: params.initialBalance,
+        leverage: params.leverage,
+        error: err instanceof Error
+          ? { name: err.name, message: err.message, stack: err.stack }
+          : err,
+      },
+    );
+    return { id: `local_${Date.now()}`, createdAt: new Date().toISOString(), ...entry };
+  }
 }
