@@ -25,6 +25,8 @@ export type Signal = {
   session: Session;
   ageMin: number;
   status: SignalStatus;
+  /** true = dado de demonstração, não usar para trading real */
+  isMock?: boolean;
 };
 
 const exchanges = ["Binance", "Bybit", "OKX", "Coinbase"];
@@ -113,6 +115,7 @@ export const initialSignals: Signal[] = pairs.map((p, i) => {
     session: sessions[Math.floor(rand() * sessions.length)],
     ageMin,
     status,
+    isMock: true,
   };
 });
 

@@ -41,6 +41,14 @@ export function SignalCard({ signal }: { signal: Signal }) {
 
       {/* Status badges */}
       <div className="absolute top-2 right-2 flex gap-1 z-10">
+        {signal.isMock && (
+          <span
+            className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-dashed border-muted-foreground/60 text-muted-foreground tracking-wider bg-background/40"
+            title="Sinal de demonstração — não use para trading real"
+          >
+            DEMO
+          </span>
+        )}
         {signal.status === "new" && (
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#378ADD] text-white tracking-wider">NEW</span>
         )}

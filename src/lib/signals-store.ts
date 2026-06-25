@@ -143,13 +143,17 @@ export const useSignalsStore = create<State>((set, get) => ({
         session: "NY",
         ageMin: 0,
         status: (s.state === "active" ? "active" : "expired") as Signal["status"],
+        isMock: false,
       }));
 
-      // Fonte de verdade após sync: somente sinais do backend.
-      // Mocks (ids "sig-*"/"live-*") são descartados — só apareciam
-      // pré-conexão para a UI não ficar vazia.
-      set(() => ({
-        signals: mapped.slice(0, 60),
+      // Em dev mantemos mocks atrás dos sinais reais para visualização;
+      // em produção os mocks são descartados para evitar decisões baseadas
+      // em dados fictícios.
+      set((st) => ({
+        signals: [
+          ...mapped,
+          ...(import.meta.env.DEV ? st.signals.filter((s) => s.isMock) : []),
+        ].slice(0, 60),
         lastSyncAt: Date.now(),
       }));
     } catch {
