@@ -327,7 +327,10 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
       />
 
       <p className="text-[11px] text-muted-foreground text-center pt-2">
-        By signing in you agree to our Terms of Service
+        By signing in you agree to our{" "}
+        <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
+          Terms of Service
+        </a>
       </p>
     </form>
   );
