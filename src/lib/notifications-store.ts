@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "./logger";
 
 export type NotifType = "EXECUTE" | "EMERGENCY_SHUTDOWN" | "PROFIT_LOCK" | "ALERT" | "INFO";
 
@@ -66,7 +67,7 @@ export const useNotificationsStore = create<State>((set, get) => ({
           dismissed: false,
         })
         .then(({ error }) => {
-          if (error) console.error("[notifications] insert:", error.message);
+          if (error) logger.error("[notifications] insert", { error: error, message: error.message });
         });
 
       // Mantém também o log no profile (último evento crítico + contador)
@@ -84,7 +85,7 @@ export const useNotificationsStore = create<State>((set, get) => ({
         })
         .eq("id", uid)
         .then(({ error }) => {
-          if (error) console.error("[notifications] profile log:", error.message);
+          if (error) logger.error("[notifications] profile log", { error: error, message: error.message });
         });
     }
     return ev;
@@ -101,7 +102,7 @@ export const useNotificationsStore = create<State>((set, get) => ({
         .eq("user_id", uid)
         .eq("read", false)
         .then(({ error }) => {
-          if (error) console.error("[notifications] markAllRead:", error.message);
+          if (error) logger.error("[notifications] markAllRead", { error: error, message: error.message });
         });
     }
   },
@@ -117,7 +118,7 @@ export const useNotificationsStore = create<State>((set, get) => ({
         .eq("user_id", uid)
         .eq("id", id)
         .then(({ error }) => {
-          if (error) console.error("[notifications] dismiss:", error.message);
+          if (error) logger.error("[notifications] dismiss", { error: error, message: error.message });
         });
     }
   },
@@ -133,7 +134,7 @@ export const useNotificationsStore = create<State>((set, get) => ({
         .eq("user_id", uid)
         .eq("dismissed", false)
         .then(({ error }) => {
-          if (error) console.error("[notifications] clear:", error.message);
+          if (error) logger.error("[notifications] clear", { error: error, message: error.message });
         });
     }
   },
@@ -147,7 +148,7 @@ export const useNotificationsStore = create<State>((set, get) => ({
       .order("created_at", { ascending: false })
       .limit(30);
     if (error) {
-      console.error("[notifications] hydrate:", error.message);
+      logger.error("[notifications] hydrate", { error: error, message: error.message });
       return;
     }
     const persisted: NotifEvent[] = (data ?? []).map((r) => ({

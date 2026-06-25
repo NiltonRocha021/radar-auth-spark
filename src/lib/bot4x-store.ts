@@ -15,6 +15,7 @@ import { bot4xAdapter, type BackendBot4xExecution } from "@/adapters/backend/bot
 import { backendWs } from "@/adapters/backend/ws-client";
 import { supabase } from "@/integrations/supabase/client";
 import { saveTrade, loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
+import { logger } from "./logger";
 import { loadConfig, saveConfig } from "./bot4x-config-db";
 import type { CalibProfile as CalibProfileType } from "./bot4x-data";
 
@@ -419,7 +420,7 @@ export const useBot4xStore = create<State>()(
                 // REAL mode: persist via outbox to survive replication failures.
                 if (s.userId) {
                   void saveTradeWithOutbox(s.userId, trade).catch((err) =>
-                    console.error("[Bot4x] saveTradeWithOutbox failed:", err),
+                    logger.error("[Bot4x] saveTradeWithOutbox failed", { error: err, tradeId: trade.id }),
                   );
                 }
                 break;
@@ -444,7 +445,7 @@ export const useBot4xStore = create<State>()(
             }
           });
         } catch (err) {
-          console.error("[Bot4x] init real failed:", err);
+          logger.error("[Bot4x] init real failed", { error: err });
           set({
             status: "ERROR",
             errorMsg: "Não foi possível conectar ao backend. Tente novamente.",

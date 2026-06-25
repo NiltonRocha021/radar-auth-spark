@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "./logger";
 
 export interface UserPrefsRow {
   compactPill: boolean;
@@ -13,7 +14,7 @@ export async function loadPrefs(userId: string): Promise<UserPrefsRow | null> {
     .eq("user_id", userId)
     .maybeSingle();
   if (error) {
-    console.error("[user-prefs-db] load:", error.message);
+    logger.error("[user-prefs-db] load", { error: error, message: error.message });
     return null;
   }
   if (!data) return null;
@@ -35,5 +36,5 @@ export async function savePrefs(userId: string, prefs: Partial<UserPrefsRow>): P
   const { error } = await supabase
     .from("user_preferences")
     .upsert(row, { onConflict: "user_id" });
-  if (error) console.error("[user-prefs-db] save:", error.message);
+  if (error) logger.error("[user-prefs-db] save", { error: error, message: error.message });
 }
