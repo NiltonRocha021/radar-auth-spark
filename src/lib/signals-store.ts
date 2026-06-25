@@ -214,11 +214,19 @@ export const useSignalsStore = create<State>((set, get) => ({
 
 
 
-export function selectFilteredSorted(state: State): Signal[] {
-  const { signals, filters, sort } = state;
+// Núcleo da lógica, isolado para ser usado pelo seletor memoizado.
+// Recebe (signals, filters, sort) e devolve a lista filtrada+ordenada.
+// `createSelector` garante que esta função SÓ roda quando uma dessas três
+// referências muda — mudanças em `hoverId`, `detailId`, `flashIds`, etc.
+// retornam o array em cache (mesma referência) sem recomputar.
+function computeFilteredSorted(
+  signals: Signal[],
+  filters: Filters,
+  sort: SortKey,
+): Signal[] {
   const exchSet = new Set(filters.exchanges);
   const setupKeys = Object.keys(filters.setups).filter((k) => filters.setups[k]);
-  let list = signals.filter((s) => {
+  const list = signals.filter((s) => {
     if (filters.search && !s.asset.toLowerCase().includes(filters.search.toLowerCase())) return false;
     if (filters.assetClass !== "All" && s.assetClass !== filters.assetClass) return false;
     if (filters.timeframe !== "All" && s.tf !== filters.timeframe) return false;
@@ -233,16 +241,31 @@ export function selectFilteredSorted(state: State): Signal[] {
     if (filters.dnaCompat70 && s.dnaMatch < 70) return false;
     return true;
   });
-  list = [...list].sort((a, b) => {
+  return [...list].sort((a, b) => {
     if (sort === "score") return b.score - a.score;
     if (sort === "rr") return b.rr - a.rr;
     if (sort === "age") return a.ageMin - b.ageMin;
     return b.volDelta - a.volDelta;
   });
-  return list;
 }
 
-export function selectStats(signals: Signal[]) {
+// Seletor memoizado com cache de 1 entrada (default do reselect).
+// Re-renderiza apenas quando uma das 3 fontes de entrada muda por referência.
+export const selectFilteredSorted = createSelector(
+  [
+    (state: State) => state.signals,
+    (state: State) => state.filters,
+    (state: State) => state.sort,
+  ],
+  (signals, filters, sort) => computeFilteredSorted(signals, filters, sort),
+);
+
+// Hook conveniente: consome o seletor memoizado e usa `useShallow` para
+// evitar re-renders quando a referência do array filtrado não muda.
+export function useFilteredSignals(): Signal[] {
+  return useSignalsStore(useShallow((state) => selectFilteredSorted(state)));
+}
+
   const total = signals.length;
   const buy = signals.filter((s) => s.direction === "BUY").length;
   const sell = signals.filter((s) => s.direction === "SELL").length;
