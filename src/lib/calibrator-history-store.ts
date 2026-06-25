@@ -1,5 +1,7 @@
-// Histórico local de simulações do Calibrador.
-// Persistido em localStorage. Não substitui nada do backend — é apenas registro do que o usuário rodou no frontend.
+// Histórico de simulações do Calibrador — persistido no Supabase por usuário.
+// API: list/add/get/remove/clear são async e exigem userId.
+// `subscribe` é preservado para invalidação em consumidores reativos.
+import { supabase } from "@/integrations/supabase/client";
 import type {
   SimulationProfile,
   SimulationResultUI,
@@ -7,7 +9,7 @@ import type {
 
 export interface CalibratorHistoryEntry {
   id: string;
-  createdAt: string; // ISO
+  createdAt: string;
   userId?: string;
   params: {
     profile: SimulationProfile;
@@ -26,79 +28,141 @@ export interface CalibratorHistoryEntry {
     maxDrawdown: number;
     sharpe: number;
   };
-  /** Snapshot completo do resultado para visualização detalhada. */
   fullResult?: SimulationResultUI;
 }
 
-const KEY = "calibrator.history.v1";
-const MAX_ENTRIES = 100;
-
 type Listener = () => void;
 const listeners = new Set<Listener>();
-
-function read(): CalibratorHistoryEntry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function write(entries: CalibratorHistoryEntry[]) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
-  } catch {
-    /* quota or serialization error — ignore */
-  }
+function notify() {
   listeners.forEach((l) => l());
 }
 
+function rowToEntry(r: Record<string, unknown>): CalibratorHistoryEntry {
+  return {
+    id: String(r.id),
+    createdAt: String(r.created_at),
+    userId: r.user_id ? String(r.user_id) : undefined,
+    params: {
+      profile: r.profile as SimulationProfile,
+      symbol: String(r.symbol),
+      periodDays: Number(r.period_days),
+      initialBalance: Number(r.initial_balance),
+      leverage: r.leverage != null ? Number(r.leverage) : undefined,
+    },
+    result: {
+      trades: Number(r.trades),
+      wins: r.wins != null ? Number(r.wins) : undefined,
+      losses: r.losses != null ? Number(r.losses) : undefined,
+      winRate: Number(r.win_rate),
+      pnl: Number(r.pnl),
+      pnlPct: Number(r.pnl_pct),
+      maxDrawdown: Number(r.max_drawdown),
+      sharpe: Number(r.sharpe),
+    },
+    fullResult: (r.full_result as SimulationResultUI | null) ?? undefined,
+  };
+}
+
 export const calibratorHistoryStore = {
-  list(): CalibratorHistoryEntry[] {
-    return read();
+  async list(userId: string): Promise<CalibratorHistoryEntry[]> {
+    if (!userId) return [];
+    const { data, error } = await supabase
+      .from("calibrator_runs")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) {
+      console.error("[calibrator-history] list:", error.message);
+      return [];
+    }
+    return (data ?? []).map(rowToEntry);
   },
-  add(entry: Omit<CalibratorHistoryEntry, "id" | "createdAt"> & { createdAt?: string }) {
-    const full: CalibratorHistoryEntry = {
-      id:
-        (typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `sim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
-      createdAt: entry.createdAt ?? new Date().toISOString(),
-      userId: entry.userId,
-      params: entry.params,
-      result: entry.result,
-      fullResult: entry.fullResult,
-    };
-    const next = [full, ...read()];
-    write(next);
+
+  async add(
+    userId: string,
+    entry: Omit<CalibratorHistoryEntry, "id" | "createdAt">,
+  ): Promise<CalibratorHistoryEntry> {
+    const { data, error } = await supabase
+      .from("calibrator_runs")
+      .insert({
+        user_id: userId,
+        profile: entry.params.profile,
+        symbol: entry.params.symbol,
+        period_days: entry.params.periodDays,
+        initial_balance: entry.params.initialBalance,
+        leverage: entry.params.leverage ?? 1,
+        trades: entry.result.trades,
+        wins: entry.result.wins ?? 0,
+        losses: entry.result.losses ?? 0,
+        win_rate: entry.result.winRate,
+        pnl: entry.result.pnl,
+        pnl_pct: entry.result.pnlPct,
+        max_drawdown: entry.result.maxDrawdown,
+        sharpe: entry.result.sharpe,
+        full_result: (entry.fullResult as unknown as object) ?? null,
+      })
+      .select()
+      .single();
+    if (error || !data) {
+      console.error("[calibrator-history] add:", error?.message);
+      return {
+        id: `local_${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        ...entry,
+      };
+    }
+    const full = rowToEntry(data);
+    notify();
     return full;
   },
-  get(id: string): CalibratorHistoryEntry | undefined {
-    return read().find((e) => e.id === id);
+
+  async get(userId: string, id: string): Promise<CalibratorHistoryEntry | undefined> {
+    if (!userId) return undefined;
+    const { data, error } = await supabase
+      .from("calibrator_runs")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("id", id)
+      .maybeSingle();
+    if (error) {
+      console.error("[calibrator-history] get:", error.message);
+      return undefined;
+    }
+    return data ? rowToEntry(data) : undefined;
   },
-  remove(id: string) {
-    write(read().filter((e) => e.id !== id));
+
+  async remove(userId: string, id: string): Promise<void> {
+    const { error } = await supabase
+      .from("calibrator_runs")
+      .delete()
+      .eq("user_id", userId)
+      .eq("id", id);
+    if (error) console.error("[calibrator-history] remove:", error.message);
+    notify();
   },
-  clear() {
-    write([]);
+
+  async clear(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from("calibrator_runs")
+      .delete()
+      .eq("user_id", userId);
+    if (error) console.error("[calibrator-history] clear:", error.message);
+    notify();
   },
+
   subscribe(fn: Listener): () => void {
     listeners.add(fn);
     return () => listeners.delete(fn);
   },
 };
 
-export function recordSimulation(
+export async function recordSimulation(
   userId: string | undefined,
   params: CalibratorHistoryEntry["params"],
   result: SimulationResultUI,
-): CalibratorHistoryEntry {
-  return calibratorHistoryStore.add({
+): Promise<CalibratorHistoryEntry> {
+  const entry: Omit<CalibratorHistoryEntry, "id" | "createdAt"> = {
     userId,
     params,
     result: {
@@ -112,5 +176,9 @@ export function recordSimulation(
       sharpe: result.sharpe,
     },
     fullResult: result,
-  });
+  };
+  if (!userId) {
+    return { id: `anon_${Date.now()}`, createdAt: new Date().toISOString(), ...entry };
+  }
+  return calibratorHistoryStore.add(userId, entry);
 }
