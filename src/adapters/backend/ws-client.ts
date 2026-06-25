@@ -43,7 +43,7 @@ function resolveWsUrl(): string {
 
 const WS_URL = resolveWsUrl();
 
-class BackendWsClient {
+export class BackendWsClient {
   private socket: WebSocket | null = null;
   private handlers = new Map<WsEvent, Set<Handler>>();
   private channels = new Map<string, Set<Handler>>();
@@ -216,4 +216,18 @@ class BackendWsClient {
 
 }
 
-export const backendWs = new BackendWsClient();
+// Escolhe a implementação compartilhada (SharedWorker, 1 conexão por usuário
+// somando todas as abas) quando o navegador suportar; senão, mantém o cliente
+// clássico (1 conexão por aba). Safari < 16.4 e alguns mobile browsers caem
+// no fallback.
+//
+// Type-only import evita ciclo no bundle: o módulo shared importa tipos
+// daqui, e aqui só usamos a implementação via dynamic-style runtime check.
+import { BackendWsClientShared } from "./ws-client-shared";
+
+type WsLike = BackendWsClient | BackendWsClientShared;
+
+export const backendWs: WsLike =
+  typeof SharedWorker !== "undefined"
+    ? new BackendWsClientShared()
+    : new BackendWsClient();
