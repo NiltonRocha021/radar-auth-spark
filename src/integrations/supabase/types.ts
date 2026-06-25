@@ -19,7 +19,9 @@ export type Database = {
           active: boolean
           active_capital: number | null
           ai_score_min: number | null
+          allocation_pct: number | null
           api_key_set: boolean | null
+          avoid_pairs: Json
           circuit_breaker: string
           created_at: string
           daily_pnl: number | null
@@ -29,11 +31,15 @@ export type Database = {
           id: string
           leverage: number | null
           open_slots: number | null
+          preferred_pairs: Json
           profile: string
           profit_lock_triggered_at: string | null
           rsi_threshold_high: number | null
           rsi_threshold_low: number | null
+          sl_pct: number | null
+          total_capital: number | null
           total_trades_today: number | null
+          tp_pct: number | null
           updated_at: string
           user_id: string
         }
@@ -41,7 +47,9 @@ export type Database = {
           active?: boolean
           active_capital?: number | null
           ai_score_min?: number | null
+          allocation_pct?: number | null
           api_key_set?: boolean | null
+          avoid_pairs?: Json
           circuit_breaker?: string
           created_at?: string
           daily_pnl?: number | null
@@ -51,11 +59,15 @@ export type Database = {
           id?: string
           leverage?: number | null
           open_slots?: number | null
+          preferred_pairs?: Json
           profile?: string
           profit_lock_triggered_at?: string | null
           rsi_threshold_high?: number | null
           rsi_threshold_low?: number | null
+          sl_pct?: number | null
+          total_capital?: number | null
           total_trades_today?: number | null
+          tp_pct?: number | null
           updated_at?: string
           user_id: string
         }
@@ -63,7 +75,9 @@ export type Database = {
           active?: boolean
           active_capital?: number | null
           ai_score_min?: number | null
+          allocation_pct?: number | null
           api_key_set?: boolean | null
+          avoid_pairs?: Json
           circuit_breaker?: string
           created_at?: string
           daily_pnl?: number | null
@@ -73,11 +87,15 @@ export type Database = {
           id?: string
           leverage?: number | null
           open_slots?: number | null
+          preferred_pairs?: Json
           profile?: string
           profit_lock_triggered_at?: string | null
           rsi_threshold_high?: number | null
           rsi_threshold_low?: number | null
+          sl_pct?: number | null
+          total_capital?: number | null
           total_trades_today?: number | null
+          tp_pct?: number | null
           updated_at?: string
           user_id?: string
         }
