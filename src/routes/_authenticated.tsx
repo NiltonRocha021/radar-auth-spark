@@ -1,45 +1,50 @@
 import { createFileRoute, useNavigate, Outlet } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
-import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
-import { Bot4xFloatingWidget } from "@/components/bot4x/floating-widget";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { Bot4xCompactPill } from "@/components/global/bot4x-compact-pill";
 import { Bot4xGlobalNotifier } from "@/components/global/bot4x-notifier";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { TourController } from "@/components/tour/tour-controller";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { useDnaAutoCorrector } from "@/lib/dna-auto-corrector";
-import { CopilotPanel } from "@/components/copilot/CopilotPanel";
 import { useTraderProfile } from "@/hooks/useTraderProfile";
 import { useMarketContext } from "@/hooks/useMarketContext";
+import { useCopilotUI } from "@/lib/copilot-ui-store";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// PERF-01: code-split widgets pesados. CopilotPanel só monta após o
+// usuário interagir com o Copilot (useCopilotUI.open).
+const Bot4xFloatingWidget = lazy(() =>
+  import("@/components/bot4x/floating-widget").then((m) => ({ default: m.Bot4xFloatingWidget })),
+);
+const CopilotPanel = lazy(() =>
+  import("@/components/copilot/CopilotPanel").then((m) => ({ default: m.CopilotPanel })),
+);
 
 export const Route = createFileRoute("/_authenticated")({
-  // SEG-01: a proteção desta área é 100% client-side (AuthGate abaixo).
-  // O `context.auth` nunca foi populado pelo root route, então o
-  // `beforeLoad` server-side anterior era código morto que dava a falsa
-  // impressão de proteção SSR.
-  //
-  // Por que não migramos para SSR de sessão neste momento:
-  //   1) A sessão Supabase deste projeto é persistida em `localStorage`
-  //      (cliente auto-gerado pela integração Lovable Cloud) — não há
-  //      cookie HTTP para o servidor ler.
-  //   2) Mudar a estratégia exigiria editar `src/integrations/supabase/
-  //      client.ts`, que é auto-gerenciado pelo template e marcado como
-  //      "do not edit" — risco operacional alto na próxima sincronização.
-  //
-  // Mitigação atual: AuthGate renderiza spinner até `loading` resolver,
-  // só então monta `<Outlet />` — não há vazamento visual de conteúdo
-  // protegido no estado atual do código. Qualquer refator que mude essa
-  // garantia de loading PRECISA reintroduzir a proteção (de preferência
-  // via cookies SSR + migração coordenada da integração).
+  // SEG-01: proteção 100% client-side (AuthGate). Veja docs/architecture/
+  // backend-boundary.md e .lovable/plan.md para o motivo de não migrarmos
+  // para SSR de sessão neste momento (client.ts é auto-gerado).
   component: AuthGate,
 });
 
 function AuthGate() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
-  const { profile } = useTraderProfile(session?.user?.id);
-  const { marketContext } = useMarketContext(session?.user?.id);
+  const copilotOpen = useCopilotUI((s) => s.open);
+  // Uma vez aberto, mantenha montado para preservar estado/conversa.
+  const [copilotEverOpened, setCopilotEverOpened] = useState(false);
+  useEffect(() => {
+    if (copilotOpen) setCopilotEverOpened(true);
+  }, [copilotOpen]);
+
+  // PERF-01: só busca perfil/contexto de mercado quando o Copilot está
+  // (ou já foi) aberto — evita canal Realtime e fetch desnecessários em
+  // toda rota autenticada.
+  const copilotActive = copilotEverOpened;
+  const { profile } = useTraderProfile(copilotActive ? session?.user?.id : undefined);
+  const { marketContext } = useMarketContext(copilotActive ? session?.user?.id : undefined);
+
   const initBot4x = useBot4xStore((s) => s.init);
   useDnaAutoCorrector(!!session);
 
@@ -67,9 +72,33 @@ function AuthGate() {
   }, [navigate]);
 
   if (loading || !session) {
+    // UX-01: skeleton que aproxima o shell (sidebar + topbar + conteúdo)
+    // em vez de spinner de tela cheia — reduz CLS e flash visual.
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="min-h-screen flex bg-background">
+        <div className="hidden lg:block w-60 border-r border-border/40 p-4 space-y-3">
+          <Skeleton className="h-8 w-32" />
+          <div className="space-y-2 pt-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-full" />
+            ))}
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col">
+          <div className="h-14 border-b border-border/40 px-4 flex items-center justify-between">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-8 w-8 rounded-full" />
+          </div>
+          <div className="p-6 space-y-4">
+            <Skeleton className="h-8 w-64" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full" />
+              ))}
+            </div>
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -77,18 +106,24 @@ function AuthGate() {
   return (
     <>
       <Outlet />
-      <Bot4xFloatingWidget />
+      <Suspense fallback={null}>
+        <Bot4xFloatingWidget />
+      </Suspense>
       <Bot4xCompactPill />
       <MobileBottomNav />
       <Bot4xGlobalNotifier />
       <TourController />
-      <CopilotPanel
-        userId={session.user.id}
-        token={session.access_token}
-        mode="float"
-        traderProfile={profile}
-        marketContext={marketContext}
-      />
+      {copilotEverOpened && (
+        <Suspense fallback={null}>
+          <CopilotPanel
+            userId={session.user.id}
+            token={session.access_token}
+            mode="float"
+            traderProfile={profile}
+            marketContext={marketContext}
+          />
+        </Suspense>
+      )}
     </>
   );
 }
