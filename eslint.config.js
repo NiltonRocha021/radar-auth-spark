@@ -33,7 +33,11 @@ export default tseslint.config(
         },
       ],
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
-      "@typescript-eslint/no-unused-vars": "off",
+      // QA-02: warn-level baseline; reduzir incrementalmente
+      // (ver docs/lint-debt-baseline.md).
+      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "no-console": ["warn", { allow: ["error"] }],
     },
   },
   eslintPluginPrettier,
