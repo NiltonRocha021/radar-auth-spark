@@ -1,11 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-
-const COIN_IDS = [
-  "bitcoin", "ethereum", "tether", "binancecoin", "solana",
-  "usd-coin", "ripple", "cardano", "avalanche-2", "dogecoin",
-  "shiba-inu", "chainlink", "polkadot", "polygon", "bitcoin-cash",
-  "near", "litecoin", "uniswap", "toncoin", "staked-ether",
-].join(",");
+import { getMarketSnapshot } from "@/lib/market.functions";
 
 const SYMBOL_MAP: Record<string, string> = {
   bitcoin: "BTC", ethereum: "ETH", tether: "USDT",
