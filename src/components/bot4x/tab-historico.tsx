@@ -1,4 +1,5 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar,
   ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine, ReferenceDot, Cell,
@@ -403,7 +404,6 @@ function TradeSection({
 
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
-  const slice = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const setF = (patch: Partial<Filters>) => { setFilters({ ...filters, ...patch }); setPage(1); };
 
@@ -418,8 +418,28 @@ function TradeSection({
     else { setSortKey(k); setSortDir("desc"); }
   };
 
+  // Virtualização: usamos `sorted` inteiro (não o slice paginado) e
+  // renderizamos apenas as linhas visíveis + overscan. A paginação vira um
+  // controle de "scroll-to-page" sobre o mesmo viewport, mantendo a UX
+  // existente sem inflar o DOM com centenas de <tr>.
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const ROW_HEIGHT = 36;
+  const virtualizer = useVirtualizer({
+    count: sorted.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 10,
+  });
+  const virtualItems = virtualizer.getVirtualItems();
+  const totalSize = virtualizer.getTotalSize();
+
+  // Layout em CSS grid (mesma string de colunas no header e em cada linha)
+  // garante alinhamento visual perfeito sem depender de <table>.
+  const GRID_COLS =
+    "44px 92px 96px 64px 92px 88px 88px 84px 96px 84px 100px 120px 64px minmax(180px,1fr)";
+
   const SortHead = ({ k, label, align = "left" }: { k?: SortKey; label: string; align?: "left" | "right" }) => (
-    <th className={`px-2 py-2 font-medium whitespace-nowrap text-${align}`}>
+    <div className={`px-2 py-2 font-medium whitespace-nowrap text-${align}`}>
       {k ? (
         <button onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
           {label}
@@ -428,8 +448,15 @@ function TradeSection({
             : <ArrowUpDown className="size-3 opacity-40" />}
         </button>
       ) : label}
-    </th>
+    </div>
   );
+
+  // Página efetiva (apenas para o label/UX da paginação).
+  const goToPage = (p: number) => {
+    const next = Math.max(1, Math.min(pageCount, p));
+    setPage(next);
+    virtualizer.scrollToIndex((next - 1) * PAGE_SIZE, { align: "start" });
+  };
 
   return (
     <section className="rounded-lg border border-border bg-card">
@@ -453,71 +480,100 @@ function TradeSection({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-[12px]">
-          <thead className="bg-card text-muted-foreground border-b border-border">
-            <tr>
-              <th className="px-2 py-2 text-left font-medium">#</th>
-              <SortHead k="day" label="Dia" />
-              <SortHead k="pair" label="Par" />
-              <th className="px-2 py-2 text-left font-medium">Lado</th>
-              <th className="px-2 py-2 text-left font-medium">Entrada</th>
-              <th className="px-2 py-2 text-left font-medium">Stop</th>
-              <th className="px-2 py-2 text-left font-medium">Alvo</th>
-              <SortHead k="result" label="Result" />
-              <SortHead k="pnl" label="PnL USDT" align="right" />
-              <SortHead k="pnlPct" label="PnL %" align="right" />
-              <SortHead k="accumulated" label="Acumulado" align="right" />
-              <th className="px-2 py-2 text-left font-medium">Perfil</th>
-              <SortHead k="leverage" label="Lev" align="right" />
-              <th className="px-2 py-2 text-left font-medium">Motivo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {slice.map((t, i) => {
-              const p = PROFILES[t.profile];
-              const sideColor = t.side === "LONG" ? "#378ADD" : "#EF9F27";
-              const pnlColor = t.pnl >= 0 ? "#1D9E75" : t.pnl < 0 ? "#E24B4A" : "#888780";
-              const levColor = t.leverage <= 1 ? "#1D9E75" : t.leverage <= 3 ? "#7AD9B4" : t.leverage <= 6 ? "#EF9F27" : "#E24B4A";
-              return (
-                <tr
-                  key={t.id}
-                  className="border-b border-border/60 hover:bg-secondary/30 transition-colors"
-                  style={{ borderLeft: "3px solid", ...rowStyle(t.result) }}
-                >
-                  <td className="px-2 py-2 tabular-nums text-muted-foreground">{(safePage - 1) * PAGE_SIZE + i + 1}</td>
-                  <td className="px-2 py-2 tabular-nums">{t.day}</td>
-                  <td className="px-2 py-2 font-semibold text-foreground">{t.pair}</td>
-                  <td className="px-2 py-2">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: `color-mix(in oklab, ${sideColor} 22%, transparent)`, color: sideColor }}>{t.side}</span>
-                  </td>
-                  <td className="px-2 py-2 tabular-nums">{fmt(t.entry)}</td>
-                  <td className="px-2 py-2 tabular-nums text-[#E24B4A]">{fmt(t.stop)}</td>
-                  <td className="px-2 py-2 tabular-nums text-[#1D9E75]">{fmt(t.target)}</td>
-                  <td className="px-2 py-2"><ResultBadge r={t.result} /></td>
-                  <td className="px-2 py-2 text-right tabular-nums font-semibold" style={{ color: pnlColor }}>{t.pnl >= 0 ? "+" : ""}{fmt(t.pnl)}</td>
-                  <td className="px-2 py-2 text-right tabular-nums" style={{ color: pnlColor }}>{t.pnlPct >= 0 ? "+" : ""}{t.pnlPct.toFixed(2)}%</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{fmt(t.accumulated)}</td>
-                  <td className="px-2 py-2">
-                    <span className="inline-flex items-center gap-1.5 text-[11px]">
-                      <span className="size-1.5 rounded-full" style={{ background: p.color }} />
-                      {p.name}
-                    </span>
-                  </td>
-                  <td className="px-2 py-2 text-right">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums" style={{ background: `color-mix(in oklab, ${levColor} 22%, transparent)`, color: levColor }}>
-                      1:{t.leverage}
-                    </span>
-                  </td>
-                  <td className="px-2 py-2 text-muted-foreground">{t.motivo}</td>
-                </tr>
-              );
-            })}
-            {!slice.length && (
-              <tr><td colSpan={14} className="px-4 py-10 text-center text-muted-foreground text-[12px]">Nenhum trade no filtro.</td></tr>
+        <div className="min-w-[1280px] text-[12px]" data-testid="trade-list-root">
+          {/* Header */}
+          <div
+            className="grid bg-card text-muted-foreground border-b border-border"
+            style={{ gridTemplateColumns: GRID_COLS }}
+          >
+            <div className="px-2 py-2 text-left font-medium">#</div>
+            <SortHead k="day" label="Dia" />
+            <SortHead k="pair" label="Par" />
+            <div className="px-2 py-2 text-left font-medium">Lado</div>
+            <div className="px-2 py-2 text-left font-medium">Entrada</div>
+            <div className="px-2 py-2 text-left font-medium">Stop</div>
+            <div className="px-2 py-2 text-left font-medium">Alvo</div>
+            <SortHead k="result" label="Result" />
+            <SortHead k="pnl" label="PnL USDT" align="right" />
+            <SortHead k="pnlPct" label="PnL %" align="right" />
+            <SortHead k="accumulated" label="Acumulado" align="right" />
+            <div className="px-2 py-2 text-left font-medium">Perfil</div>
+            <SortHead k="leverage" label="Lev" align="right" />
+            <div className="px-2 py-2 text-left font-medium">Motivo</div>
+          </div>
+
+          {/* Scrollable virtualized body */}
+          <div
+            ref={parentRef}
+            className="max-h-[600px] overflow-auto"
+            data-testid="trade-list-scroll"
+          >
+            {sorted.length === 0 ? (
+              <div className="px-4 py-10 text-center text-muted-foreground text-[12px]">
+                Nenhum trade no filtro.
+              </div>
+            ) : (
+              <div
+                style={{ height: totalSize, position: "relative", width: "100%" }}
+                data-testid="trade-list-inner"
+              >
+                {virtualItems.map((vItem) => {
+                  const t = sorted[vItem.index];
+                  const p = PROFILES[t.profile];
+                  const sideColor = t.side === "LONG" ? "#378ADD" : "#EF9F27";
+                  const pnlColor = t.pnl >= 0 ? "#1D9E75" : t.pnl < 0 ? "#E24B4A" : "#888780";
+                  const levColor = t.leverage <= 1 ? "#1D9E75" : t.leverage <= 3 ? "#7AD9B4" : t.leverage <= 6 ? "#EF9F27" : "#E24B4A";
+                  return (
+                    <div
+                      key={t.id}
+                      data-testid="trade-row"
+                      className="grid items-center border-b border-border/60 hover:bg-secondary/30 transition-colors"
+                      style={{
+                        gridTemplateColumns: GRID_COLS,
+                        borderLeft: "3px solid",
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        height: `${vItem.size}px`,
+                        transform: `translateY(${vItem.start}px)`,
+                        ...rowStyle(t.result),
+                      }}
+                    >
+                      <div className="px-2 py-2 tabular-nums text-muted-foreground">{vItem.index + 1}</div>
+                      <div className="px-2 py-2 tabular-nums">{t.day}</div>
+                      <div className="px-2 py-2 font-semibold text-foreground">{t.pair}</div>
+                      <div className="px-2 py-2">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: `color-mix(in oklab, ${sideColor} 22%, transparent)`, color: sideColor }}>{t.side}</span>
+                      </div>
+                      <div className="px-2 py-2 tabular-nums">{fmt(t.entry)}</div>
+                      <div className="px-2 py-2 tabular-nums text-[#E24B4A]">{fmt(t.stop)}</div>
+                      <div className="px-2 py-2 tabular-nums text-[#1D9E75]">{fmt(t.target)}</div>
+                      <div className="px-2 py-2"><ResultBadge r={t.result} /></div>
+                      <div className="px-2 py-2 text-right tabular-nums font-semibold" style={{ color: pnlColor }}>{t.pnl >= 0 ? "+" : ""}{fmt(t.pnl)}</div>
+                      <div className="px-2 py-2 text-right tabular-nums" style={{ color: pnlColor }}>{t.pnlPct >= 0 ? "+" : ""}{t.pnlPct.toFixed(2)}%</div>
+                      <div className="px-2 py-2 text-right tabular-nums">{fmt(t.accumulated)}</div>
+                      <div className="px-2 py-2">
+                        <span className="inline-flex items-center gap-1.5 text-[11px]">
+                          <span className="size-1.5 rounded-full" style={{ background: p.color }} />
+                          {p.name}
+                        </span>
+                      </div>
+                      <div className="px-2 py-2 text-right">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold tabular-nums" style={{ background: `color-mix(in oklab, ${levColor} 22%, transparent)`, color: levColor }}>
+                          1:{t.leverage}
+                        </span>
+                      </div>
+                      <div className="px-2 py-2 text-muted-foreground truncate">{t.motivo}</div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
+
 
       {/* Pagination */}
       <div className="px-4 py-2 border-t border-border flex items-center justify-between gap-2">
@@ -526,7 +582,7 @@ function TradeSection({
         </div>
         <div className="inline-flex items-center gap-1">
           <button
-            onClick={() => setPage(Math.max(1, safePage - 1))}
+            onClick={() => goToPage(safePage - 1)}
             disabled={safePage <= 1}
             className="inline-flex items-center justify-center size-7 rounded border border-border text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
@@ -534,7 +590,7 @@ function TradeSection({
           </button>
           <span className="text-[11px] text-foreground tabular-nums px-2">{safePage}/{pageCount}</span>
           <button
-            onClick={() => setPage(Math.min(pageCount, safePage + 1))}
+            onClick={() => goToPage(safePage + 1)}
             disabled={safePage >= pageCount}
             className="inline-flex items-center justify-center size-7 rounded border border-border text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
