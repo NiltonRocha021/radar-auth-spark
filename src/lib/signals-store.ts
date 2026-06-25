@@ -88,7 +88,7 @@ export const useSignalsStore = create<State>((set, get) => ({
   hoverId: null,
   detailId: null,
   toasts: [],
-  flashIds: new Set(),
+  flashIds: [],
   _intervalIds: new Set<number>(),
   _wsUnsub: null,
   setView: (v) => set({ view: v }),
