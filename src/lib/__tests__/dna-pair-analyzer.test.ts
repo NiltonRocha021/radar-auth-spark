@@ -21,7 +21,7 @@ function makeTrade(pair: string, result: "WIN" | "LOSS", pnlPct = 0): Trade {
     openedAt: Date.now(),
     pnlPct,
     result,
-  } as Trade;
+  } as unknown as Trade;
 }
 
 function makeHistory(pair: string, wins: number, losses: number): Trade[] {
