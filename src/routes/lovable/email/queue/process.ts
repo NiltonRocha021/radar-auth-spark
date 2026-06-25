@@ -157,21 +157,31 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                 .filter((id: string | null): id is string => Boolean(id))
             )
           )
+          // Pre-fetch failed-attempt counters AND already-sent set in one
+          // pass each, instead of N+1 queries inside the per-message loop.
           const failedAttemptsByMessageId = new Map<string, number>()
+          const alreadySentSet = new Set<string>()
           if (messageIds.length > 0) {
-            const { data: failedRows, error: failedRowsError } = await supabase
-              .from('email_send_log')
-              .select('message_id')
-              .in('message_id', messageIds)
-              .eq('status', 'failed')
+            const [failedRes, sentRes] = await Promise.all([
+              supabase
+                .from('email_send_log')
+                .select('message_id')
+                .in('message_id', messageIds)
+                .eq('status', 'failed'),
+              supabase
+                .from('email_send_log')
+                .select('message_id')
+                .in('message_id', messageIds)
+                .eq('status', 'sent'),
+            ])
 
-            if (failedRowsError) {
+            if (failedRes.error) {
               console.error('Failed to load failed-attempt counters', {
                 queue,
-                error: failedRowsError,
+                error: failedRes.error,
               })
             } else {
-              for (const row of failedRows ?? []) {
+              for (const row of failedRes.data ?? []) {
                 const messageId = row?.message_id
                 if (typeof messageId !== 'string' || !messageId) continue
                 failedAttemptsByMessageId.set(
@@ -180,7 +190,28 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                 )
               }
             }
+
+            if (sentRes.error) {
+              console.error('Failed to load already-sent set', {
+                queue,
+                error: sentRes.error,
+              })
+            } else {
+              for (const row of sentRes.data ?? []) {
+                const messageId = row?.message_id
+                if (typeof messageId === 'string' && messageId) {
+                  alreadySentSet.add(messageId)
+                }
+              }
+            }
           }
+
+          console.log('Processing email batch', {
+            queue,
+            batchSize: messages.length,
+            alreadySentCount: alreadySentSet.size,
+          })
+
 
           for (let i = 0; i < messages.length; i++) {
             const msg = messages[i]
