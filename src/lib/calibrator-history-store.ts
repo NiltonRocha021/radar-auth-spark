@@ -2,11 +2,12 @@
 // API: list/add/get/remove/clear são async e exigem userId.
 // `subscribe` é preservado para invalidação em consumidores reativos.
 import { supabase } from "@/integrations/supabase/client";
-import type {
 import { logger } from "./logger";
+import type {
   SimulationProfile,
   SimulationResultUI,
 } from "@/adapters/backend/calibrator.adapter";
+
 
 export interface CalibratorHistoryEntry {
   id: string;
