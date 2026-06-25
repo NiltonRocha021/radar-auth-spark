@@ -94,3 +94,49 @@ Garantias:
   re-aplicar `pending` sem duplicar.
 - Observabilidade: o usuário pode listar o próprio outbox para
   diagnóstico (linhas `pending`/`failed` indicam problemas de replicação).
+
+---
+
+## Transporte do JWT no WebSocket
+
+O cliente WebSocket (`src/adapters/backend/ws-client.ts`) envia o JWT do
+Supabase no **subprotocolo** do handshake, não no corpo das mensagens:
+
+```ts
+ws = new WebSocket(url, [`bearer.${token}`]);
+```
+
+Motivação: a abordagem anterior (`ws.send({ type: 'auth', token })` no
+`onopen`) colocava o token no payload do primeiro frame WS, que costuma
+ser capturado por proxies reversos, APMs e ferramentas de tracing que
+fazem dump de frames. O subprotocolo trafega no header
+`Sec-WebSocket-Protocol` do handshake HTTP/S — coberto por TLS e
+geralmente excluído dos dumps de payload.
+
+### Contrato com o backend NestJS
+
+O gateway deve extrair o token do header `sec-websocket-protocol` no
+`handleConnection`:
+
+```ts
+handleConnection(client: WebSocket, request: IncomingMessage) {
+  const protocols = request.headers['sec-websocket-protocol'] || '';
+  const bearer = protocols.split(',').map(p => p.trim()).find(p => p.startsWith('bearer.'));
+  const token = bearer?.slice('bearer.'.length);
+  // validar token...
+  // IMPORTANTE: o servidor deve ecoar o subprotocolo aceito no handshake
+  // (Sec-WebSocket-Protocol response header), senão o cliente fecha a conexão.
+}
+```
+
+### Fallback
+
+Caso o backend ainda não suporte o subprotocolo, a alternativa segura é
+passar o token como query parameter (`?token=...`). Não é o caminho
+escolhido porque URLs podem aparecer em access logs.
+
+### Logging
+
+`ws.onmessage` **nunca** loga `e.data` cru — apenas decodifica e dispatcha
+para handlers tipados. Qualquer log futuro nesse handler deve omitir
+campos sensíveis (`token`, `apiKey`, `secret`).
