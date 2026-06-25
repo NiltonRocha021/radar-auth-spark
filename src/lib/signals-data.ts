@@ -115,6 +115,7 @@ export const initialSignals: Signal[] = pairs.map((p, i) => {
     session: sessions[Math.floor(rand() * sessions.length)],
     ageMin,
     status,
+    isMock: true,
   };
 });
 
