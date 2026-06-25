@@ -157,21 +157,31 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                 .filter((id: string | null): id is string => Boolean(id))
             )
           )
+          // Pre-fetch failed-attempt counters AND already-sent set in one
+          // pass each, instead of N+1 queries inside the per-message loop.
           const failedAttemptsByMessageId = new Map<string, number>()
+          const alreadySentSet = new Set<string>()
           if (messageIds.length > 0) {
-            const { data: failedRows, error: failedRowsError } = await supabase
-              .from('email_send_log')
-              .select('message_id')
-              .in('message_id', messageIds)
-              .eq('status', 'failed')
+            const [failedRes, sentRes] = await Promise.all([
+              supabase
+                .from('email_send_log')
+                .select('message_id')
+                .in('message_id', messageIds)
+                .eq('status', 'failed'),
+              supabase
+                .from('email_send_log')
+                .select('message_id')
+                .in('message_id', messageIds)
+                .eq('status', 'sent'),
+            ])
 
-            if (failedRowsError) {
+            if (failedRes.error) {
               console.error('Failed to load failed-attempt counters', {
                 queue,
-                error: failedRowsError,
+                error: failedRes.error,
               })
             } else {
-              for (const row of failedRows ?? []) {
+              for (const row of failedRes.data ?? []) {
                 const messageId = row?.message_id
                 if (typeof messageId !== 'string' || !messageId) continue
                 failedAttemptsByMessageId.set(
@@ -180,7 +190,28 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
                 )
               }
             }
+
+            if (sentRes.error) {
+              console.error('Failed to load already-sent set', {
+                queue,
+                error: sentRes.error,
+              })
+            } else {
+              for (const row of sentRes.data ?? []) {
+                const messageId = row?.message_id
+                if (typeof messageId === 'string' && messageId) {
+                  alreadySentSet.add(messageId)
+                }
+              }
+            }
           }
+
+          console.log('Processing email batch', {
+            queue,
+            batchSize: messages.length,
+            alreadySentCount: alreadySentSet.size,
+          })
+
 
           for (let i = 0; i < messages.length; i++) {
             const msg = messages[i]
@@ -215,31 +246,24 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
               continue
             }
 
-            // Guard: skip if another worker already sent this message (VT expired race)
-            if (payload.message_id) {
-              const { data: alreadySent } = await supabase
-                .from('email_send_log')
-                .select('id')
-                .eq('message_id', payload.message_id)
-                .eq('status', 'sent')
-                .maybeSingle()
-
-              if (alreadySent) {
-                console.warn('Skipping duplicate send (already sent)', {
-                  queue,
-                  msg_id: msg.msg_id,
-                  message_id: payload.message_id,
-                })
-                const { error: dupDelError } = await supabase.rpc('delete_email', {
-                  queue_name: queue,
-                  message_id: msg.msg_id,
-                })
-                if (dupDelError) {
-                  console.error('Failed to delete duplicate message from queue', { queue, msg_id: msg.msg_id, error: dupDelError })
-                }
-                continue
+            // Guard: skip if another worker already sent this message (VT expired race).
+            // Pre-fetched in alreadySentSet — O(1) check, no per-message round-trip.
+            if (payload.message_id && alreadySentSet.has(payload.message_id)) {
+              console.warn('Skipping duplicate send (already sent)', {
+                queue,
+                msg_id: msg.msg_id,
+                message_id: payload.message_id,
+              })
+              const { error: dupDelError } = await supabase.rpc('delete_email', {
+                queue_name: queue,
+                message_id: msg.msg_id,
+              })
+              if (dupDelError) {
+                console.error('Failed to delete duplicate message from queue', { queue, msg_id: msg.msg_id, error: dupDelError })
               }
+              continue
             }
+
 
             try {
               await sendLovableEmail(
