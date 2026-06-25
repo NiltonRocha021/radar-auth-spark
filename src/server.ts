@@ -130,18 +130,19 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const nonce = crypto.randomUUID().replace(/-/g, "");
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(response);
       const contentType = normalized.headers.get("content-type") ?? "";
       if (contentType.includes("text/html")) {
-        return addSecurityHeaders(normalized);
+        return addSecurityHeaders(normalized, nonce);
       }
       return normalized;
     } catch (error) {
       console.error(error);
-      return addSecurityHeaders(brandedErrorResponse());
+      return addSecurityHeaders(brandedErrorResponse(), nonce);
     }
   },
 };
