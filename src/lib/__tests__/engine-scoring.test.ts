@@ -53,10 +53,14 @@ describe("calcRSI", () => {
 });
 
 describe("calcVolumeRatio", () => {
-  it("retorna ~1 quando volume é constante", () => {
+  it("retorna ~0 quando volume é constante (vs média)", () => {
+    // A função retorna (currentVol / avgVol - 1), então constante = 0.
     const ratio = calcVolumeRatio(flatCandles(30, 100, 1000));
-    expect(ratio).toBeGreaterThan(0.9);
-    expect(ratio).toBeLessThan(1.1);
+    expect(Math.abs(ratio)).toBeLessThan(0.01);
+  });
+
+  it("retorna 0 (guard) quando volume médio é zero", () => {
+    expect(calcVolumeRatio(flatCandles(30, 100, 0))).toBe(0);
   });
 });
 
