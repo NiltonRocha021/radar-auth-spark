@@ -30,6 +30,28 @@ function parseJsonArray(value: unknown): string[] {
   }
 }
 
+// Decodifica `exchange` (text). Suporta:
+// - novo formato: {"preferred":[...],"avoid":[...]}
+// - legado: ["BTC/USDT", ...] → tratado como preferred, avoid vazio
+function parsePairsJson(value: unknown): { preferred: string[]; avoid: string[] } {
+  if (typeof value !== "string" || !value) return { preferred: [], avoid: [] };
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return { preferred: parsed.filter((x): x is string => typeof x === "string"), avoid: [] };
+    }
+    if (parsed && typeof parsed === "object") {
+      const pref = Array.isArray(parsed.preferred) ? parsed.preferred.filter((x: unknown): x is string => typeof x === "string") : [];
+      const avoid = Array.isArray(parsed.avoid) ? parsed.avoid.filter((x: unknown): x is string => typeof x === "string") : [];
+      return { preferred: pref, avoid };
+    }
+  } catch {
+    /* fallthrough */
+  }
+  return { preferred: [], avoid: [] };
+}
+
+
 export async function loadConfig(userId: string): Promise<Bot4xConfigRow | null> {
   const { data, error } = await supabase
     .from("bot4x_configs")
