@@ -145,75 +145,53 @@ export const useSignalsStore = create<State>((set, get) => ({
         status: (s.state === "active" ? "active" : "expired") as Signal["status"],
       }));
 
-      set((st) => ({
-        signals: [...mapped, ...st.signals.filter((x) => x.id.startsWith("sig-"))].slice(0, 60),
+      // Fonte de verdade após sync: somente sinais do backend.
+      // Mocks (ids "sig-*"/"live-*") são descartados — só apareciam
+      // pré-conexão para a UI não ficar vazia.
+      set(() => ({
+        signals: mapped.slice(0, 60),
         lastSyncAt: Date.now(),
       }));
     } catch {
-      // silencioso — mantém mock
+      // silencioso — mantém o que já estiver em memória
     }
   },
   init: () => {
-    if (get()._intervalIds.size > 0) return;
-    // Sincronizar com backend (silencioso — mantém mock se falhar)
+    if (get()._intervalIds.size > 0 || get()._wsUnsub) return;
+
+    // Sync inicial
     get().syncFromBackend();
-    // New signal every 10s
-    const newSig = window.setInterval(() => {
+
+    // Stream em tempo real via WebSocket: substitui o setInterval de 10s.
+    const unsub = backendWs.on("signal:new", (payload) => {
       if (!get().live) return;
-      const pool = initialSignals;
-      const seed = pool[Math.floor(Math.random() * pool.length)];
-      const id = `live-${Date.now()}`;
-      const s: Signal = {
-        ...seed,
-        id,
-        ageMin: 0,
-        status: "new",
-        score: Math.round(70 + Math.random() * 28),
-      };
+      const signal = payload as Signal;
+      if (!signal?.id) return;
       set((st) => ({
-        signals: [s, ...st.signals].slice(0, 60),
-        toasts: [{ id, signal: s, createdAt: Date.now() }, ...st.toasts].slice(0, 3),
+        signals: [signal, ...st.signals.filter((x) => x.id !== signal.id)].slice(0, 60),
+        toasts: [{ id: signal.id, signal, createdAt: Date.now() }, ...st.toasts].slice(0, 3),
       }));
-    }, 10000);
-    // Score flash every 30s
-    const flash = window.setInterval(() => {
-      if (!get().live) return;
-      const cur = get().signals;
-      if (!cur.length) return;
-      const target = cur[Math.floor(Math.random() * Math.min(6, cur.length))];
-      const delta = Math.round((Math.random() - 0.4) * 6);
-      set((st) => ({
-        signals: st.signals.map((x) =>
-          x.id === target.id ? { ...x, score: Math.max(40, Math.min(99, x.score + delta)) } : x
-        ),
-        flashIds: new Set([...st.flashIds, target.id]),
-      }));
-      setTimeout(() => {
-        set((st) => {
-          const next = new Set(st.flashIds);
-          next.delete(target.id);
-          return { flashIds: next };
-        });
-      }, 1500);
-    }, 30000);
-    // Expire every 60s
-    const expire = window.setInterval(() => {
-      if (!get().live) return;
-      set((st) => {
-        const idx = st.signals.findIndex((s) => s.status !== "expired");
-        if (idx === -1) return st;
-        const copy = [...st.signals];
-        copy[idx] = { ...copy[idx], status: "expired" };
-        return { signals: copy };
-      });
-    }, 60000);
-    set({ _intervalIds: new Set<number>([newSig, flash, expire]) });
+    });
+
+    // Fallback: re-sync a cada 60s se o WS não estiver autenticado/ativo.
+    const syncInterval = window.setInterval(() => {
+      if (backendWs.isAuthenticatedOpen()) return; // WS está cuidando dos updates
+      get().syncFromBackend();
+    }, 60_000);
+
+    set({
+      _intervalIds: new Set<number>([syncInterval]),
+      _wsUnsub: unsub,
+    });
   },
   cleanup: () => {
     get()._intervalIds.forEach((id) => clearInterval(id));
-    set({ _intervalIds: new Set<number>() });
+    const unsub = get()._wsUnsub;
+    if (unsub) unsub();
+    set({ _intervalIds: new Set<number>(), _wsUnsub: null });
   },
 }));
+
 
 
 export function selectFilteredSorted(state: State): Signal[] {
