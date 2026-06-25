@@ -82,8 +82,18 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   pushToast: (signal) => {
     const id = `t-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     set((state) => ({ toasts: [...state.toasts, { id, signal }].slice(-3) }));
-    setTimeout(() => get().dismissToast(id), 8000);
+    const timerId = window.setTimeout(() => {
+      get().dismissToast(id);
+      // Auto-limpa o próprio id do tracking set para não vazar entradas.
+      const ids = new Set(get()._intervalIds);
+      ids.delete(timerId);
+      set({ _intervalIds: ids });
+    }, 8000);
+    const ids = new Set(get()._intervalIds);
+    ids.add(timerId);
+    set({ _intervalIds: ids });
   },
+
 
   dismissToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
   setSelectedSignal: (s) => set({ selectedSignal: s }),
