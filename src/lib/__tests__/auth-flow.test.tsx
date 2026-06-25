@@ -4,10 +4,22 @@
 // regra de negócio sem acoplar o teste a roteador, lazy chunks e stores.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act, waitFor } from "@testing-library/react";
+
+vi.mock("@/integrations/supabase/client", () => {
+  const listeners = new Set<(event: string, session: unknown) => void>();
+  const auth = {
+    onAuthStateChange: vi.fn((cb: (event: string, session: unknown) => void) => {
+      listeners.add(cb);
+      return { data: { subscription: { unsubscribe: () => listeners.delete(cb) } } };
+    }),
+    _emit: (event: string, session: unknown) => listeners.forEach((cb) => cb(event, session)),
+  };
+  return { supabase: { auth } };
+});
+
 import { AuthProvider, useAuth } from "../auth";
 import { supabase } from "@/integrations/supabase/client";
 
-// Helper para acessar o emitter exposto pelo mock global de supabase.
 type MockedAuth = typeof supabase.auth & {
   _emit: (event: string, session: unknown) => void;
 };
