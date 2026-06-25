@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { analyzePairs, type PairAnalysisResult, type PairAnalysis } from "@/lib/dna-pair-analyzer";
 
-const MIN_SAMPLE = 20; // keep in sync with dna-pair-analyzer.ts
+const MIN_SAMPLE = 10; // keep in sync with dna-pair-analyzer.ts
 
 export function DnaPairRecommendations() {
   const history = useBot4xStore((s) => s.history);
