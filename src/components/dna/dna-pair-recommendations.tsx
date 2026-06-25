@@ -2,12 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { TrendingUp, TrendingDown, Minus, Sparkles, ShieldAlert, RefreshCcw, Check, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useBot4xStore } from "@/lib/bot4x-store";
-import { analyzePairs, type PairAnalysisResult, type PairAnalysis } from "@/lib/dna-pair-analyzer";
-
-const MIN_SAMPLE = 10; // keep in sync with dna-pair-analyzer.ts
+import {
+  analyzePairs,
+  DNA_MIN_SAMPLE_BOUNDS,
+  type PairAnalysisResult,
+  type PairAnalysis,
+} from "@/lib/dna-pair-analyzer";
 
 export function DnaPairRecommendations() {
   const history = useBot4xStore((s) => s.history);
@@ -15,14 +20,23 @@ export function DnaPairRecommendations() {
   const avoidPairs = useBot4xStore((s) => s.avoidPairs);
   const setPreferredPairs = useBot4xStore((s) => s.setPreferredPairs);
   const setAvoidPairs = useBot4xStore((s) => s.setAvoidPairs);
+  const dnaMinSample = useBot4xStore((s) => s.dnaMinSample);
+  const setDnaMinSample = useBot4xStore((s) => s.setDnaMinSample);
 
-  const [result, setResult] = useState<PairAnalysisResult>(() => analyzePairs(history));
+  const MIN_SAMPLE = dnaMinSample;
+
+  const [result, setResult] = useState<PairAnalysisResult>(() =>
+    analyzePairs(history, { minSample: MIN_SAMPLE }),
+  );
 
   useEffect(() => {
-    setResult(analyzePairs(history));
-    const id = setInterval(() => setResult(analyzePairs(useBot4xStore.getState().history)), 10_000);
+    setResult(analyzePairs(history, { minSample: MIN_SAMPLE }));
+    const id = setInterval(
+      () => setResult(analyzePairs(useBot4xStore.getState().history, { minSample: MIN_SAMPLE })),
+      10_000,
+    );
     return () => clearInterval(id);
-  }, [history]);
+  }, [history, MIN_SAMPLE]);
 
   const applied = useMemo(
     () => preferredPairs.join(",") === result.preferred.join(",") && avoidPairs.join(",") === result.avoid.join(","),
