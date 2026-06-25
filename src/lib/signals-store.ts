@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { initialSignals, type Signal, type AssetClass } from "./signals-data";
+import { backendWs } from "@/adapters/backend/ws-client";
+
 
 export type ViewMode = "cards" | "table" | "radar";
 export type SortKey = "score" | "rr" | "age" | "volDelta";
