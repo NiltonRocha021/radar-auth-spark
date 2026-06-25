@@ -41,6 +41,7 @@ type State = {
   flashIds: Set<string>;
   lastSyncAt: number | null;
   _intervalIds: Set<number>;
+  _wsUnsub: (() => void) | null;
   syncFromBackend: () => Promise<void>;
   // actions
   setView: (v: ViewMode) => void;
