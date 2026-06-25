@@ -36,11 +36,20 @@ export const apiClient = axios.create({
   // superfície de CSRF sem mitigação correspondente.
 });
 
-// Anexa o token JWT do Supabase em cada requisição
+// Anexa o token JWT do Supabase + propaga um trace ID por requisição.
 apiClient.interceptors.request.use(async (config) => {
   if (!BASE_URL) {
     return Promise.reject(new Error("API base URL não configurada"));
   }
+  const traced = config as TracedConfig;
+  const traceId =
+    traced._traceId ??
+    (typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  traced._traceId = traceId;
+  config.headers["x-trace-id"] = traceId;
+
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (token) {
@@ -49,22 +58,32 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Tenta renovar a sessão em caso de 401
+// Renovação em 401 + captura estruturada de erros no Sentry.
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const original = error.config;
+    const original = (error.config ?? {}) as TracedConfig;
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
       const { data, error: refreshError } = await supabase.auth.refreshSession();
       if (!refreshError && data.session) {
-        original.headers.Authorization = `Bearer ${data.session.access_token}`;
+        original.headers!.Authorization = `Bearer ${data.session.access_token}`;
         return apiClient(original);
       }
     }
+    Sentry.withScope((scope) => {
+      if (original._traceId) scope.setTag("trace_id", original._traceId);
+      scope.setContext("request", {
+        url: original.url,
+        method: original.method,
+        status: error.response?.status,
+      });
+      Sentry.captureException(error);
+    });
     return Promise.reject(error);
   }
 );
+
 
 // Helper compatível com o uso anterior (api.get/post/...)
 export const api = {
