@@ -1,6 +1,6 @@
-// Vitest global setup — apenas mocks que não dependem de spies expostos
-// para os testes (esses devem viver no próprio test file via vi.mock).
+// Vitest global setup.
 import { vi, afterEach } from "vitest";
+import { cleanup } from "@testing-library/react";
 
 // `sonner` toast — usado pelo dna-auto-corrector; evita console noise.
 vi.mock("sonner", () => ({
@@ -14,5 +14,8 @@ vi.mock("sonner", () => ({
 }));
 
 afterEach(() => {
+  // Sem `globals: true`, testing-library não auto-limpa entre testes,
+  // o que faz componentes do teste anterior continuarem montados.
+  cleanup();
   if (typeof localStorage !== "undefined") localStorage.clear();
 });
