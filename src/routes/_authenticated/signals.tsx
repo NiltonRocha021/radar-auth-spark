@@ -12,7 +12,7 @@ import { QuickViewPanel } from "@/components/signals/quick-view-panel";
 import { SignalToasts } from "@/components/signals/signal-toasts";
 import { SignalStream } from "@/components/signals/signal-stream";
 import { SignalDetailDrawer } from "@/components/signals/signal-detail-drawer";
-import { useSignalsStore, selectFilteredSorted } from "@/lib/signals-store";
+import { useSignalsStore, useFilteredSignals } from "@/lib/signals-store";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { bot4xEligibility } from "@/lib/bot4x-eligibility";
 
