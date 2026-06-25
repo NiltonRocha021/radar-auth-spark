@@ -168,7 +168,7 @@ function CalibratorPage() {
         symbol: params.symbol,
       });
       setResult(res);
-      recordSimulation(user.id, params, res);
+      void recordSimulation(user.id, params, res).catch((err) => console.error("[calibrator] recordSimulation error:", err));
     } catch (e: any) {
       setError(e?.response?.data?.message ?? e?.message ?? "Falha ao executar simulação.");
     } finally {
