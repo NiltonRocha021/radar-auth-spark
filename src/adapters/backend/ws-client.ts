@@ -185,10 +185,12 @@ class BackendWsClient {
   close() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
+    this.reconnectAttempts = 0;
     this.socket?.close();
     this.socket = null;
     this.setStatus("closed");
   }
+
 }
 
 export const backendWs = new BackendWsClient();
