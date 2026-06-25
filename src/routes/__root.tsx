@@ -8,15 +8,33 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import * as Sentry from "@sentry/react";
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
 import { backendWs } from "@/adapters/backend/ws-client";
 import { initSentry } from "@/lib/sentry";
+import { logger } from "@/lib/logger";
 
 // Idempotente — múltiplas chamadas (HMR, SSR rehydrate) são no-op.
 initSentry();
+
+const IS_DEV = import.meta.env.DEV;
+
+// Padrões de erro intencionalmente amigáveis (lançados pelo próprio app)
+// cujas mensagens são seguras para exibir ao usuário final.
+const SAFE_ERROR_PATTERNS: RegExp[] = [
+  /Missing Supabase environment variable/i,
+  /API base URL n[ãa]o configurada/i,
+  /Unauthorized/i,
+];
+
+function getSafeErrorMessage(error: Error): string {
+  const msg = error.message || "";
+  if (SAFE_ERROR_PATTERNS.some((p) => p.test(msg))) return msg;
+  return "Ocorreu um erro inesperado. Nossa equipe foi notificada.";
+}
 
 
 
