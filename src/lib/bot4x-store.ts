@@ -188,7 +188,7 @@ export const useBot4xStore = create<State>()(
       dailyPnlPct: 0,
       trailingPeakPct: 0,
       ticks: [],
-      ticksProcessed: 1247,
+      ticksProcessed: 0,
       feedPaused: false,
       history: [],
       monitorTab: "tick",
