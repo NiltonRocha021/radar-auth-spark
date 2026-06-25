@@ -13,6 +13,7 @@ interface DashboardState {
   toasts: Toast[];
   selectedSignal: Signal | null;
   cmdkOpen: boolean;
+  _intervalIds: Set<number>;
   init: () => void;
   cleanup: () => void;
   pushToast: (s: Signal) => void;
@@ -21,8 +22,6 @@ interface DashboardState {
   setCmdkOpen: (v: boolean) => void;
 }
 
-let priceInterval: ReturnType<typeof setInterval> | null = null;
-let signalTimeout: ReturnType<typeof setTimeout> | null = null;
 let signalIndex = 0;
 
 export const useDashboardStore = create<DashboardState>((set, get) => ({
@@ -34,10 +33,13 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   toasts: [],
   selectedSignal: null,
   cmdkOpen: false,
+  _intervalIds: new Set<number>(),
 
   init: () => {
-    if (priceInterval) return;
-    priceInterval = setInterval(() => {
+    if (get()._intervalIds.size > 0) return;
+    const ids = new Set<number>();
+
+    const priceInterval = window.setInterval(() => {
       set((state) => {
         const next = { ...state.prices };
         const nextHeatmap = state.heatmap.map((h) => {
@@ -50,18 +52,31 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         return { prices: next, heatmap: nextHeatmap };
       });
     }, 3000);
+    ids.add(priceInterval);
 
-    signalTimeout = setTimeout(function fire() {
-      const s = upcomingSignals[signalIndex % upcomingSignals.length];
-      signalIndex++;
-      get().pushToast(s);
-      signalTimeout = setTimeout(fire, 22000);
-    }, 15000);
+    const scheduleNext = () => {
+      const tid = window.setTimeout(function fire() {
+        const s = upcomingSignals[signalIndex % upcomingSignals.length];
+        signalIndex++;
+        get().pushToast(s);
+        // remove resolved id, schedule next
+        get()._intervalIds.delete(tid);
+        const nextId = window.setTimeout(fire, 22000);
+        get()._intervalIds.add(nextId);
+      }, 15000);
+      ids.add(tid);
+    };
+    scheduleNext();
+
+    set({ _intervalIds: ids });
   },
 
   cleanup: () => {
-    if (priceInterval) { clearInterval(priceInterval); priceInterval = null; }
-    if (signalTimeout) { clearTimeout(signalTimeout); signalTimeout = null; }
+    get()._intervalIds.forEach((id) => {
+      clearInterval(id);
+      clearTimeout(id);
+    });
+    set({ _intervalIds: new Set<number>() });
   },
 
   pushToast: (signal) => {
@@ -74,3 +89,4 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   setSelectedSignal: (s) => set({ selectedSignal: s }),
   setCmdkOpen: (v) => set({ cmdkOpen: v }),
 }));
+
