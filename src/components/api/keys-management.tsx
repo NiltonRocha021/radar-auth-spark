@@ -1,107 +1,56 @@
-import { useState } from "react";
-import { Copy, Check, Lock, Plus, Trash2, Sparkles } from "lucide-react";
+import { Lock, Sparkles, Construction } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { SAMPLE_KEYS, RATE_LIMITS, type ApiKey } from "@/lib/api-data";
-import { RateGauge } from "./rate-gauge";
+import { RATE_LIMITS } from "@/lib/api-data";
 import { cn } from "@/lib/utils";
 
-// Page is public; key generation requires Institutional plan.
-// In a real app this comes from session/user context.
-const USER_PLAN: "Starter" | "Pro" | "Institutional" = "Pro";
+// SEG-06: a página antiga de "API keys" gerava/revogava chaves apenas no
+// estado local (sem tabela, sem backend, sem hash). Vendida no plano
+// Institutional, isso era falsa expectativa para clientes pagantes.
+// Enquanto o backend real (tabela api_keys + RPC de emissão + middleware
+// de validação) não existir, exibimos um estado "Em breve" honesto.
+//
+// Os limites de rate por plano continuam visíveis porque são informação
+// comercial verdadeira.
 
 export function KeysManagement() {
-  const [keys, setKeys] = useState<ApiKey[]>(SAMPLE_KEYS);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const canGenerate = USER_PLAN === "Institutional";
-
-  function mask(k: string) {
-    return "••••" + k.slice(-4);
-  }
-
-  async function copy(k: ApiKey) {
-    try {
-      await navigator.clipboard.writeText(k.key);
-      setCopiedId(k.id);
-      toast.success("API key copied to clipboard");
-      setTimeout(() => setCopiedId(null), 1400);
-    } catch {}
-  }
-
-  function revoke(id: string) {
-    setKeys((p) => p.filter((k) => k.id !== id));
-    toast("Key revoked", { description: "Future requests with this key will return 401." });
-  }
-
   return (
     <section className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">API keys</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Manage keys, rotate, and monitor usage.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Gere, rotacione e monitore o uso de chaves de API.</p>
         </div>
-        {canGenerate ? (
-          <Button size="sm" className="bg-[#378ADD] hover:bg-[#2d74bd] text-white">
-            <Plus className="size-3.5 mr-1" /> Generate new key
-          </Button>
-        ) : (
-          <UpgradePrompt />
-        )}
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-amber-500/40 bg-amber-500/10 text-amber-300">
+          <Construction className="size-3.5" /> Em breve
+        </span>
       </header>
 
-      <div className="rounded-lg border border-border bg-card/40 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="text-[11px] uppercase tracking-wide text-muted-foreground bg-secondary/30">
-            <tr>
-              <th className="text-left font-medium px-4 py-2.5">Name</th>
-              <th className="text-left font-medium px-4 py-2.5">Key</th>
-              <th className="text-left font-medium px-4 py-2.5">Plan</th>
-              <th className="text-left font-medium px-4 py-2.5">Usage today</th>
-              <th className="text-left font-medium px-4 py-2.5">Created</th>
-              <th className="text-right font-medium px-4 py-2.5">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {keys.map((k) => (
-              <tr key={k.id} className="border-t border-border/60">
-                <td className="px-4 py-3 font-medium">{k.name}</td>
-                <td className="px-4 py-3 font-mono text-xs text-foreground/80">{mask(k.key)}</td>
-                <td className="px-4 py-3">
-                  <span className="text-[11px] px-2 py-0.5 rounded border border-[#378ADD]/30 bg-[#378ADD]/10 text-[#5fa8ff]">{k.plan}</span>
-                </td>
-                <td className="px-4 py-3">
-                  <RateGauge used={k.requestsToday} limit={k.plan === "Institutional" ? null : k.plan === "Pro" ? 5000 : 100} />
-                </td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">{k.createdAt}</td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => copy(k)}
-                      className="size-7 rounded hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                      title="Copy key"
-                    >
-                      {copiedId === k.id ? <Check className="size-3.5 text-emerald-400" /> : <Copy className="size-3.5" />}
-                    </button>
-                    <button
-                      onClick={() => revoke(k.id)}
-                      className="size-7 rounded hover:bg-red-500/10 text-muted-foreground hover:text-red-400 flex items-center justify-center transition-colors"
-                      title="Revoke key"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {keys.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                  No active keys.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="rounded-lg border border-dashed border-border bg-card/30 p-6">
+        <div className="flex items-start gap-4">
+          <div className="size-10 shrink-0 rounded-lg bg-[#378ADD]/10 border border-[#378ADD]/30 flex items-center justify-center">
+            <Lock className="size-5 text-[#5fa8ff]" />
+          </div>
+          <div className="space-y-2 min-w-0">
+            <h3 className="text-sm font-semibold">Emissão de chaves em desenvolvimento</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              O painel de gestão de chaves de API está em desenvolvimento. Quando estiver disponível,
+              clientes do plano Institutional poderão emitir, rotacionar e revogar chaves a partir desta tela,
+              com hashing server-side e validação por middleware em cada request da API pública.
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Até lá, esta página é informativa. Se você precisa acessar os endpoints REST/WebSocket,
+              entre em contato com o suporte para emissão manual de credenciais.
+            </p>
+            <div className="pt-1 flex gap-2">
+              <Button size="sm" variant="outline" disabled className="opacity-60 cursor-not-allowed">
+                <Sparkles className="size-3.5 mr-1" /> Generate new key
+              </Button>
+              <Button size="sm" variant="ghost" asChild>
+                <a href="mailto:support@aisignalradar.com?subject=API%20key%20request">Falar com suporte</a>
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div>
@@ -130,20 +79,5 @@ export function KeysManagement() {
         </div>
       </div>
     </section>
-  );
-}
-
-function UpgradePrompt() {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-[#378ADD]/30 bg-gradient-to-r from-[#378ADD]/10 to-transparent px-3 py-2">
-      <Lock className="size-4 text-[#5fa8ff]" />
-      <div className="text-xs">
-        <div className="font-medium">Key generation requires Institutional</div>
-        <div className="text-muted-foreground">Upgrade to unlock unlimited API access.</div>
-      </div>
-      <Button size="sm" variant="outline" className="border-[#378ADD]/40 text-[#5fa8ff] hover:bg-[#378ADD]/10">
-        <Sparkles className="size-3.5 mr-1" /> Upgrade
-      </Button>
-    </div>
   );
 }

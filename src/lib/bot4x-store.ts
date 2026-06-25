@@ -19,7 +19,14 @@ import { loadConfig, saveConfig } from "./bot4x-config-db";
 import type { CalibProfile as CalibProfileType } from "./bot4x-data";
 
 // ─── FEATURE FLAG ─────────────────────────────────────────────────────────────
-const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
+// Quando false, TODA a execução cai em DEMO (simulação client-side com Math.random).
+// A UI deve refletir isso via getEffectiveMode(), nunca o `mode` cru do store.
+export const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
+
+// Fonte de verdade única do modo efetivo. UI e lógica de init() devem usar isto.
+export function getEffectiveMode(persistedMode: ExecMode): ExecMode {
+  return REAL_MODE_ENABLED ? persistedMode : "DEMO";
+}
 
 // ─── RISK MODEL CONSTANTS ─────────────────────────────────────────────────────
 export const MAX_SLOTS = 10;

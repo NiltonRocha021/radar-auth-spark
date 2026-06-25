@@ -26,7 +26,20 @@ export async function saveTrade(userId: string, trade: Trade): Promise<void> {
     },
     { onConflict: "id" },
   );
-  if (error) console.error("[bot4x-trades-db] saveTrade error:", error.message);
+  if (error) {
+    // DB-02: parar de engolir silenciosamente. Trade não persistido é
+    // dado financeiro perdido — o caller é responsável por notificar o
+    // usuário/observabilidade.
+    console.error("[bot4x-trades-db] saveTrade error:", {
+      tradeId: trade.id,
+      userId,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      message: error.message,
+    });
+    throw new Error(`Falha ao salvar trade ${trade.id}: ${error.message}`);
+  }
 }
 
 export async function loadTrades(userId: string, limitDays = 90): Promise<Trade[]> {
