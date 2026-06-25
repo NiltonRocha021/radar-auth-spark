@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Outlet } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Outlet, redirect } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useEffect, useState, lazy, Suspense } from "react";
 import { Bot4xCompactPill } from "@/components/global/bot4x-compact-pill";
@@ -12,6 +12,7 @@ import { useMarketContext } from "@/hooks/useMarketContext";
 import { useCopilotUI } from "@/lib/copilot-ui-store";
 import { useStoreCleanup } from "@/hooks/useStoreCleanup";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getAuthSession } from "@/lib/server-auth";
 
 
 // PERF-01: code-split widgets pesados. CopilotPanel só monta após o
@@ -24,11 +25,31 @@ const CopilotPanel = lazy(() =>
 );
 
 export const Route = createFileRoute("/_authenticated")({
-  // SEG-01: proteção 100% client-side (AuthGate). Veja docs/architecture/
-  // backend-boundary.md e .lovable/plan.md para o motivo de não migrarmos
-  // para SSR de sessão neste momento (client.ts é auto-gerado).
+  // SEG-01 (rev): camada server-side via createServerFn + bearer attacher.
+  // - Em navegações client-side o functionMiddleware já anexa o Bearer; o
+  //   handler valida o token contra o Supabase Auth e retorna a sessão.
+  // - No SSR inicial (refresh / hard navigation) NÃO há bearer porque a
+  //   sessão Supabase vive em localStorage; getAuthSession retorna
+  //   isAuthenticated:false e DEIXAMOS passar — o AuthGate client-side
+  //   abaixo cobre esse caso (defense in depth).
+  // TODO(seg): migrar sessão para cookie httpOnly para conseguir bloquear
+  // o shell já no SSR sem causar redirect-loop em usuários autenticados.
+  beforeLoad: async () => {
+    const auth = await getAuthSession();
+    if (auth.isAuthenticated) {
+      return { serverUserId: auth.userId };
+    }
+    // Sem bearer: pode ser SSR sem cookie de sessão. Não redireciona aqui
+    // para evitar loop; AuthGate trata no client.
+    if (typeof window !== "undefined") {
+      // No client com bearer ausente/ inválido: redireciona.
+      throw redirect({ to: "/login" });
+    }
+    return { serverUserId: undefined as string | undefined };
+  },
   component: AuthGate,
 });
+
 
 function AuthGate() {
   const { session, loading } = useAuth();
