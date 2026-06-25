@@ -225,7 +225,22 @@ export const Route = createFileRoute("/lovable/email/queue/process")({
             // Prefer payload.queued_at when present; fall back to PGMQ's enqueued_at
             // which is always set by the queue.
             const queuedAt = payload.queued_at ?? msg.enqueued_at
-            if (queuedAt) {
+            if (!queuedAt) {
+              // Conservative policy: if no timestamp is available we cannot
+              // verify TTL, so treat the message as recent and let it through
+              // instead of silently discarding it. Monitor this warning — if
+              // it shows up frequently it indicates an enqueue-side bug
+              // (queued_at not populated) or a PGMQ version that does not
+              // expose enqueued_at.
+              console.warn(
+                'Email sem timestamp de enfileiramento — TTL não pode ser verificado',
+                {
+                  queue,
+                  msg_id: msg.msg_id,
+                  message_id: payload.message_id,
+                }
+              )
+            } else {
               const ageMs = Date.now() - new Date(queuedAt).getTime()
               const maxAgeMs = ttlMinutes[queue] * 60 * 1000
               if (ageMs > maxAgeMs) {
