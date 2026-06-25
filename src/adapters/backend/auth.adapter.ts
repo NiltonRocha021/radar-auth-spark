@@ -1,6 +1,8 @@
 // Bridge: usa a sessão Supabase apenas como identity layer
 // e expõe o JWT para o backend NestJS validar.
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "./api.adapter";
+
 
 export const authAdapter = {
   async getAccessToken(): Promise<string | null> {
@@ -17,5 +19,12 @@ export const authAdapter = {
   },
   async signOut(): Promise<void> {
     await supabase.auth.signOut();
+  },
+  async getMe(): Promise<{ userId: string; email: string; role: string } | null> {
+    try {
+      return await api.get<{ userId: string; email: string; role: string }>("/auth/me");
+    } catch {
+      return null;
+    }
   },
 };

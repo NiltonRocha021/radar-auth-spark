@@ -45,20 +45,40 @@ export function mapBot4xConfig(c: BackendBot4xConfig): Bot4xConfigUI {
 
 export const bot4xAdapter = {
   async getConfig(userId: string): Promise<Bot4xConfigUI | null> {
-    const data = await api.get<BackendBot4xConfig | null>(endpoints.bot4x.config(userId));
-    return data ? mapBot4xConfig(data) : null;
+    try {
+      const data = await api.get<BackendBot4xConfig | null>(endpoints.bot4x.config(userId));
+      return data ? mapBot4xConfig(data) : null;
+    } catch {
+      return null;
+    }
   },
-  async updateConfig(userId: string, patch: Partial<BackendBot4xConfig>): Promise<Bot4xConfigUI> {
-    const data = await api.patch<BackendBot4xConfig>(endpoints.bot4x.updateConfig(userId), patch);
-    return mapBot4xConfig(data);
+  async updateConfig(userId: string, patch: Partial<BackendBot4xConfig>): Promise<Bot4xConfigUI | null> {
+    try {
+      const data = await api.patch<BackendBot4xConfig>(endpoints.bot4x.updateConfig(userId), patch);
+      return mapBot4xConfig(data);
+    } catch {
+      return null;
+    }
   },
   async executions(): Promise<BackendBot4xExecution[]> {
-    return (await api.get<BackendBot4xExecution[]>(endpoints.bot4x.executions)) ?? [];
+    try {
+      return (await api.get<BackendBot4xExecution[]>(endpoints.bot4x.executions)) ?? [];
+    } catch {
+      return [];
+    }
   },
   async start(userId: string) {
-    return api.post(endpoints.bot4x.start, { userId });
+    try {
+      return await api.post(endpoints.bot4x.start, { userId });
+    } catch {
+      return null;
+    }
   },
   async stop(userId: string) {
-    return api.post(endpoints.bot4x.stop, { userId });
+    try {
+      return await api.post(endpoints.bot4x.stop, { userId });
+    } catch {
+      return null;
+    }
   },
 };
