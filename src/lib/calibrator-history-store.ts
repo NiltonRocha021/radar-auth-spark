@@ -100,7 +100,7 @@ export const calibratorHistoryStore = {
         pnl_pct: entry.result.pnlPct,
         max_drawdown: entry.result.maxDrawdown,
         sharpe: entry.result.sharpe,
-        full_result: (entry.fullResult as unknown as Record<string, unknown>) ?? null,
+        full_result: (entry.fullResult ?? null) as never,
       })
       .select()
       .single();
