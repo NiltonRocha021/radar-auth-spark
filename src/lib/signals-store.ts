@@ -58,8 +58,6 @@ type State = {
 };
 
 
-let intervals: number[] = [];
-
 export const useSignalsStore = create<State>((set, get) => ({
   signals: initialSignals,
   filters: {
@@ -88,7 +86,9 @@ export const useSignalsStore = create<State>((set, get) => ({
   detailId: null,
   toasts: [],
   flashIds: new Set(),
+  _intervalIds: new Set<number>(),
   setView: (v) => set({ view: v }),
+
   setSort: (s) => set({ sort: s }),
   setLive: (v) => set({ live: v }),
   toggleAdv: () => set((s) => ({ advOpen: !s.advOpen })),
