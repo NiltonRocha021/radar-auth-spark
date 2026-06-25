@@ -131,4 +131,3 @@ export async function saveConfig(userId: string, config: Partial<Bot4xConfigRow>
   if (error) console.error("[bot4x-config-db] saveConfig error:", error.message);
 }
 
-}
