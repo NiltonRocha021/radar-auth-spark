@@ -564,6 +564,7 @@ export const useBot4xStore = create<State>()(
         monitorTab: s.monitorTab,
         ticksProcessed: s.ticksProcessed,
         circuitBreaker: s.circuitBreaker,
+        dnaMinSample: s.dnaMinSample,
       }),
     },
   ),
