@@ -50,6 +50,11 @@ class BackendWsClient {
   private connecting = false;
   private currentPath = "/ws";
   private status: WsStatus = "idle";
+  private reconnectAttempts = 0;
+  private readonly BASE_DELAY_MS = 1_000;
+  private readonly MAX_DELAY_MS = 30_000;
+  private readonly MAX_ATTEMPTS = 10;
+
 
   getStatus(): WsStatus {
     return this.status;
@@ -103,8 +108,10 @@ class BackendWsClient {
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: "auth", token }));
       this.connecting = false;
+      this.reconnectAttempts = 0;
       this.setStatus("open");
     };
+
     ws.onclose = (ev) => {
       this.connecting = false;
       this.socket = null;
@@ -138,8 +145,22 @@ class BackendWsClient {
 
   private scheduleReconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.reconnectTimer = setTimeout(() => this.connect(this.currentPath), 3000);
+    if (this.reconnectAttempts >= this.MAX_ATTEMPTS) {
+      this.setStatus("error");
+      return;
+    }
+    const base = Math.min(this.BASE_DELAY_MS * 2 ** this.reconnectAttempts, this.MAX_DELAY_MS);
+    const jitter = Math.random() * 0.3 * base;
+    const delay = Math.floor(base + jitter);
+    this.reconnectAttempts++;
+    this.reconnectTimer = setTimeout(() => this.connect(this.currentPath), delay);
   }
+
+  resetAndReconnect() {
+    this.reconnectAttempts = 0;
+    void this.connect(this.currentPath);
+  }
+
 
   on(event: WsEvent, handler: Handler): () => void {
     if (!this.handlers.has(event)) this.handlers.set(event, new Set());
@@ -164,10 +185,12 @@ class BackendWsClient {
   close() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
+    this.reconnectAttempts = 0;
     this.socket?.close();
     this.socket = null;
     this.setStatus("closed");
   }
+
 }
 
 export const backendWs = new BackendWsClient();

@@ -1,4 +1,4 @@
-import { Component, type ReactNode, type ErrorInfo } from "react";
+import { Component, type ReactNode, type ErrorInfo, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -12,6 +12,8 @@ import {
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
+import { backendWs } from "@/adapters/backend/ws-client";
+
 
 // GlobalErrorBoundary: captura erros de runtime em componentes fora do ciclo
 // de rotas (ex: Zustand side effects, providers, lazy chunks). Sem isso, esses
@@ -194,6 +196,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        backendWs.resetAndReconnect();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   return (
     <GlobalErrorBoundary>
       <QueryClientProvider client={queryClient}>
@@ -206,3 +218,4 @@ function RootComponent() {
   );
 
 }
+
