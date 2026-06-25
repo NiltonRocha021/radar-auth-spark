@@ -340,8 +340,11 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           avg_win_rate: number | null
           best_session: string | null
+          bio: string | null
+          country: string | null
           created_at: string
           dna_consistency: number | null
           dna_discipline: number | null
@@ -359,14 +362,22 @@ export type Database = {
           onboarding_completed: boolean
           operations_today: number | null
           overtrading_risk: boolean | null
+          phone: string | null
+          phone_country: string | null
           plan_tier: string | null
+          timezone: string | null
           trading_style: string | null
           updated_at: string
+          username: string | null
+          website: string | null
           worst_session: string | null
         }
         Insert: {
+          avatar_url?: string | null
           avg_win_rate?: number | null
           best_session?: string | null
+          bio?: string | null
+          country?: string | null
           created_at?: string
           dna_consistency?: number | null
           dna_discipline?: number | null
@@ -384,14 +395,22 @@ export type Database = {
           onboarding_completed?: boolean
           operations_today?: number | null
           overtrading_risk?: boolean | null
+          phone?: string | null
+          phone_country?: string | null
           plan_tier?: string | null
+          timezone?: string | null
           trading_style?: string | null
           updated_at?: string
+          username?: string | null
+          website?: string | null
           worst_session?: string | null
         }
         Update: {
+          avatar_url?: string | null
           avg_win_rate?: number | null
           best_session?: string | null
+          bio?: string | null
+          country?: string | null
           created_at?: string
           dna_consistency?: number | null
           dna_discipline?: number | null
@@ -409,9 +428,14 @@ export type Database = {
           onboarding_completed?: boolean
           operations_today?: number | null
           overtrading_risk?: boolean | null
+          phone?: string | null
+          phone_country?: string | null
           plan_tier?: string | null
+          timezone?: string | null
           trading_style?: string | null
           updated_at?: string
+          username?: string | null
+          website?: string | null
           worst_session?: string | null
         }
         Relationships: []

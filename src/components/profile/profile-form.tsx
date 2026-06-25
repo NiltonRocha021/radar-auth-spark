@@ -8,7 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useProfileStore } from "@/lib/profile-store";
+import { useProfileStore, type ProfileInfo } from "@/lib/profile-store";
+import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const schema = z.object({
@@ -35,12 +37,56 @@ const TAKEN = new Set(["admin", "root", "lovable", "trader", "satoshi"]);
 
 export function ProfileForm() {
   const { info, setInfo } = useProfileStore();
+  const { user } = useAuth();
   const [unameStatus, setUnameStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: info,
   });
+
+  // Hidrata o formulário a partir do banco (uma vez por sessão de usuário)
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name, email, username, phone_country, phone, country, timezone, bio, website")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        console.error("[profile-form] load error:", error);
+        toast.error("Não foi possível carregar o perfil", { description: error.message });
+        setLoaded(true);
+        return;
+      }
+      if (data) {
+        const merged: ProfileInfo = {
+          ...info,
+          fullName: data.full_name ?? info.fullName,
+          email: data.email ?? user.email ?? info.email,
+          username: data.username ?? info.username,
+          phoneCountry: data.phone_country ?? info.phoneCountry,
+          phone: data.phone ?? info.phone,
+          country: data.country ?? info.country,
+          timezone: data.timezone ?? info.timezone,
+          bio: data.bio ?? info.bio,
+          website: data.website ?? info.website,
+        };
+        setInfo(merged);
+        form.reset(merged);
+      }
+      setLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const username = form.watch("username");
 
@@ -59,9 +105,40 @@ export function ProfileForm() {
 
   const bioLen = form.watch("bio")?.length ?? 0;
 
-  const onSubmit = (values: FormValues) => {
+  const onSubmit = async (values: FormValues) => {
     if (unameStatus === "taken") {
       toast.error("That username is taken.");
+      return;
+    }
+    if (!user?.id) {
+      toast.error("Você precisa estar autenticado para salvar.");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: user.id,
+          full_name: values.fullName,
+          email: values.email,
+          username: values.username,
+          phone_country: values.phoneCountry,
+          phone: values.phone,
+          country: values.country,
+          timezone: values.timezone,
+          bio: values.bio,
+          website: values.website,
+        },
+        { onConflict: "id" },
+      );
+    setSaving(false);
+    if (error) {
+      console.error("[profile-form] save error:", error);
+      const isUniqueViolation = error.code === "23505" || /duplicate key|unique/i.test(error.message);
+      toast.error(isUniqueViolation ? "Nome de usuário já está em uso" : "Falha ao salvar perfil", {
+        description: error.message,
+      });
       return;
     }
     setInfo(values);
@@ -154,11 +231,12 @@ export function ProfileForm() {
       </div>
 
       <div className="flex items-center justify-end gap-2 mt-5 pt-4 border-t border-border">
-        <Button type="button" variant="ghost" onClick={() => form.reset(info)} disabled={!isDirty}>
+        <Button type="button" variant="ghost" onClick={() => form.reset(info)} disabled={!isDirty || saving}>
           Discard
         </Button>
-        <Button type="submit" disabled={!isDirty} className="gap-1.5">
-          <Check className="size-4" /> Save changes
+        <Button type="submit" disabled={!isDirty || saving || !loaded || !user?.id} className="gap-1.5">
+          {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+          {saving ? "Saving…" : "Save changes"}
         </Button>
       </div>
     </form>
