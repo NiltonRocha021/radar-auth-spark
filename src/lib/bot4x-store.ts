@@ -14,7 +14,7 @@ import { PROFILES } from "./bot4x-data";
 import { bot4xAdapter, type BackendBot4xExecution } from "@/adapters/backend/bot4x.adapter";
 import { backendWs } from "@/adapters/backend/ws-client";
 import { supabase } from "@/integrations/supabase/client";
-import { saveTrade, loadTrades } from "./bot4x-trades-db";
+import { saveTrade, loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
 import { loadConfig, saveConfig } from "./bot4x-config-db";
 import type { CalibProfile as CalibProfileType } from "./bot4x-data";
 
