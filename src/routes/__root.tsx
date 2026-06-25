@@ -51,15 +51,22 @@ class GlobalErrorBoundary extends Component<{ children: ReactNode }, EBState> {
     return { error };
   }
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("[GlobalErrorBoundary]", error, info.componentStack);
+    logger.error("[GlobalErrorBoundary]", {
+      error,
+      componentStack: info.componentStack,
+    });
+    Sentry.captureException(error, {
+      extra: { componentStack: info.componentStack },
+    });
   }
   render() {
     if (this.state.error) {
-      const msg = this.state.error.message || "";
-      const isMissingSupabaseEnv = /Missing Supabase environment variable/i.test(msg);
+      const rawMsg = this.state.error.message || "";
+      const safeMsg = getSafeErrorMessage(this.state.error);
+      const isMissingSupabaseEnv = /Missing Supabase environment variable/i.test(rawMsg);
 
       if (isMissingSupabaseEnv) {
-        const missingMatch = msg.match(/variable\(s\):\s*([^.]+)\./i);
+        const missingMatch = rawMsg.match(/variable\(s\):\s*([^.]+)\./i);
         const missing = missingMatch ? missingMatch[1].trim() : "SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY";
         return (
           <div style={{ display:"flex", minHeight:"100vh", alignItems:"center", justifyContent:"center", padding:"1.5rem", background:"#0a0a0a", fontFamily:"system-ui, sans-serif" }}>
@@ -89,10 +96,12 @@ class GlobalErrorBoundary extends Component<{ children: ReactNode }, EBState> {
               >
                 Recarregar
               </button>
-              <details style={{ marginTop:"1rem", fontSize:"0.75rem", color:"#737373" }}>
-                <summary style={{ cursor:"pointer" }}>Detalhes técnicos</summary>
-                <pre style={{ whiteSpace:"pre-wrap", marginTop:"0.5rem" }}>{msg}</pre>
-              </details>
+              {IS_DEV && (
+                <details style={{ marginTop:"1rem", fontSize:"0.75rem", color:"#737373" }}>
+                  <summary style={{ cursor:"pointer" }}>Detalhes técnicos (dev)</summary>
+                  <pre style={{ whiteSpace:"pre-wrap", marginTop:"0.5rem" }}>{rawMsg}</pre>
+                </details>
+              )}
             </div>
           </div>
         );
@@ -102,13 +111,19 @@ class GlobalErrorBoundary extends Component<{ children: ReactNode }, EBState> {
         <div style={{ display:"flex", minHeight:"100vh", alignItems:"center", justifyContent:"center", padding:"1rem", background:"#000" }}>
           <div style={{ maxWidth:"28rem", textAlign:"center", color:"#fff" }}>
             <h1 style={{ fontSize:"1.25rem", fontWeight:600 }}>Algo deu errado</h1>
-            <p style={{ marginTop:"0.5rem", fontSize:"0.875rem", color:"#888" }}>{msg}</p>
+            <p style={{ marginTop:"0.5rem", fontSize:"0.875rem", color:"#888" }}>{safeMsg}</p>
             <button
               onClick={() => { this.setState({ error: null }); window.location.href = "/"; }}
               style={{ marginTop:"1.5rem", padding:"0.5rem 1rem", background:"#7c3aed", color:"#fff", border:"none", borderRadius:"0.375rem", cursor:"pointer" }}
             >
               Voltar ao início
             </button>
+            {IS_DEV && (
+              <details style={{ marginTop:"1rem", fontSize:"0.75rem", color:"#666", textAlign:"left" }}>
+                <summary style={{ cursor:"pointer" }}>Detalhes técnicos (dev)</summary>
+                <pre style={{ whiteSpace:"pre-wrap", marginTop:"0.5rem" }}>{rawMsg}</pre>
+              </details>
+            )}
           </div>
         </div>
       );
