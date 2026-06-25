@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, KeyboardEvent } from 'react';
-import { useCopilotWs } from '@/hooks/useCopilotWs';
+import { useCopilot } from '@/hooks/useCopilot';
 import type { MarketContext, TraderProfile, CopilotMessage } from '@/hooks/useCopilot';
 import { CopilotOrb } from './CopilotOrb';
 import { CopilotMessageBubble } from './CopilotMessage';
