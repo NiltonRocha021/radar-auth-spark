@@ -1,8 +1,7 @@
-import { useSignalsStore, selectStats, selectFilteredSorted } from "@/lib/signals-store";
+import { selectStats, useFilteredSignals } from "@/lib/signals-store";
 
 export function StatsBar() {
-  const state = useSignalsStore();
-  const filtered = selectFilteredSorted(state);
+  const filtered = useFilteredSignals();
   const s = selectStats(filtered);
   const items = [
     { label: "Total", value: s.total },

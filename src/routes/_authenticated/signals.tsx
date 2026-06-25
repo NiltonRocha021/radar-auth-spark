@@ -12,7 +12,7 @@ import { QuickViewPanel } from "@/components/signals/quick-view-panel";
 import { SignalToasts } from "@/components/signals/signal-toasts";
 import { SignalStream } from "@/components/signals/signal-stream";
 import { SignalDetailDrawer } from "@/components/signals/signal-detail-drawer";
-import { useSignalsStore, selectFilteredSorted } from "@/lib/signals-store";
+import { useSignalsStore, useFilteredSignals } from "@/lib/signals-store";
 import { useBot4xStore } from "@/lib/bot4x-store";
 import { bot4xEligibility } from "@/lib/bot4x-eligibility";
 
@@ -35,17 +35,16 @@ function SignalsPage() {
   const setLive = useSignalsStore((s) => s.setLive);
   const live = useSignalsStore((s) => s.live);
   const pin = useSignalsStore((s) => s.pin);
-  const state = useSignalsStore();
-  const bot4xOnly = state.filters.bot4xOnly;
+  const bot4xOnly = useSignalsStore((s) => s.filters.bot4xOnly);
   const bot4xMode = useBot4xStore((s) => s.mode);
   const bot4xProfile = useBot4xStore((s) => s.profile);
   const bot4xPnl = useBot4xStore((s) => s.dailyPnlPct);
-  let filtered = selectFilteredSorted(state);
-  if (bot4xOnly) {
-    filtered = filtered.filter(
-      (sig) => bot4xEligibility(sig, { mode: bot4xMode, profile: bot4xProfile, dailyPnlPct: bot4xPnl }) === "EXECUTAR",
-    );
-  }
+  const filteredBase = useFilteredSignals();
+  const filtered = bot4xOnly
+    ? filteredBase.filter(
+        (sig) => bot4xEligibility(sig, { mode: bot4xMode, profile: bot4xProfile, dailyPnlPct: bot4xPnl }) === "EXECUTAR",
+      )
+    : filteredBase;
 
   useEffect(() => {
     init();
