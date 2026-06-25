@@ -50,6 +50,11 @@ class BackendWsClient {
   private connecting = false;
   private currentPath = "/ws";
   private status: WsStatus = "idle";
+  private reconnectAttempts = 0;
+  private readonly BASE_DELAY_MS = 1_000;
+  private readonly MAX_DELAY_MS = 30_000;
+  private readonly MAX_ATTEMPTS = 10;
+
 
   getStatus(): WsStatus {
     return this.status;
