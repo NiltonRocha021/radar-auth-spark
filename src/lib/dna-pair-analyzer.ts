@@ -34,9 +34,14 @@ export type PairAnalysisResult = {
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-// Minimum closed trades (WIN+LOSS) per pair before any PREFER/AVOID verdict.
-// Below this, the sample is too small to distinguish signal from noise.
-const MIN_SAMPLE = 10;
+// Default minimum closed trades (WIN+LOSS) per pair before any PREFER/AVOID
+// verdict. Below this, the sample is too small to distinguish signal from noise.
+// Pode ser sobrescrito via opção `minSample` em `analyzePairs(...)` ou pela
+// configuração `dnaMinSample` persistida no Bot4x store (UI em /dna-pairs).
+export const DEFAULT_DNA_MIN_SAMPLE = 10;
+
+// Faixa permitida pela configuração de usuário (UI clampa nesses limites).
+export const DNA_MIN_SAMPLE_BOUNDS = { min: 5, max: 100 } as const;
 
 // ─── STATISTICAL HELPERS ──────────────────────────────────────────────────────
 
