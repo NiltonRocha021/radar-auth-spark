@@ -32,7 +32,13 @@ const signUpSchema = z
   .object({
     fullName: z.string().trim().min(2, "Enter your full name").max(80),
     email: z.string().trim().email("Invalid email"),
-    password: z.string().min(8, "Password min 8 chars"),
+    password: z
+      .string()
+      .min(12, "A senha deve ter no mínimo 12 caracteres")
+      .regex(/[A-Z]/, "A senha deve conter pelo menos uma letra maiúscula")
+      .regex(/[a-z]/, "A senha deve conter pelo menos uma letra minúscula")
+      .regex(/[0-9]/, "A senha deve conter pelo menos um dígito")
+      .regex(/[^A-Za-z0-9]/, "A senha deve conter pelo menos um caractere especial"),
     confirm: z.string(),
     terms: z.literal(true, { errorMap: () => ({ message: "Please accept the terms" }) }),
   })
@@ -40,14 +46,18 @@ const signUpSchema = z
 
 const forgotSchema = z.object({ email: z.string().trim().email("Invalid email") });
 
+// Cinco critérios alinhados ao signUpSchema: comprimento, maiúscula,
+// minúscula, dígito e caractere especial. Cada um vale 1 ponto (0–5).
 function passwordStrength(pw: string): number {
   let s = 0;
-  if (pw.length >= 8) s++;
-  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
-  if (/\d/.test(pw)) s++;
+  if (pw.length >= 12) s++;
+  if (/[A-Z]/.test(pw)) s++;
+  if (/[a-z]/.test(pw)) s++;
+  if (/[0-9]/.test(pw)) s++;
   if (/[^A-Za-z0-9]/.test(pw)) s++;
   return s;
 }
+
 
 function LoginPage() {
   const navigate = useNavigate();
