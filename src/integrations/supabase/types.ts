@@ -83,6 +83,66 @@ export type Database = {
         }
         Relationships: []
       }
+      bot4x_trades: {
+        Row: {
+          accumulated: number
+          created_at: string
+          day: string
+          entry: number
+          hour: number | null
+          id: string
+          leverage: number | null
+          motivo: string | null
+          pair: string
+          pnl: number
+          pnl_pct: number
+          profile: string | null
+          result: string
+          side: string
+          stop: number | null
+          target: number | null
+          user_id: string
+        }
+        Insert: {
+          accumulated?: number
+          created_at?: string
+          day: string
+          entry: number
+          hour?: number | null
+          id: string
+          leverage?: number | null
+          motivo?: string | null
+          pair: string
+          pnl?: number
+          pnl_pct?: number
+          profile?: string | null
+          result: string
+          side: string
+          stop?: number | null
+          target?: number | null
+          user_id: string
+        }
+        Update: {
+          accumulated?: number
+          created_at?: string
+          day?: string
+          entry?: number
+          hour?: number | null
+          id?: string
+          leverage?: number | null
+          motivo?: string | null
+          pair?: string
+          pnl?: number
+          pnl_pct?: number
+          profile?: string | null
+          result?: string
+          side?: string
+          stop?: number | null
+          target?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       copilot_history: {
         Row: {
           agent: string | null
