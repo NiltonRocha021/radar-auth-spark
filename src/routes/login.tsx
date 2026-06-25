@@ -453,8 +453,9 @@ function SignUpForm() {
         </button>
       </Field>
 
-      <div className="grid grid-cols-4 gap-1.5">
-        {[0, 1, 2, 3].map((i) => (
+      <div className="grid grid-cols-5 gap-1.5">
+        {[0, 1, 2, 3, 4].map((i) => (
+
           <div
             key={i}
             className="h-1 rounded-full bg-secondary overflow-hidden"
