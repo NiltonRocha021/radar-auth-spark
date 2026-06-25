@@ -67,22 +67,22 @@ export async function loadConfig(userId: string): Promise<Bot4xConfigRow | null>
 }
 
 export async function saveConfig(userId: string, config: Partial<Bot4xConfigRow>): Promise<void> {
-  const row: Record<string, unknown> = {
+  const row = {
     user_id: userId,
     updated_at: new Date().toISOString(),
+    ...(config.active !== undefined && { active: config.active }),
+    ...(config.profile !== undefined && { profile: config.profile }),
+    ...(config.leverage !== undefined && { leverage: config.leverage }),
+    ...(config.activeCapital !== undefined && { active_capital: config.activeCapital }),
+    ...(config.slPct !== undefined && { rsi_threshold_low: config.slPct }),
+    ...(config.tpPct !== undefined && { rsi_threshold_high: config.tpPct }),
+    ...(config.allocationPct !== undefined && { ai_score_min: config.allocationPct }),
+    ...(config.totalCapital !== undefined && { fomo_limit: config.totalCapital }),
+    ...(config.preferredPairs !== undefined && { exchange: JSON.stringify(config.preferredPairs) }),
+    ...(config.circuitBreaker !== undefined && { circuit_breaker: config.circuitBreaker }),
+    ...(config.dailyPnl !== undefined && { daily_pnl: config.dailyPnl }),
+    ...(config.openSlots !== undefined && { open_slots: config.openSlots }),
   };
-  if (config.active !== undefined) row.active = config.active;
-  if (config.profile !== undefined) row.profile = config.profile;
-  if (config.leverage !== undefined) row.leverage = config.leverage;
-  if (config.activeCapital !== undefined) row.active_capital = config.activeCapital;
-  if (config.slPct !== undefined) row.rsi_threshold_low = config.slPct;
-  if (config.tpPct !== undefined) row.rsi_threshold_high = config.tpPct;
-  if (config.allocationPct !== undefined) row.ai_score_min = config.allocationPct;
-  if (config.totalCapital !== undefined) row.fomo_limit = config.totalCapital;
-  if (config.preferredPairs !== undefined) row.exchange = JSON.stringify(config.preferredPairs);
-  if (config.circuitBreaker !== undefined) row.circuit_breaker = config.circuitBreaker;
-  if (config.dailyPnl !== undefined) row.daily_pnl = config.dailyPnl;
-  if (config.openSlots !== undefined) row.open_slots = config.openSlots;
 
   const { error } = await supabase
     .from("bot4x_configs")

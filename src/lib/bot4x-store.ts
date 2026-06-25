@@ -15,6 +15,8 @@ import { bot4xAdapter, type BackendBot4xExecution } from "@/adapters/backend/bot
 import { backendWs } from "@/adapters/backend/ws-client";
 import { supabase } from "@/integrations/supabase/client";
 import { saveTrade, loadTrades } from "./bot4x-trades-db";
+import { loadConfig, saveConfig } from "./bot4x-config-db";
+import type { CalibProfile as CalibProfileType } from "./bot4x-data";
 
 // ─── FEATURE FLAG ─────────────────────────────────────────────────────────────
 const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
@@ -208,6 +210,27 @@ export const useBot4xStore = create<State>()(
               /* silently ignore — localStorage fallback já foi carregado */
             });
         }
+        // Carrega configuração persistida no banco
+        if (uid) {
+          loadConfig(uid)
+            .then((cfg) => {
+              if (!cfg) return;
+              set({
+                profile: cfg.profile as CalibProfileType,
+                leverage: cfg.leverage,
+                slPct: cfg.slPct,
+                tpPct: cfg.tpPct,
+                allocationPct: cfg.allocationPct,
+                totalCapital: cfg.totalCapital,
+                preferredPairs: cfg.preferredPairs,
+                avoidPairs: cfg.avoidPairs,
+                circuitBreaker: cfg.circuitBreaker as State["circuitBreaker"],
+                dailyPnlPct: cfg.dailyPnl,
+              });
+            })
+            .catch(() => {
+              /* fallback para localStorage */
+            });
       },
 
       // ─── INIT ─────────────────────────────────────────────────────────────
@@ -418,14 +441,49 @@ export const useBot4xStore = create<State>()(
 
       // ─── SETTERS ──────────────────────────────────────────────────────────
       setMode: (mode) => set({ mode }),
-      setTotalCapital: (n) => set({ totalCapital: Math.max(0, n) }),
-      setAllocationPct: (n) => set({ allocationPct: Math.min(100, Math.max(1, n)) }),
-      setLeverage: (n) => set({ leverage: Math.min(10, Math.max(1, n)) }),
-      setProfile: (profile) => set({ profile }),
-      setSlPct: (n) => set({ slPct: Math.min(10, Math.max(0.1, +Number(n).toFixed(2))) }),
-      setTpPct: (n) => set({ tpPct: Math.min(20, Math.max(0.1, +Number(n).toFixed(2))) }),
-      setPreferredPairs: (pairs) => set({ preferredPairs: pairs }),
-      setAvoidPairs: (pairs) => set({ avoidPairs: pairs }),
+      setTotalCapital: (n) => {
+        const v = Math.max(0, n);
+        set({ totalCapital: v });
+        const uid = get().userId;
+        if (uid) saveConfig(uid, { totalCapital: v });
+      },
+      setAllocationPct: (n) => {
+        const v = Math.min(100, Math.max(1, n));
+        set({ allocationPct: v });
+        const uid = get().userId;
+        if (uid) saveConfig(uid, { allocationPct: v });
+      },
+      setLeverage: (n) => {
+        const v = Math.min(10, Math.max(1, n));
+        set({ leverage: v });
+        const uid = get().userId;
+        if (uid) saveConfig(uid, { leverage: v });
+      },
+      setProfile: (profile) => {
+        set({ profile });
+        const uid = get().userId;
+        if (uid) saveConfig(uid, { profile });
+      },
+      setSlPct: (n) => {
+        const v = Math.min(10, Math.max(0.1, +Number(n).toFixed(2)));
+        set({ slPct: v });
+        const uid = get().userId;
+        if (uid) saveConfig(uid, { slPct: v });
+      },
+      setTpPct: (n) => {
+        const v = Math.min(20, Math.max(0.1, +Number(n).toFixed(2)));
+        set({ tpPct: v });
+        const uid = get().userId;
+        if (uid) saveConfig(uid, { tpPct: v });
+      },
+      setPreferredPairs: (pairs) => {
+        set({ preferredPairs: pairs });
+        const uid = get().userId;
+        if (uid) saveConfig(uid, { preferredPairs: pairs });
+      },
+      setAvoidPairs: (pairs) => {
+        set({ avoidPairs: pairs });
+      },
       closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
       seedOrders: () => {
         const sample: Order[] = [
