@@ -2,12 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { TrendingUp, TrendingDown, Minus, Sparkles, ShieldAlert, RefreshCcw, Check, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useBot4xStore } from "@/lib/bot4x-store";
-import { analyzePairs, type PairAnalysisResult, type PairAnalysis } from "@/lib/dna-pair-analyzer";
-
-const MIN_SAMPLE = 10; // keep in sync with dna-pair-analyzer.ts
+import {
+  analyzePairs,
+  DNA_MIN_SAMPLE_BOUNDS,
+  type PairAnalysisResult,
+  type PairAnalysis,
+} from "@/lib/dna-pair-analyzer";
 
 export function DnaPairRecommendations() {
   const history = useBot4xStore((s) => s.history);
@@ -15,14 +20,23 @@ export function DnaPairRecommendations() {
   const avoidPairs = useBot4xStore((s) => s.avoidPairs);
   const setPreferredPairs = useBot4xStore((s) => s.setPreferredPairs);
   const setAvoidPairs = useBot4xStore((s) => s.setAvoidPairs);
+  const dnaMinSample = useBot4xStore((s) => s.dnaMinSample);
+  const setDnaMinSample = useBot4xStore((s) => s.setDnaMinSample);
 
-  const [result, setResult] = useState<PairAnalysisResult>(() => analyzePairs(history));
+  const MIN_SAMPLE = dnaMinSample;
+
+  const [result, setResult] = useState<PairAnalysisResult>(() =>
+    analyzePairs(history, { minSample: MIN_SAMPLE }),
+  );
 
   useEffect(() => {
-    setResult(analyzePairs(history));
-    const id = setInterval(() => setResult(analyzePairs(useBot4xStore.getState().history)), 10_000);
+    setResult(analyzePairs(history, { minSample: MIN_SAMPLE }));
+    const id = setInterval(
+      () => setResult(analyzePairs(useBot4xStore.getState().history, { minSample: MIN_SAMPLE })),
+      10_000,
+    );
     return () => clearInterval(id);
-  }, [history]);
+  }, [history, MIN_SAMPLE]);
 
   const applied = useMemo(
     () => preferredPairs.join(",") === result.preferred.join(",") && avoidPairs.join(",") === result.avoid.join(","),
@@ -60,16 +74,38 @@ export function DnaPairRecommendations() {
               <h2 className="text-sm font-semibold">Recomendações de Pares (DNA)</h2>
             </div>
             <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-              Classificação estatística via intervalo de confiança de Wilson com correção de Bonferroni. Requer mínimo
-              de {MIN_SAMPLE} trades fechados por par. Pares PREFER são priorizados pelo Bot4x; pares AVOID têm execução
-              bloqueada.
+              Classificação estatística via intervalo de confiança de Wilson com correção de Bonferroni. Veredito
+              (PREFER/AVOID) só é liberado a partir de{" "}
+              <span className="font-semibold text-foreground" title={`Configurável (${DNA_MIN_SAMPLE_BOUNDS.min}–${DNA_MIN_SAMPLE_BOUNDS.max})`}>
+                {MIN_SAMPLE} trades fechados
+              </span>{" "}
+              por par (padrão 10). Pares PREFER são priorizados pelo Bot4x; pares AVOID têm execução bloqueada.
             </p>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-end">
+            <div className="flex flex-col gap-1">
+              <Label
+                htmlFor="dna-min-sample"
+                className="text-[10px] uppercase tracking-wide text-muted-foreground"
+                title={`Mínimo de trades fechados por par para liberar PREFER/AVOID (${DNA_MIN_SAMPLE_BOUNDS.min}–${DNA_MIN_SAMPLE_BOUNDS.max}).`}
+              >
+                Mín. trades
+              </Label>
+              <Input
+                id="dna-min-sample"
+                type="number"
+                min={DNA_MIN_SAMPLE_BOUNDS.min}
+                max={DNA_MIN_SAMPLE_BOUNDS.max}
+                step={1}
+                value={MIN_SAMPLE}
+                onChange={(e) => setDnaMinSample(Number(e.target.value))}
+                className="h-8 w-20 text-xs tabular-nums"
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setResult(analyzePairs(useBot4xStore.getState().history))}
+              onClick={() => setResult(analyzePairs(useBot4xStore.getState().history, { minSample: MIN_SAMPLE }))}
               className="h-8 gap-1.5 text-xs"
             >
               <RefreshCcw className="size-3.5" /> Atualizar

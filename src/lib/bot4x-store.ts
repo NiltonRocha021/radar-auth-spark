@@ -78,6 +78,7 @@ type State = {
   monitorTab: "tick" | "order" | "shutdown";
   preferredPairs: string[];
   avoidPairs: string[];
+  dnaMinSample: number; // mínimo de trades fechados por par para veredito DNA
   _ticker?: ReturnType<typeof setInterval>;
 
   // Real mode state
@@ -98,6 +99,7 @@ type State = {
   setTpPct: (n: number) => void;
   setPreferredPairs: (pairs: string[]) => void;
   setAvoidPairs: (pairs: string[]) => void;
+  setDnaMinSample: (n: number) => void;
   closeOrder: (id: string) => void;
   seedOrders: () => void;
   setMonitorTab: (t: "tick" | "order" | "shutdown") => void;
@@ -191,6 +193,7 @@ export const useBot4xStore = create<State>()(
       monitorTab: "tick",
       preferredPairs: [],
       avoidPairs: [],
+      dnaMinSample: 10,
 
       status: "IDLE",
       circuitBreaker: "none",
@@ -494,6 +497,10 @@ export const useBot4xStore = create<State>()(
         const uid = get().userId;
         if (uid) saveConfig(uid, { avoidPairs: pairs });
       },
+      setDnaMinSample: (n) => {
+        const clamped = Math.max(5, Math.min(100, Math.floor(Number(n) || 10)));
+        set({ dnaMinSample: clamped });
+      },
 
       closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
       seedOrders: () => {
@@ -557,6 +564,7 @@ export const useBot4xStore = create<State>()(
         monitorTab: s.monitorTab,
         ticksProcessed: s.ticksProcessed,
         circuitBreaker: s.circuitBreaker,
+        dnaMinSample: s.dnaMinSample,
       }),
     },
   ),

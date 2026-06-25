@@ -34,9 +34,14 @@ export type PairAnalysisResult = {
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-// Minimum closed trades (WIN+LOSS) per pair before any PREFER/AVOID verdict.
-// Below this, the sample is too small to distinguish signal from noise.
-const MIN_SAMPLE = 10;
+// Default minimum closed trades (WIN+LOSS) per pair before any PREFER/AVOID
+// verdict. Below this, the sample is too small to distinguish signal from noise.
+// Pode ser sobrescrito via opção `minSample` em `analyzePairs(...)` ou pela
+// configuração `dnaMinSample` persistida no Bot4x store (UI em /dna-pairs).
+export const DEFAULT_DNA_MIN_SAMPLE = 10;
+
+// Faixa permitida pela configuração de usuário (UI clampa nesses limites).
+export const DNA_MIN_SAMPLE_BOUNDS = { min: 5, max: 100 } as const;
 
 // ─── STATISTICAL HELPERS ──────────────────────────────────────────────────────
 
@@ -96,7 +101,15 @@ function trendOf(trades: Trade[]): PairTrend {
 
 // ─── MAIN FUNCTION ────────────────────────────────────────────────────────────
 
-export function analyzePairs(history: Trade[]): PairAnalysisResult {
+export function analyzePairs(
+  history: Trade[],
+  options: { minSample?: number } = {},
+): PairAnalysisResult {
+  const minSampleRaw = options.minSample ?? DEFAULT_DNA_MIN_SAMPLE;
+  const MIN_SAMPLE = Math.max(
+    DNA_MIN_SAMPLE_BOUNDS.min,
+    Math.min(DNA_MIN_SAMPLE_BOUNDS.max, Math.floor(minSampleRaw)),
+  );
   // Sort newest-first by timestamp embedded in id (`o_<ts>_...`)
   const sorted = [...history].sort((a, b) => {
     const ta = Number((a.id.match(/^o_(\d+)/) ?? [])[1] ?? 0);
