@@ -3,6 +3,7 @@
 // Separado do store para manter o store simples e testável.
 import { supabase } from "@/integrations/supabase/client";
 import type { Trade } from "./bot4x-data";
+import { logger } from "./logger";
 
 export async function saveTrade(userId: string, trade: Trade): Promise<void> {
   const { error } = await supabase.from("bot4x_trades").upsert(
@@ -30,7 +31,7 @@ export async function saveTrade(userId: string, trade: Trade): Promise<void> {
     // DB-02: parar de engolir silenciosamente. Trade não persistido é
     // dado financeiro perdido — o caller é responsável por notificar o
     // usuário/observabilidade.
-    console.error("[bot4x-trades-db] saveTrade error:", {
+    logger.error("[bot4x-trades-db] saveTrade error", {
       tradeId: trade.id,
       userId,
       code: error.code,
@@ -58,7 +59,7 @@ export async function saveTradeWithOutbox(userId: string, trade: Trade): Promise
     });
 
   if (outboxError) {
-    console.error("[bot4x-trades-db] outbox insert error:", outboxError.message);
+    logger.error("[bot4x-trades-db] outbox insert error", { error: outboxError, message: outboxError.message });
     throw outboxError;
   }
 
@@ -89,7 +90,7 @@ export async function loadTrades(userId: string, limitDays = 90): Promise<Trade[
     .limit(500);
 
   if (error) {
-    console.error("[bot4x-trades-db] loadTrades error:", error.message);
+    logger.error("[bot4x-trades-db] loadTrades error", { error, message: error.message });
     return [];
   }
 
@@ -118,5 +119,5 @@ export async function deleteTrade(userId: string, tradeId: string): Promise<void
     .delete()
     .eq("id", tradeId)
     .eq("user_id", userId);
-  if (error) console.error("[bot4x-trades-db] deleteTrade error:", error.message);
+  if (error) logger.error("[bot4x-trades-db] deleteTrade error", { error, message: error.message, tradeId });
 }
