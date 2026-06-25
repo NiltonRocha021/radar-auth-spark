@@ -30,13 +30,54 @@ class GlobalErrorBoundary extends Component<{ children: ReactNode }, EBState> {
   }
   render() {
     if (this.state.error) {
+      const msg = this.state.error.message || "";
+      const isMissingSupabaseEnv = /Missing Supabase environment variable/i.test(msg);
+
+      if (isMissingSupabaseEnv) {
+        const missingMatch = msg.match(/variable\(s\):\s*([^.]+)\./i);
+        const missing = missingMatch ? missingMatch[1].trim() : "SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY";
+        return (
+          <div style={{ display:"flex", minHeight:"100vh", alignItems:"center", justifyContent:"center", padding:"1.5rem", background:"#0a0a0a", fontFamily:"system-ui, sans-serif" }}>
+            <div style={{ maxWidth:"34rem", width:"100%", color:"#fff", background:"#141414", border:"1px solid #2a2a2a", borderRadius:"0.75rem", padding:"2rem" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:"0.75rem", marginBottom:"1rem" }}>
+                <div style={{ width:"2.5rem", height:"2.5rem", borderRadius:"0.5rem", background:"#f59e0b22", color:"#f59e0b", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"1.25rem" }}>⚠</div>
+                <h1 style={{ fontSize:"1.125rem", fontWeight:600, margin:0 }}>Backend não configurado</h1>
+              </div>
+              <p style={{ fontSize:"0.875rem", color:"#a3a3a3", lineHeight:1.6, marginTop:0 }}>
+                O app não conseguiu se conectar ao Lovable Cloud porque variáveis de ambiente obrigatórias estão ausentes no build:
+              </p>
+              <code style={{ display:"block", background:"#000", padding:"0.625rem 0.875rem", borderRadius:"0.375rem", fontSize:"0.8125rem", color:"#f59e0b", margin:"0.75rem 0 1.25rem", border:"1px solid #2a2a2a" }}>
+                {missing}
+              </code>
+              <div style={{ fontSize:"0.875rem", color:"#d4d4d4" }}>
+                <p style={{ fontWeight:600, margin:"0 0 0.5rem" }}>Como resolver:</p>
+                <ol style={{ paddingLeft:"1.25rem", margin:0, lineHeight:1.7 }}>
+                  <li>No editor Lovable, abra o painel lateral e clique em <strong>Cloud</strong> (ou <strong>View Backend</strong>) para verificar se o Lovable Cloud está ativo neste projeto.</li>
+                  <li>Se acabou de rotacionar as chaves ou reconectar o backend, reinicie o servidor de desenvolvimento (o Vite só lê <code>VITE_*</code> no startup).</li>
+                  <li>Em produção, confirme que o deploy foi refeito após a última rotação — variáveis trocadas não chegam ao bundle até um novo build.</li>
+                  <li>Se o problema persistir, no editor diga <em>"reconectar o Lovable Cloud"</em> para regenerar o <code>.env</code> gerenciado.</li>
+                </ol>
+              </div>
+              <button
+                onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+                style={{ marginTop:"1.5rem", padding:"0.625rem 1rem", background:"#7c3aed", color:"#fff", border:"none", borderRadius:"0.375rem", cursor:"pointer", fontSize:"0.875rem", fontWeight:500 }}
+              >
+                Recarregar
+              </button>
+              <details style={{ marginTop:"1rem", fontSize:"0.75rem", color:"#737373" }}>
+                <summary style={{ cursor:"pointer" }}>Detalhes técnicos</summary>
+                <pre style={{ whiteSpace:"pre-wrap", marginTop:"0.5rem" }}>{msg}</pre>
+              </details>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div style={{ display:"flex", minHeight:"100vh", alignItems:"center", justifyContent:"center", padding:"1rem", background:"#000" }}>
           <div style={{ maxWidth:"28rem", textAlign:"center", color:"#fff" }}>
             <h1 style={{ fontSize:"1.25rem", fontWeight:600 }}>Algo deu errado</h1>
-            <p style={{ marginTop:"0.5rem", fontSize:"0.875rem", color:"#888" }}>
-              {this.state.error.message}
-            </p>
+            <p style={{ marginTop:"0.5rem", fontSize:"0.875rem", color:"#888" }}>{msg}</p>
             <button
               onClick={() => { this.setState({ error: null }); window.location.href = "/"; }}
               style={{ marginTop:"1.5rem", padding:"0.5rem 1rem", background:"#7c3aed", color:"#fff", border:"none", borderRadius:"0.375rem", cursor:"pointer" }}
