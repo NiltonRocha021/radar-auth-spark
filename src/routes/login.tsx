@@ -378,7 +378,14 @@ function SignUpForm() {
 
   const pw = watch("password") ?? "";
   const strength = passwordStrength(pw);
-  const strengthColors = ["var(--destructive)", "var(--warning)", "var(--warning)", "var(--success)"];
+  const strengthColors = [
+    "var(--destructive)",
+    "var(--destructive)",
+    "var(--warning)",
+    "var(--warning)",
+    "var(--success)",
+  ];
+
 
   const onSubmit = async (v: z.infer<typeof signUpSchema>) => {
     setFormErr(null);
