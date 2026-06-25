@@ -178,6 +178,17 @@ class BackendWsClient {
     return () => this.handlers.get(event)?.delete(handler);
   }
 
+  /**
+   * Assina todos os eventos de um canal lógico (ex.: "copilot", "signal").
+   * O canal é determinado por `data.channel` no frame ou, por compatibilidade,
+   * pelo prefixo do evento (`copilot:message` → canal `copilot`).
+   */
+  onChannel(channel: string, handler: Handler): () => void {
+    if (!this.channels.has(channel)) this.channels.set(channel, new Set());
+    this.channels.get(channel)!.add(handler);
+    return () => this.channels.get(channel)?.delete(handler);
+  }
+
   onStatus(handler: StatusHandler): () => void {
     this.statusHandlers.add(handler);
     handler(this.status);
