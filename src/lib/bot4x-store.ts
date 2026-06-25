@@ -78,6 +78,7 @@ type State = {
   monitorTab: "tick" | "order" | "shutdown";
   preferredPairs: string[];
   avoidPairs: string[];
+  dnaMinSample: number; // mínimo de trades fechados por par para veredito DNA
   _ticker?: ReturnType<typeof setInterval>;
 
   // Real mode state
