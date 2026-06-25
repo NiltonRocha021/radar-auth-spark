@@ -140,3 +140,58 @@ escolhido porque URLs podem aparecer em access logs.
 `ws.onmessage` **nunca** loga `e.data` cru — apenas decodifica e dispatcha
 para handlers tipados. Qualquer log futuro nesse handler deve omitir
 campos sensíveis (`token`, `apiKey`, `secret`).
+
+---
+
+## Credenciais para endpoints chamados por pg_cron
+
+**Regra absoluta:** `SUPABASE_SERVICE_ROLE_KEY` nunca trafega em headers de
+requests HTTP — `Authorization: Bearer <service-role-key>`,
+`apikey: <service-role-key>`, query string, etc. estão proibidos.
+
+Motivação: o service role key concede acesso irrestrito ao banco, ignora
+RLS, e expô-lo em qualquer hop HTTP (proxy reverso, WAF, APM, access log
+do edge) cria janela permanente para credential leak. Use-o apenas
+server-side para instanciar o cliente Supabase (`createClient(url, serviceKey)`).
+
+### Padrão aplicado
+
+Para cada endpoint server-side que precisa ser chamado por `pg_cron` ou
+por outro caller server-to-server, criar um segredo dedicado:
+
+- Nome `*_CRON_SECRET` (ex: `EMAIL_QUEUE_CRON_SECRET`).
+- Valor: 256+ bits aleatórios (`openssl rand -hex 32`).
+- Armazenado como secret runtime do projeto (não vai pro repo).
+- Comparação no handler com `timingSafeEqual` (tempo constante).
+- Rotação isolada: girar essa credencial não afeta o resto da plataforma.
+
+### Email queue (referência)
+
+`src/routes/lovable/email/queue/process.ts` autentica chamadas do pg_cron
+contra `EMAIL_QUEUE_CRON_SECRET`. O `SUPABASE_SERVICE_ROLE_KEY` é lido no
+mesmo handler apenas para construir o cliente Supabase server-side — ele
+não é comparado contra o token recebido.
+
+Ao agendar a chamada via `pg_cron`:
+
+```sql
+SELECT cron.schedule(
+  'process-email-queue',
+  '* * * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://<project>--<id>.lovable.app/lovable/email/queue/process',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || current_setting('app.email_queue_cron_secret')
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
+
+O valor `app.email_queue_cron_secret` deve ser provisionado via
+`ALTER DATABASE ... SET` ou um GUC equivalente — **nunca** colado como
+literal na definição do job (o `cron.job.command` é texto plano legível
+para qualquer admin do banco).
