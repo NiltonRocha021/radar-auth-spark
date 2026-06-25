@@ -1,5 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
+import { useBackendAuth } from "@/hooks/useBackendAuth";
 import { useDashboardStore } from "@/lib/dashboard-store";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
