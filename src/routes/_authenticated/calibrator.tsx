@@ -137,13 +137,14 @@ function CalibratorPage() {
           symbols: TOP_20_USDT_PAIRS.map((p) => p.symbol),
         });
         setResult(res);
-        recordSimulation(user.id, {
+        void recordSimulation(user.id, {
           profile,
           symbol: "PORTFOLIO_20",
           periodDays: effectivePeriodDays,
           initialBalance,
           leverage,
-        }, res);
+        }, res).catch((err) => console.error("[calibrator] recordSimulation error:", err));
+
       } catch (e: any) {
         setError(e?.message ?? "Falha ao executar simulação multi-par.");
       } finally {
