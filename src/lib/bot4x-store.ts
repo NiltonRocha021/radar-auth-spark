@@ -416,6 +416,12 @@ export const useBot4xStore = create<State>()(
                 set((prev) => ({
                   history: [trade, ...prev.history].slice(0, 500),
                 }));
+                // REAL mode: persist via outbox to survive replication failures.
+                if (s.userId) {
+                  void saveTradeWithOutbox(s.userId, trade).catch((err) =>
+                    console.error("[Bot4x] saveTradeWithOutbox failed:", err),
+                  );
+                }
                 break;
               }
               case "CIRCUIT_BREAKER": {
