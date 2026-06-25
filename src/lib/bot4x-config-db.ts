@@ -30,6 +30,28 @@ function parseJsonArray(value: unknown): string[] {
   }
 }
 
+// Decodifica `exchange` (text). Suporta:
+// - novo formato: {"preferred":[...],"avoid":[...]}
+// - legado: ["BTC/USDT", ...] → tratado como preferred, avoid vazio
+function parsePairsJson(value: unknown): { preferred: string[]; avoid: string[] } {
+  if (typeof value !== "string" || !value) return { preferred: [], avoid: [] };
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return { preferred: parsed.filter((x): x is string => typeof x === "string"), avoid: [] };
+    }
+    if (parsed && typeof parsed === "object") {
+      const pref = Array.isArray(parsed.preferred) ? parsed.preferred.filter((x: unknown): x is string => typeof x === "string") : [];
+      const avoid = Array.isArray(parsed.avoid) ? parsed.avoid.filter((x: unknown): x is string => typeof x === "string") : [];
+      return { preferred: pref, avoid };
+    }
+  } catch {
+    /* fallthrough */
+  }
+  return { preferred: [], avoid: [] };
+}
+
+
 export async function loadConfig(userId: string): Promise<Bot4xConfigRow | null> {
   const { data, error } = await supabase
     .from("bot4x_configs")
@@ -56,17 +78,36 @@ export async function loadConfig(userId: string): Promise<Bot4xConfigRow | null>
     allocationPct: data.ai_score_min ?? 30,
     // fomo_limit reutilizado como totalCapital proxy
     totalCapital: data.fomo_limit != null ? Number(data.fomo_limit) : 1000,
-    // exchange (text) usado como JSON serializado de preferredPairs
-    preferredPairs: parseJsonArray(data.exchange),
-    // Sem coluna dedicada para avoidPairs — não persistido no schema atual
-    avoidPairs: [],
+    // exchange (text) usado como JSON serializado de { preferred, avoid }
+    preferredPairs: parsePairsJson(data.exchange).preferred,
+    avoidPairs: parsePairsJson(data.exchange).avoid,
     circuitBreaker: data.circuit_breaker ?? "none",
     dailyPnl: Number(data.daily_pnl ?? 0),
     openSlots: data.open_slots ?? 0,
   };
 }
 
+
 export async function saveConfig(userId: string, config: Partial<Bot4xConfigRow>): Promise<void> {
+  // Se algum dos campos de pares mudou, precisamos mesclar com o estado atual
+  // para preservar o outro lado dentro do JSON serializado em `exchange`.
+  let pairsField: { exchange: string } | undefined;
+  if (config.preferredPairs !== undefined || config.avoidPairs !== undefined) {
+    let preferred = config.preferredPairs;
+    let avoid = config.avoidPairs;
+    if (preferred === undefined || avoid === undefined) {
+      const { data } = await supabase
+        .from("bot4x_configs")
+        .select("exchange")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const current = parsePairsJson(data?.exchange);
+      if (preferred === undefined) preferred = current.preferred;
+      if (avoid === undefined) avoid = current.avoid;
+    }
+    pairsField = { exchange: JSON.stringify({ preferred, avoid }) };
+  }
+
   const row = {
     user_id: userId,
     updated_at: new Date().toISOString(),
@@ -78,7 +119,7 @@ export async function saveConfig(userId: string, config: Partial<Bot4xConfigRow>
     ...(config.tpPct !== undefined && { rsi_threshold_high: config.tpPct }),
     ...(config.allocationPct !== undefined && { ai_score_min: config.allocationPct }),
     ...(config.totalCapital !== undefined && { fomo_limit: config.totalCapital }),
-    ...(config.preferredPairs !== undefined && { exchange: JSON.stringify(config.preferredPairs) }),
+    ...(pairsField ?? {}),
     ...(config.circuitBreaker !== undefined && { circuit_breaker: config.circuitBreaker }),
     ...(config.dailyPnl !== undefined && { daily_pnl: config.dailyPnl }),
     ...(config.openSlots !== undefined && { open_slots: config.openSlots }),
@@ -89,3 +130,4 @@ export async function saveConfig(userId: string, config: Partial<Bot4xConfigRow>
     .upsert(row, { onConflict: "user_id" });
   if (error) console.error("[bot4x-config-db] saveConfig error:", error.message);
 }
+
