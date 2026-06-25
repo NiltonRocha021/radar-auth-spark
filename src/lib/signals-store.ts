@@ -38,7 +38,7 @@ type State = {
   hoverId: string | null;
   detailId: string | null;
   toasts: SignalToast[];
-  flashIds: Set<string>;
+  flashIds: string[];
   lastSyncAt: number | null;
   _intervalIds: Set<number>;
   _wsUnsub: (() => void) | null;
