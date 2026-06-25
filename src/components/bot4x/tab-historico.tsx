@@ -1,4 +1,5 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar,
   ResponsiveContainer, XAxis, YAxis, Tooltip, ReferenceLine, ReferenceDot, Cell,
