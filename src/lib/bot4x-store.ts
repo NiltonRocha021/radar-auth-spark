@@ -231,6 +231,7 @@ export const useBot4xStore = create<State>()(
             .catch(() => {
               /* fallback para localStorage */
             });
+        }
       },
 
       // ─── INIT ─────────────────────────────────────────────────────────────
