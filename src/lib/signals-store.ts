@@ -38,6 +38,7 @@ type State = {
   toasts: SignalToast[];
   flashIds: Set<string>;
   lastSyncAt: number | null;
+  _intervalIds: Set<number>;
   syncFromBackend: () => Promise<void>;
   // actions
   setView: (v: ViewMode) => void;
@@ -55,6 +56,7 @@ type State = {
   init: () => void;
   cleanup: () => void;
 };
+
 
 let intervals: number[] = [];
 
