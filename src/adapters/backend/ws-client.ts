@@ -145,8 +145,22 @@ class BackendWsClient {
 
   private scheduleReconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.reconnectTimer = setTimeout(() => this.connect(this.currentPath), 3000);
+    if (this.reconnectAttempts >= this.MAX_ATTEMPTS) {
+      this.setStatus("error");
+      return;
+    }
+    const base = Math.min(this.BASE_DELAY_MS * 2 ** this.reconnectAttempts, this.MAX_DELAY_MS);
+    const jitter = Math.random() * 0.3 * base;
+    const delay = Math.floor(base + jitter);
+    this.reconnectAttempts++;
+    this.reconnectTimer = setTimeout(() => this.connect(this.currentPath), delay);
   }
+
+  resetAndReconnect() {
+    this.reconnectAttempts = 0;
+    void this.connect(this.currentPath);
+  }
+
 
   on(event: WsEvent, handler: Handler): () => void {
     if (!this.handlers.has(event)) this.handlers.set(event, new Set());
