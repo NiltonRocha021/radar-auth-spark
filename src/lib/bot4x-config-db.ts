@@ -69,9 +69,27 @@ export async function loadConfig(userId: string): Promise<Bot4xConfigRow | null>
   // Pares: novo formato primeiro, legado como fallback.
   const newPreferred = asStringArray(data.preferred_pairs);
   const newAvoid = asStringArray(data.avoid_pairs);
-  const legacy = newPreferred.length === 0 && newAvoid.length === 0
+  const usingLegacyPairs = newPreferred.length === 0 && newAvoid.length === 0 && !!data.exchange;
+  const legacy = usingLegacyPairs
     ? parseLegacyPairs(data.exchange)
     : { preferred: newPreferred, avoid: newAvoid };
+
+  // DEPRECATION (v2.0): avisar quando ainda dependemos de colunas legadas.
+  // Ver supabase/migrations/20260625140000_deprecate_legacy_bot4x_columns.sql
+  const usingLegacySl = data.sl_pct == null && data.rsi_threshold_low != null;
+  const usingLegacyTp = data.tp_pct == null && data.rsi_threshold_high != null;
+  const usingLegacyAlloc = data.allocation_pct == null && data.ai_score_min != null;
+  const usingLegacyTotal = data.total_capital == null && data.fomo_limit != null;
+  if (usingLegacySl || usingLegacyTp || usingLegacyAlloc || usingLegacyTotal || usingLegacyPairs) {
+    logger.warn("[bot4x-config-db][deprecated] legacy column fallback", {
+      userId,
+      rsi_threshold_low: usingLegacySl,
+      rsi_threshold_high: usingLegacyTp,
+      ai_score_min: usingLegacyAlloc,
+      fomo_limit: usingLegacyTotal,
+      exchange: usingLegacyPairs,
+    });
+  }
 
   return {
     userId: data.user_id,
