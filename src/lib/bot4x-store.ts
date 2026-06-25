@@ -206,8 +206,12 @@ export const useBot4xStore = create<State>()(
       setUserId: (uid) => {
         const prev = get().userId;
         if (prev === uid) return;
+        // Limpa tickers/WS antes de trocar de usuário para não vazar handles
+        // do usuário anterior nem misturar streams entre contas.
+        get().cleanup();
         _currentUserId = uid;
-        set({ userId: uid });
+        set({ userId: uid, realInited: false });
+
         // Rehidrata o store com os dados do novo usuário
         useBot4xStore.persist.rehydrate();
         // Carrega histórico real do banco ao logar
