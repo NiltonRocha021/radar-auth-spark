@@ -5,6 +5,22 @@
 // top-level do store e disparam efeitos de rede/persistência.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+vi.mock("@/integrations/supabase/client", () => {
+  const listeners = new Set<(event: string, session: unknown) => void>();
+  const auth = {
+    getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+    getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+    refreshSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+    onAuthStateChange: vi.fn((cb: (event: string, session: unknown) => void) => {
+      listeners.add(cb);
+      return { data: { subscription: { unsubscribe: () => listeners.delete(cb) } } };
+    }),
+    signOut: vi.fn().mockResolvedValue({ error: null }),
+    _emit: (event: string, session: unknown) => listeners.forEach((cb) => cb(event, session)),
+  };
+  return { supabase: { auth, from: vi.fn() } };
+});
+
 vi.mock("@/adapters/backend/bot4x.adapter", () => ({
   bot4xAdapter: {
     getConfig: vi.fn().mockResolvedValue(null),
