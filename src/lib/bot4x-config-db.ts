@@ -79,15 +79,14 @@ export async function loadConfig(userId: string): Promise<Bot4xConfigRow | null>
     // fomo_limit reutilizado como totalCapital proxy
     totalCapital: data.fomo_limit != null ? Number(data.fomo_limit) : 1000,
     // exchange (text) usado como JSON serializado de { preferred, avoid }
-    ...parsePairsJson(data.exchange) && {
-      preferredPairs: parsePairsJson(data.exchange).preferred,
-      avoidPairs: parsePairsJson(data.exchange).avoid,
-    },
+    preferredPairs: parsePairsJson(data.exchange).preferred,
+    avoidPairs: parsePairsJson(data.exchange).avoid,
     circuitBreaker: data.circuit_breaker ?? "none",
     dailyPnl: Number(data.daily_pnl ?? 0),
     openSlots: data.open_slots ?? 0,
   };
 }
+
 
 export async function saveConfig(userId: string, config: Partial<Bot4xConfigRow>): Promise<void> {
   // Se algum dos campos de pares mudou, precisamos mesclar com o estado atual
