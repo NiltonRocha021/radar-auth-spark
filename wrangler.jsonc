@@ -4,4 +4,52 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+
+  // Observabilidade: habilita Workers Logs / Logpush com amostragem total.
+  // head_sampling_rate = 1 → 100% das invocações geram logs estruturados.
+  // Reduzir (ex.: 0.1) se o volume ficar alto demais e gerar custo.
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  // Limite de CPU por invocação. Evita runaway (loops infinitos, regex
+  // catastrófica). 50ms é folgado para nossos server fns; subir só após
+  // medir p99 real em produção.
+  "limits": {
+    "cpu_ms": 50
+  },
+
+  // Environments separados — cada um vira um Worker distinto no dashboard
+  // do Cloudflare. Use `wrangler deploy --env staging|production`.
+  // Secrets (chaves Supabase, EMAIL_QUEUE_CRON_SECRET etc.) NÃO ficam aqui;
+  // configure-os via `wrangler secret put <NAME> --env <env>`.
+  "env": {
+    "staging": {
+      "name": "signal-radar-staging",
+      "vars": {
+        "NODE_ENV": "staging"
+      },
+      "observability": {
+        "enabled": true,
+        "head_sampling_rate": 1
+      },
+      "limits": {
+        "cpu_ms": 50
+      }
+    },
+    "production": {
+      "name": "signal-radar-prod",
+      "vars": {
+        "NODE_ENV": "production"
+      },
+      "observability": {
+        "enabled": true,
+        "head_sampling_rate": 1
+      },
+      "limits": {
+        "cpu_ms": 50
+      }
+    }
+  }
 }
