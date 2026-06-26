@@ -86,6 +86,10 @@ async function loadPricesAndGlobal(): Promise<{
         low24h: Number(c.low_24h ?? 0),
       };
     }
+  } else if (coinsRes.status === "fulfilled") {
+    console.warn(`[market] CoinGecko coins HTTP ${coinsRes.value.status}`);
+  } else {
+    console.warn("[market] CoinGecko coins failed:", coinsRes.reason);
   }
 
   let global: GlobalMetricsDTO | null = null;
