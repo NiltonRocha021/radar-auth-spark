@@ -1,5 +1,24 @@
+// src/hooks/useLivePrices.ts
+//
+// CORREÇÕES neste arquivo:
+// 1. Extrai um Zustand store (usePriceStore) como fonte única de verdade para preços.
+//    Antes havia dois hooks independentes (useLivePrices + usePrices) que podiam
+//    divergir. Agora qualquer fonte (CoinGecko, Binance stream, REST backend)
+//    escreve no mesmo store — e qualquer consumidor lê do mesmo lugar.
+//
+// 2. setLivePrice() é exposta para o useBinancePriceStream gravar preços
+//    tick a tick sem quebrar a API pública (usePrice/useLivePrices inalterados).
+//
+// 3. Polling via getMarketSnapshot mantido a cada 30s como fonte de fallback
+//    e para campos que o Binance stream não entrega (marketCap, name, id).
+//
+// API pública INALTERADA — nenhum consumidor existente precisa mudar.
+
 import { useState, useEffect, useCallback, useRef } from "react";
+import { create } from "zustand";
 import { getMarketSnapshot } from "@/lib/market.functions";
+
+// ─── Tipos públicos ──────────────────────────────────────────────────────────
 
 export interface CoinPrice {
   id: string;
@@ -26,6 +45,69 @@ export interface FearGreed {
   label: string;
 }
 
+// Subset de CoinPrice que fontes parciais (Binance stream) podem atualizar.
+// Campos opcionais não sobrescrevem valores anteriores vindos do CoinGecko.
+export type PartialPriceUpdate = Pick<
+  CoinPrice,
+  "price" | "change24h" | "volume24h" | "high24h" | "low24h" | "lastUpdated"
+>;
+
+// ─── Zustand store (fonte única de verdade) ──────────────────────────────────
+
+interface PriceStoreState {
+  prices: Record<string, CoinPrice>;
+  global: GlobalMetrics | null;
+  fearGreed: FearGreed | null;
+  lastUpdate: Date | null;
+
+  /** Substitui o mapa inteiro (chamado pelo polling CoinGecko/Binance REST). */
+  setPrices: (prices: Record<string, CoinPrice>, global: GlobalMetrics | null, fearGreed: FearGreed | null) => void;
+
+  /**
+   * Atualiza campos de preço de UM símbolo sem sobrescrever metadados
+   * (id, name, marketCap) que só chegam via CoinGecko.
+   * Chamado pelo useBinancePriceStream a cada tick (~1s).
+   */
+  setLivePrice: (symbol: string, update: PartialPriceUpdate) => void;
+}
+
+export const usePriceStore = create<PriceStoreState>((set) => ({
+  prices: {},
+  global: null,
+  fearGreed: null,
+  lastUpdate: null,
+
+  setPrices: (prices, global, fearGreed) => set({ prices, global, fearGreed, lastUpdate: new Date() }),
+
+  setLivePrice: (symbol, update) =>
+    set((state) => {
+      const existing = state.prices[symbol];
+      // Se o símbolo ainda não existe no store (CoinGecko não chegou ainda),
+      // cria um registro mínimo para não perder o dado do stream.
+      const base: CoinPrice = existing ?? {
+        id: symbol.toLowerCase(),
+        symbol,
+        name: symbol,
+        marketCap: null,
+        price: 0,
+        change24h: 0,
+        volume24h: 0,
+        high24h: 0,
+        low24h: 0,
+        lastUpdated: new Date(),
+      };
+      return {
+        prices: {
+          ...state.prices,
+          [symbol]: { ...base, ...update },
+        },
+        lastUpdate: update.lastUpdated,
+      };
+    }),
+}));
+
+// ─── Hook público (API inalterada) ───────────────────────────────────────────
+
 interface UseLivePricesReturn {
   prices: Record<string, CoinPrice>;
   global: GlobalMetrics | null;
@@ -36,15 +118,12 @@ interface UseLivePricesReturn {
   refresh: () => void;
 }
 
-const REFRESH_INTERVAL = 30_000; // 30 segundos
+const REFRESH_INTERVAL = 30_000; // 30 segundos — complementa o stream tick a tick
 
 export function useLivePrices(): UseLivePricesReturn {
-  const [prices, setPrices] = useState<Record<string, CoinPrice>>({});
-  const [global, setGlobal] = useState<GlobalMetrics | null>(null);
-  const [fearGreed, setFearGreed] = useState<FearGreed | null>(null);
+  const { prices, global, fearGreed, lastUpdate, setPrices } = usePriceStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchAll = useCallback(async () => {
@@ -53,22 +132,39 @@ export function useLivePrices(): UseLivePricesReturn {
       const now = new Date();
       const map: Record<string, CoinPrice> = {};
       for (const [sym, p] of Object.entries(snap.prices)) {
-        map[sym] = { ...p, lastUpdated: now };
+        // Mescla com dado do stream se existir (preserva price mais recente do stream)
+        const streamPrice = usePriceStore.getState().prices[sym];
+        map[sym] = {
+          ...p,
+          // Se o stream já tem um preço mais recente que o snapshot, mantém o do stream.
+          price: streamPrice && streamPrice.lastUpdated > now ? streamPrice.price : p.price,
+          lastUpdated: now,
+        };
       }
-      // Atualiza apenas o que veio com dados — preserva último valor bom
-      // quando o upstream (CoinGecko) responde parcial/vazio (ex: 429).
-      if (Object.keys(map).length > 0) setPrices(map);
-      if (snap.global) setGlobal(snap.global);
-      if (snap.fearGreed) setFearGreed(snap.fearGreed);
+
+      if (Object.keys(map).length > 0) {
+        setPrices(
+          map,
+          snap.global
+            ? {
+                totalMarketCap: snap.global.totalMarketCap,
+                totalVolume: snap.global.totalVolume,
+                btcDominance: snap.global.btcDominance,
+                marketCapChange24h: snap.global.marketCapChange24h,
+              }
+            : null,
+          snap.fearGreed,
+        );
+      }
       setError(null);
-      setLastUpdate(now);
     } catch (err) {
       console.error("[useLivePrices] getMarketSnapshot falhou:", err);
-      setError("Falha ao buscar preços. Usando cache.");
+      // Não limpa preços existentes — preserva último valor bom (do stream ou poll anterior).
+      setError("Falha ao buscar snapshot. Usando dados do stream.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setPrices]);
 
   useEffect(() => {
     fetchAll();
