@@ -2,6 +2,11 @@
 // (multiplexado) — sem criar uma segunda conexão dedicada. Toda autenticação
 // e reconexão é delegada ao backendWs; este hook apenas escuta o canal
 // "copilot" e envia mensagens via `backendWs.send`.
+//
+// CORREÇÃO: mensagens de usuário e assistente agora são persistidas na tabela
+// `copilot_history` do Supabase. Antes o histórico vivia apenas em useState —
+// cada reload ou fechamento do painel apagava tudo. A tabela já possui RLS,
+// rate-limit (60 inserts/min) e TTL de 90 dias (pg_cron).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { backendWs, type WsStatus } from "@/adapters/backend/ws-client";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,6 +94,65 @@ function newMsg(role: MessageRole, content: string, extras: Partial<CopilotMessa
   };
 }
 
+// ─── Persistência de histórico ──────────────────────────────────────────────
+// Persiste apenas mensagens "user" e "assistant" — mensagens de sistema e
+// alertas são efêmeras (não fazem sentido fora da sessão).
+// Rate-limit: a RLS da tabela rejeita acima de 60 inserts/min — não é
+// necessário debounce adicional no frontend além do que já acontece naturalmente.
+const PERSIST_ROLES: MessageRole[] = ["user", "assistant"];
+
+async function persistMessage(userId: string, msg: CopilotMessage): Promise<void> {
+  if (!PERSIST_ROLES.includes(msg.role)) return;
+
+  const { error } = await supabase.from("copilot_history").insert({
+    id: msg.id,
+    user_id: userId,
+    role: msg.role,
+    content: msg.content,
+    agent: msg.agent ?? null,
+    metadata: (msg.metadata as import("@/integrations/supabase/types").Json) ?? null,
+    created_at: msg.timestamp.toISOString(),
+  });
+
+  if (error) {
+    // Erros de rate-limit (code 42501) são esperados — não logar como erro.
+    if (error.code === "42501" || /rate.limit/i.test(error.message)) {
+      logger.warn("[copilot] history rate-limit atingido", { userId });
+    } else {
+      logger.error("[copilot] persistMessage error", {
+        msgId: msg.id,
+        role: msg.role,
+        error: error.message,
+      });
+    }
+  }
+}
+
+// Carrega os últimos N mensagens do banco ao montar o painel.
+async function loadHistory(userId: string, limit = 50): Promise<CopilotMessage[]> {
+  const { data, error } = await supabase
+    .from("copilot_history")
+    .select("id, role, content, agent, metadata, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    logger.error("[copilot] loadHistory error", { error: error.message });
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    role: row.role as MessageRole,
+    content: row.content,
+    agent: row.agent ?? undefined,
+    metadata: (row.metadata as Record<string, unknown>) ?? undefined,
+    timestamp: new Date(row.created_at),
+  }));
+}
+
+// ─── Hook ───────────────────────────────────────────────────────────────────
 export function useCopilot(config: CopilotConfig) {
   const { userId, marketContext = {}, traderProfile = {}, onAlert } = config;
 
@@ -102,8 +166,20 @@ export function useCopilot(config: CopilotConfig) {
   const [, setWsStatus] = useState<WsStatus>("idle");
   const [isRecording, setIsRecording] = useState(false);
   const [latency, setLatency] = useState(0);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  const addMessage = (m: CopilotMessage) => setMessages((p) => [...p, m]);
+  // Adiciona uma mensagem ao estado e persiste no banco quando aplicável.
+  const addMessage = useCallback(
+    (m: CopilotMessage) => {
+      setMessages((p) => [...p, m]);
+      if (historyLoaded) {
+        // Não await — fire-and-forget para não bloquear a UI.
+        void persistMessage(userId, m);
+      }
+    },
+    [userId, historyLoaded],
+  );
+
   const hasShownAuthMsgRef = useRef(false);
   const pendingMessageRef = useRef<string | null>(null);
   const authMsgIdRef = useRef<string | null>(null);
@@ -121,6 +197,15 @@ export function useCopilot(config: CopilotConfig) {
     audio.onended = () => setOrbState("idle");
     audio.play().catch(() => setOrbState("idle"));
   }
+
+  // Carregar histórico do banco ao montar (uma única vez por userId).
+  useEffect(() => {
+    if (!userId || historyLoaded) return;
+    loadHistory(userId, 50).then((hist) => {
+      if (hist.length > 0) setMessages(hist);
+      setHistoryLoaded(true);
+    });
+  }, [userId, historyLoaded]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,7 +228,8 @@ export function useCopilot(config: CopilotConfig) {
           { metadata: { action: "reconnect" } },
         );
         authMsgIdRef.current = m.id;
-        addMessage(m);
+        // Mensagem de sistema — não persiste, só adiciona ao estado local.
+        setMessages((p) => [...p, m]);
         hasShownAuthMsgRef.current = true;
         setOrbState("idle");
       }
@@ -185,7 +271,7 @@ export function useCopilot(config: CopilotConfig) {
       }
     });
 
-    // Escuta todos os eventos do canal "copilot" (copilot:message, copilot:*).
+    // Escuta todos os eventos do canal "copilot".
     const off = backendWs.onChannel("copilot", (payload) => {
       const data = normalizeInbound(payload);
       if (!data) return;
@@ -209,14 +295,16 @@ export function useCopilot(config: CopilotConfig) {
           break;
         case "proactive_alert": {
           const alert = newMsg("alert", data.content ?? "", { agent: data.agent });
-          addMessage(alert);
+          // Alertas são efêmeros — adiciona ao estado mas não persiste.
+          setMessages((p) => [...p, alert]);
           setOrbState("alert");
           onAlert?.(alert);
           setTimeout(() => setOrbState("idle"), 4000);
           break;
         }
         case "system_message":
-          addMessage(newMsg("system", data.content ?? ""));
+          // Mensagens de sistema são efêmeras — não persiste.
+          setMessages((p) => [...p, newMsg("system", data.content ?? "")]);
           break;
       }
     });
@@ -238,7 +326,7 @@ export function useCopilot(config: CopilotConfig) {
       { metadata: { action: "reconnect" } },
     );
     authMsgIdRef.current = m.id;
-    addMessage(m);
+    setMessages((p) => [...p, m]);
     hasShownAuthMsgRef.current = true;
     setOrbState("idle");
   }, []);
@@ -264,7 +352,7 @@ export function useCopilot(config: CopilotConfig) {
         ),
       );
     },
-    [userId, marketContext, traderProfile],
+    [userId, marketContext, traderProfile, addMessage],
   );
 
   const sendMessage = useCallback(
@@ -365,7 +453,12 @@ export function useCopilot(config: CopilotConfig) {
     setOrbState("thinking");
   }, []);
 
-  const clearHistory = () => setMessages([]);
+  // clearHistory: limpa o estado local E apaga do banco (GDPR / usuário pediu).
+  const clearHistory = useCallback(async () => {
+    setMessages([]);
+    const { error } = await supabase.from("copilot_history").delete().eq("user_id", userId);
+    if (error) logger.error("[copilot] clearHistory error", { error: error.message });
+  }, [userId]);
 
   return {
     messages,
@@ -373,6 +466,7 @@ export function useCopilot(config: CopilotConfig) {
     isConnected,
     isRecording,
     latency,
+    historyLoaded,
     sendMessage,
     startRecording,
     stopRecording,
