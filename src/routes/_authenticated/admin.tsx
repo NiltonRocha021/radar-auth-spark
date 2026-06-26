@@ -136,7 +136,7 @@ function UserDetail({ userId }: { userId: string }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            {p.email}
+            {p.email as string}
             {data.roles.map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
           </CardTitle>
         </CardHeader>
