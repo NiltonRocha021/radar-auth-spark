@@ -106,6 +106,44 @@ async function loadPricesAndGlobal(): Promise<{
       marketCapChange24h: Number(g.market_cap_change_percentage_24h_usd ?? 0),
     };
   }
+
+  // Fallback Binance: preenche símbolos faltantes quando a CoinGecko falha
+  // ou retorna parcial (típico em 429). Binance público não exige chave.
+  // Pares USDT — pulamos stablecoins/derivados (USDT/USDC/STETH).
+  const missing = Object.values(SYMBOL_MAP).filter(
+    (sym) => !prices[sym] && !["USDT", "USDC", "STETH"].includes(sym),
+  );
+  if (missing.length > 0) {
+    try {
+      const symbolsParam = JSON.stringify(missing.map((s) => `${s}USDT`));
+      const r = await fetch(
+        `https://api.binance.com/api/v3/ticker/24hr?symbols=${encodeURIComponent(symbolsParam)}`,
+      );
+      if (r.ok) {
+        const arr = (await r.json()) as Array<Record<string, string>>;
+        for (const t of arr) {
+          const sym = String(t.symbol).replace(/USDT$/, "");
+          if (prices[sym]) continue;
+          prices[sym] = {
+            id: sym.toLowerCase(),
+            symbol: sym,
+            name: sym,
+            price: Number(t.lastPrice ?? 0),
+            change24h: Number(t.priceChangePercent ?? 0),
+            marketCap: 0,
+            volume24h: Number(t.quoteVolume ?? 0),
+            high24h: Number(t.highPrice ?? 0),
+            low24h: Number(t.lowPrice ?? 0),
+          };
+        }
+      } else {
+        console.warn(`[market] Binance fallback HTTP ${r.status}`);
+      }
+    } catch (e) {
+      console.warn("[market] Binance fallback failed:", e);
+    }
+  }
+
   return { prices, global };
 }
 
