@@ -1,7 +1,8 @@
 // Server functions para dados públicos de mercado (CoinGecko + Fear & Greed).
 // Cache compartilhado via Cloudflare `caches.default` — ver `src/lib/cache.ts`.
-// Sem credencial: endpoints públicos. Cache compartilhado entre TODOS os
-// usuários no mesmo PoP, reduzindo drasticamente as chamadas externas.
+// Sem credencial obrigatória: funciona com plano Demo gratuito da CoinGecko.
+// Cache compartilhado entre TODOS os usuários no mesmo PoP, reduzindo
+// drasticamente as chamadas externas.
 import { createServerFn } from "@tanstack/react-start";
 import { cachedJson } from "./cache";
 
@@ -51,7 +52,7 @@ const SYMBOL_MAP: Record<string, string> = {
   "staked-ether": "STETH",
 };
 
-// Símbolos que não têm par USDT direto na Binance — ignorados no fallback.
+// Símbolos sem par USDT direto na Binance — ignorados no fallback.
 const NO_BINANCE_PAIR = new Set(["USDT", "USDC", "STETH"]);
 
 export interface CoinPriceDTO {
@@ -87,16 +88,15 @@ export interface MarketSnapshotDTO {
   usingFallback?: boolean;
 }
 
-// TTLs lidos de variável de ambiente, com defaults seguros.
-// Recomendado: mínimo 30s para evitar 429 da CoinGecko em produção.
+// TTLs com mínimo seguro para evitar 429 da CoinGecko free/demo tier.
 const PRICES_TTL = Math.max(30, Number(process.env.CACHE_TTL_PRICES_SECONDS ?? 30));
 const SENTIMENT_TTL = Number(process.env.CACHE_TTL_SENTIMENT_SECONDS ?? 60);
 
 // ---------------------------------------------------------------------------
-// Helpers de fetch com timeout
+// Helpers
 // ---------------------------------------------------------------------------
 
-/** fetch com timeout explícito para não bloquear o worker indefinidamente. */
+/** fetch com timeout explícito — evita travar o Worker indefinidamente. */
 async function fetchWithTimeout(url: string, timeoutMs = 8_000, init?: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -107,8 +107,29 @@ async function fetchWithTimeout(url: string, timeoutMs = 8_000, init?: RequestIn
   }
 }
 
+/**
+ * Monta os headers da CoinGecko.
+ * - Se COINGECKO_API_KEY estiver definida (Pro/Demo), usa x-cg-pro-api-key.
+ * - Sem chave: ainda funciona no plano Demo gratuito com x-cg-demo-api-key
+ *   (obtida em https://www.coingecko.com/en/api — cadastro gratuito).
+ *   Sem nenhuma chave o endpoint /coins/markets retorna 403 desde 2024-Q4.
+ */
+function coinGeckoHeaders(): HeadersInit {
+  const key = process.env.COINGECKO_API_KEY;
+  if (!key) {
+    // Sem chave configurada: tenta sem header — vai cair no fallback Binance
+    // se retornar 403. Para resolver definitivamente, obtenha uma chave Demo
+    // gratuita em coingecko.com e adicione COINGECKO_API_KEY no .dev.vars.
+    return {};
+  }
+  // Chave Pro usa x-cg-pro-api-key; chave Demo usa x-cg-demo-api-key.
+  // A CoinGecko aceita ambos os headers — usar pro-api-key é mais seguro
+  // pois funciona para qualquer plano pago ou demo.
+  return { "x-cg-pro-api-key": key };
+}
+
 // ---------------------------------------------------------------------------
-// Binance — fonte primária de fallback
+// Binance — fallback quando CoinGecko falha ou retorna 403/429
 // ---------------------------------------------------------------------------
 
 const BINANCE_HOSTS = [
@@ -118,7 +139,6 @@ const BINANCE_HOSTS = [
   "https://data-api.binance.vision",
 ];
 
-/** Busca todos os tickers 24h de uma vez via batch endpoint da Binance. */
 async function fetchFromBinance(symbols: string[]): Promise<Record<string, CoinPriceDTO>> {
   const pairs = symbols.filter((s) => !NO_BINANCE_PAIR.has(s)).map((s) => `${s}USDT`);
 
@@ -133,12 +153,10 @@ async function fetchFromBinance(symbols: string[]): Promise<Record<string, CoinP
       const res = await fetchWithTimeout(url, 6_000);
 
       if (res.status === 429 || res.status === 418) {
-        // Binance também tem rate limit — tenta próximo host em vez de falhar.
         console.warn(`[market] Binance ${host} rate-limited (${res.status}), tentando próximo host`);
         lastErr = new Error(`Binance rate limit: ${res.status}`);
         continue;
       }
-
       if (!res.ok) {
         lastErr = new Error(`Binance ${host} HTTP ${res.status}`);
         continue;
@@ -146,7 +164,6 @@ async function fetchFromBinance(symbols: string[]): Promise<Record<string, CoinP
 
       const arr = (await res.json()) as Array<Record<string, string>>;
       const result: Record<string, CoinPriceDTO> = {};
-
       for (const t of arr) {
         const sym = String(t.symbol).replace(/USDT$/, "");
         result[sym] = {
@@ -155,17 +172,15 @@ async function fetchFromBinance(symbols: string[]): Promise<Record<string, CoinP
           name: sym,
           price: Number(t.lastPrice ?? 0),
           change24h: Number(t.priceChangePercent ?? 0),
-          marketCap: null, // Binance não fornece market cap
+          marketCap: null,
           volume24h: Number(t.quoteVolume ?? 0),
           high24h: Number(t.highPrice ?? 0),
           low24h: Number(t.lowPrice ?? 0),
         };
       }
-
       return result;
     } catch (e) {
       lastErr = e;
-      // Continua para o próximo host.
     }
   }
 
@@ -177,11 +192,16 @@ async function fetchFromBinance(symbols: string[]): Promise<Record<string, CoinP
 // CoinGecko + fallback Binance
 // ---------------------------------------------------------------------------
 
+// Statuses que devem acionar fallback imediato para a Binance.
+const COINGECKO_FALLBACK_STATUSES = new Set([401, 403, 429, 500, 502, 503]);
+
 async function loadPricesAndGlobal(): Promise<{
   prices: Record<string, CoinPriceDTO>;
   global: GlobalMetricsDTO | null;
   usingFallback: boolean;
 }> {
+  const headers = coinGeckoHeaders();
+
   const [coinsRes, globalRes] = await Promise.allSettled([
     fetchWithTimeout(
       `https://api.coingecko.com/api/v3/coins/markets` +
@@ -189,8 +209,9 @@ async function loadPricesAndGlobal(): Promise<{
         `&order=market_cap_desc&per_page=20&sparkline=false` +
         `&price_change_percentage=24h`,
       8_000,
+      { headers },
     ),
-    fetchWithTimeout("https://api.coingecko.com/api/v3/global", 6_000),
+    fetchWithTimeout("https://api.coingecko.com/api/v3/global", 6_000, { headers }),
   ]);
 
   const prices: Record<string, CoinPriceDTO> = {};
@@ -198,7 +219,6 @@ async function loadPricesAndGlobal(): Promise<{
   // --- CoinGecko: preços ---
   if (coinsRes.status === "fulfilled") {
     const res = coinsRes.value;
-
     if (res.ok) {
       const data = (await res.json()) as Array<Record<string, unknown>>;
       for (const c of data) {
@@ -216,16 +236,15 @@ async function loadPricesAndGlobal(): Promise<{
           low24h: Number(c.low_24h ?? 0),
         };
       }
-    } else if (res.status === 429) {
-      // Rate limit explícito: loga com contexto e aciona fallback total.
-      const retryAfter = res.headers.get("Retry-After");
-      console.warn(
-        `[market] CoinGecko 429 rate limit.` +
-          (retryAfter ? ` Retry-After: ${retryAfter}s.` : "") +
-          ` Aumentar CACHE_TTL_PRICES_SECONDS (atual: ${PRICES_TTL}s) reduz esse erro.`,
-      );
     } else {
-      console.warn(`[market] CoinGecko coins HTTP ${res.status}`);
+      const retryAfter = res.headers.get("Retry-After");
+      const hint =
+        res.status === 403
+          ? " Obtenha uma chave Demo gratuita em coingecko.com e defina COINGECKO_API_KEY no .dev.vars."
+          : res.status === 429
+            ? ` Retry-After: ${retryAfter ?? "?"}s. Aumente CACHE_TTL_PRICES_SECONDS (atual: ${PRICES_TTL}s).`
+            : "";
+      console.warn(`[market] CoinGecko coins HTTP ${res.status}.${hint}`);
     }
   } else {
     console.warn("[market] CoinGecko coins falhou (rede):", coinsRes.reason);
@@ -235,7 +254,6 @@ async function loadPricesAndGlobal(): Promise<{
   let global: GlobalMetricsDTO | null = null;
   if (globalRes.status === "fulfilled" && globalRes.value.ok) {
     const g = ((await globalRes.value.json()) as { data?: Record<string, unknown> }).data ?? {};
-
     global = {
       totalMarketCap: (g.total_market_cap as Record<string, number> | undefined)?.usd ?? 0,
       totalVolume: (g.total_volume as Record<string, number> | undefined)?.usd ?? 0,
@@ -248,12 +266,12 @@ async function loadPricesAndGlobal(): Promise<{
     console.warn("[market] CoinGecko global falhou (rede):", globalRes.reason);
   }
 
-  // --- Fallback Binance: preenche todos os símbolos ausentes ---
-  // Acionado tanto quando a CoinGecko retorna parcial (429 com body vazio)
-  // quanto quando falha completamente.
+  // --- Fallback Binance ---
+  // Aciona para qualquer símbolo que não veio da CoinGecko, incluindo
+  // quando ela retorna 403 (sem chave) ou 429 (rate limit).
   const allSymbols = Object.values(SYMBOL_MAP);
   const missingSymbols = allSymbols.filter((s) => !prices[s]);
-  const usingFallback = missingSymbols.length === allSymbols.length; // CoinGecko totalmente fora
+  const usingFallback = missingSymbols.length === allSymbols.length;
 
   if (missingSymbols.length > 0) {
     const binancePrices = await fetchFromBinance(missingSymbols);
@@ -262,7 +280,7 @@ async function loadPricesAndGlobal(): Promise<{
     }
     if (Object.keys(binancePrices).length > 0) {
       console.info(
-        `[market] Binance preencheu ${Object.keys(binancePrices).length} símbolo(s) ausente(s): ` +
+        `[market] Binance preencheu ${Object.keys(binancePrices).length} símbolo(s): ` +
           Object.keys(binancePrices).join(", "),
       );
     }
@@ -288,10 +306,7 @@ async function loadFearGreed(): Promise<FearGreedDTO | null> {
       }
     ).data?.[0];
     if (!fg) return null;
-    return {
-      value: parseInt(fg.value, 10),
-      label: fg.value_classification,
-    };
+    return { value: parseInt(fg.value, 10), label: fg.value_classification };
   } catch (e) {
     console.warn("[market] Fear & Greed falhou:", e);
     return null;
@@ -307,7 +322,6 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(async
     cachedJson("market:prices+global", PRICES_TTL, loadPricesAndGlobal),
     cachedJson("market:feargreed", SENTIMENT_TTL, loadFearGreed),
   ]);
-
   return {
     prices: pricesAndGlobal.prices,
     global: pricesAndGlobal.global,
