@@ -29,7 +29,7 @@ export interface CoinPriceDTO {
   name: string;
   price: number;
   change24h: number;
-  marketCap: number;
+  marketCap: number | null;
   volume24h: number;
   high24h: number;
   low24h: number;
@@ -130,7 +130,7 @@ async function loadPricesAndGlobal(): Promise<{
             name: sym,
             price: Number(t.lastPrice ?? 0),
             change24h: Number(t.priceChangePercent ?? 0),
-            marketCap: 0,
+            marketCap: null,
             volume24h: Number(t.quoteVolume ?? 0),
             high24h: Number(t.highPrice ?? 0),
             low24h: Number(t.lowPrice ?? 0),

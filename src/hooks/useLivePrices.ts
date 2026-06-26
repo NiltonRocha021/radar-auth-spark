@@ -7,7 +7,7 @@ export interface CoinPrice {
   name: string;
   price: number;
   change24h: number;
-  marketCap: number;
+  marketCap: number | null;
   volume24h: number;
   high24h: number;
   low24h: number;
