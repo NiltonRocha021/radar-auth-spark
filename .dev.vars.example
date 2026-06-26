@@ -22,7 +22,7 @@ EMAIL_QUEUE_CRON_SECRET=<random-256-bit-hex>
 # ----- CoinGecko ----------------------------------------------
 # Chave Demo gratuita — obtida em coingecko.com/en/api
 # ATENÇÃO: a chave abaixo foi exposta publicamente — troque por uma nova.
-COINGECKO_API_KEY=<sua-nova-chave-aqui>
+COINGECKO_API_KEY= CG-pUXSPyEhkwcd1zMV8Vmf6YB1
 
 # ----- Cache TTLs (Cloudflare caches.default) -----------------
 # Mínimo 30s para evitar 429 na CoinGecko free/demo tier.
