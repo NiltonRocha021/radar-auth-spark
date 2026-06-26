@@ -116,7 +116,7 @@ function AuthenticatedApp({ session }: { session: NonNullable<ReturnType<typeof 
   const { marketContext } = useMarketContext(copilotActive ? session.user.id : undefined);
 
   const initBot4x = useBot4xStore((s) => s.init);
-  useDnaAutoCorrector(true);
+  useDnaAutoCorrector(true, session.user.id);
   useStoreCleanup();
 
   useEffect(() => {

@@ -85,8 +85,7 @@ async function persistDnaMetrics(
   if (Date.now() - lastApplied.persist < PERSIST_THROTTLE_MS) return;
   lastApplied.persist = Date.now();
 
-  const row: Record<string, unknown> = {
-    id: userId,
+  const row = {
     operations_today: snap.operationsToday,
     drawdown_today: snap.dailyPnlPct,
     recent_losses: snap.recentLosses,
