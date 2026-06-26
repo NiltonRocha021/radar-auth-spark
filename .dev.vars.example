@@ -15,35 +15,20 @@
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
 # ----- Lovable / Email ----------------------------------------
-# Chave da API Lovable usada pelo worker para enviar e-mails.
 LOVABLE_API_KEY=<lovable-api-key>
-
-# Opcional: URL alternativa do endpoint de envio (default = produção).
 LOVABLE_SEND_URL=
-
-# Segredo do cron pg_cron → /lovable/email/queue/process.
-# Gerar: openssl rand -hex 32
 EMAIL_QUEUE_CRON_SECRET=<random-256-bit-hex>
 
+# ----- CoinGecko ----------------------------------------------
+# Chave Demo gratuita — obtida em coingecko.com/en/api
+# ATENÇÃO: a chave abaixo foi exposta publicamente — troque por uma nova.
+COINGECKO_API_KEY=<sua-nova-chave-aqui>
+
 # ----- Cache TTLs (Cloudflare caches.default) -----------------
-#
-# ATENÇÃO: valores muito baixos causam 429 na CoinGecko (API pública).
-# A CoinGecko Free tier permite ~30 req/min por IP.
-# Com múltiplos usuários simultâneos, cada PoP do Cloudflare compartilha
-# o cache — mas com TTL=5s e >6 usuários ativos já estoura o limite.
-#
-# Mínimo recomendado: 30s (free tier CoinGecko).
-# Se você tiver chave Pro da CoinGecko: pode baixar para 10s.
-# O código em market.functions.ts força Math.max(30, valor) como proteção,
-# mas manter o valor correto aqui deixa o comportamento explícito.
+# Mínimo 30s para evitar 429 na CoinGecko free/demo tier.
 CACHE_TTL_PRICES_SECONDS=30
-
-# Sinais mudam com menor frequência — 30s é seguro e reduz leitura do DB.
 CACHE_TTL_SIGNALS_SECONDS=30
-
-# Fear & Greed é atualizado 1x/dia pela alternative.me — 60s é mais que suficiente.
 CACHE_TTL_SENTIMENT_SECONDS=60
 
 # ----- Ambiente -----------------------------------------------
-# Sobrescrito automaticamente pelos envs do wrangler.jsonc em deploy.
 NODE_ENV=development
