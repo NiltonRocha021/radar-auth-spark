@@ -122,8 +122,8 @@ function UserDetail({ userId }: { userId: string }) {
   if (error) return <Card><CardContent className="p-8 text-destructive">{(error as Error).message}</CardContent></Card>;
   if (!data) return null;
 
-  const p = data.profile;
-  const get = (k: string) => (k in form ? form[k] : (p[k] ?? "") as string);
+  const p = data.profile as Record<string, unknown>;
+  const get = (k: string) => (k in form ? form[k] : ((p[k] as string | null) ?? ""));
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = () => {
