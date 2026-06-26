@@ -49,21 +49,21 @@ export function useLivePrices(): UseLivePricesReturn {
 
   const fetchAll = useCallback(async () => {
     try {
-      // Chama server fn cacheada (caches.default no edge) — todos os
-      // usuários no mesmo PoP compartilham o mesmo hit por ~5s (preços) /
-      // ~60s (fear & greed), reduzindo carga sobre CoinGecko/alternative.me.
       const snap = await getMarketSnapshot();
       const now = new Date();
       const map: Record<string, CoinPrice> = {};
       for (const [sym, p] of Object.entries(snap.prices)) {
         map[sym] = { ...p, lastUpdated: now };
       }
-      setPrices(map);
-      setGlobal(snap.global);
-      setFearGreed(snap.fearGreed);
+      // Atualiza apenas o que veio com dados — preserva último valor bom
+      // quando o upstream (CoinGecko) responde parcial/vazio (ex: 429).
+      if (Object.keys(map).length > 0) setPrices(map);
+      if (snap.global) setGlobal(snap.global);
+      if (snap.fearGreed) setFearGreed(snap.fearGreed);
       setError(null);
       setLastUpdate(now);
-    } catch {
+    } catch (err) {
+      console.error("[useLivePrices] getMarketSnapshot falhou:", err);
       setError("Falha ao buscar preços. Usando cache.");
     } finally {
       setLoading(false);
