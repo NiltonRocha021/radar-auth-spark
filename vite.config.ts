@@ -7,6 +7,21 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { VitePWA } from "vite-plugin-pwa";
 
+// Public Lovable Cloud browser config. These values are publishable by design;
+// keeping them as explicit build fallbacks prevents production bundles from
+// collapsing the Supabase client fallback to an empty `process.env` object when
+// the managed `.env` is unavailable during publish.
+const publicSupabaseUrl =
+  process.env.VITE_SUPABASE_URL ??
+  process.env.SUPABASE_URL ??
+  "https://tzqqkrlzrgsnicfugkzf.supabase.co";
+const publicSupabasePublishableKey =
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.SUPABASE_PUBLISHABLE_KEY ??
+  process.env.VITE_SUPABASE_ANON_KEY ??
+  process.env.SUPABASE_ANON_KEY ??
+  "sb_publishable_YDsUlR4X2ESk0PHdtg59vg_DZcoU_Z0";
+
 // PWA-01: offline degradado para usuários que monitoram posições abertas.
 // - registerType:"autoUpdate" + sw em /sw.js, NetworkFirst para navegações
 //   (HTML nunca pode ser cache-first), CacheFirst para assets hashados.
@@ -26,6 +41,12 @@ export default defineConfig({
     ],
   },
   vite: {
+    define: {
+      "process.env.SUPABASE_URL": JSON.stringify(publicSupabaseUrl),
+      "process.env.SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicSupabasePublishableKey),
+      "process.env.VITE_SUPABASE_URL": JSON.stringify(publicSupabaseUrl),
+      "process.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(publicSupabasePublishableKey),
+    },
     plugins: [
       VitePWA({
         registerType: "autoUpdate",
