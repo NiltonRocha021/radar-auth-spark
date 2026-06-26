@@ -196,15 +196,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "AI Signal Radar" },
+      { name: "description", content: "Plataforma de traders AI-DNA" },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "AI Signal Radar" },
+      { property: "og:description", content: "Plataforma de traders AI-DNA" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "theme-color", content: "#0a0a0a" },
+      { name: "twitter:title", content: "AI Signal Radar" },
+      { name: "twitter:description", content: "Plataforma de traders AI-DNA" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/0dfd5b6a-796f-4009-a20b-e108fa2ffa65" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/0dfd5b6a-796f-4009-a20b-e108fa2ffa65" },
     ],
     links: [
       {
