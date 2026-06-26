@@ -396,11 +396,13 @@ export type Database = {
           id: string
           markets: string[] | null
           onboarding_completed: boolean
+          open_loss_pct: number | null
           operations_today: number | null
           overtrading_risk: boolean | null
           phone: string | null
           phone_country: string | null
           plan_tier: string | null
+          recent_losses: number | null
           timezone: string | null
           trading_style: string | null
           updated_at: string
@@ -429,11 +431,13 @@ export type Database = {
           id: string
           markets?: string[] | null
           onboarding_completed?: boolean
+          open_loss_pct?: number | null
           operations_today?: number | null
           overtrading_risk?: boolean | null
           phone?: string | null
           phone_country?: string | null
           plan_tier?: string | null
+          recent_losses?: number | null
           timezone?: string | null
           trading_style?: string | null
           updated_at?: string
@@ -462,11 +466,13 @@ export type Database = {
           id?: string
           markets?: string[] | null
           onboarding_completed?: boolean
+          open_loss_pct?: number | null
           operations_today?: number | null
           overtrading_risk?: boolean | null
           phone?: string | null
           phone_country?: string | null
           plan_tier?: string | null
+          recent_losses?: number | null
           timezone?: string | null
           trading_style?: string | null
           updated_at?: string
