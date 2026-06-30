@@ -89,7 +89,8 @@ export interface MarketSnapshotDTO {
 }
 
 // TTLs com mínimo seguro para evitar 429 da CoinGecko free/demo tier.
-const PRICES_TTL = Math.max(30, Number(process.env.CACHE_TTL_PRICES_SECONDS ?? 30));
+// 60s é o piso recomendado pelo plano free (30 req/min).
+const PRICES_TTL = Math.max(60, Number(process.env.CACHE_TTL_PRICES_SECONDS ?? 60));
 const SENTIMENT_TTL = Number(process.env.CACHE_TTL_SENTIMENT_SECONDS ?? 60);
 
 // ---------------------------------------------------------------------------
@@ -189,8 +190,37 @@ async function fetchFromBinance(symbols: string[]): Promise<Record<string, CoinP
 }
 
 // ---------------------------------------------------------------------------
-// CoinGecko + fallback Binance
+// CoinPaprika — segunda fonte para métricas globais (sem chave necessária)
 // ---------------------------------------------------------------------------
+
+async function fetchGlobalFromCoinPaprika(): Promise<GlobalMetricsDTO | null> {
+  try {
+    const res = await fetchWithTimeout("https://api.coinpaprika.com/v1/global", 5_000);
+    if (!res.ok) {
+      console.warn(`[market] CoinPaprika global HTTP ${res.status}`);
+      return null;
+    }
+    const g = (await res.json()) as Record<string, number>;
+    return {
+      totalMarketCap: Number(g.market_cap_usd ?? 0),
+      totalVolume: Number(g.volume_24h_usd ?? 0),
+      btcDominance: Number(g.bitcoin_dominance_percentage ?? 0),
+      marketCapChange24h: Number(g.market_cap_change_24h ?? 0),
+    };
+  } catch (e) {
+    console.warn("[market] CoinPaprika global falhou:", e);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// CoinGecko + fallback Binance + CoinPaprika
+// ---------------------------------------------------------------------------
+
+// Snapshot em memória do último resultado bem-sucedido (por isolate).
+// Garante que, se todas as fontes ao vivo falharem num refresh, o cliente
+// ainda recebe o último snapshot conhecido em vez de um objeto vazio.
+let lastGoodSnapshot: { prices: Record<string, CoinPriceDTO>; global: GlobalMetricsDTO | null; at: number } | null = null;
 
 // Statuses que devem acionar fallback imediato para a Binance.
 const COINGECKO_FALLBACK_STATUSES = new Set([401, 403, 429, 500, 502, 503]);
@@ -284,6 +314,31 @@ async function loadPricesAndGlobal(): Promise<{
           Object.keys(binancePrices).join(", "),
       );
     }
+  }
+
+  // --- Fallback CoinPaprika para métricas globais ---
+  if (!global) {
+    global = await fetchGlobalFromCoinPaprika();
+    if (global) {
+      console.info("[market] CoinPaprika preencheu métricas globais (fallback)");
+    }
+  }
+
+  // --- Stale snapshot: se tudo falhou, devolve último resultado conhecido ---
+  if (Object.keys(prices).length === 0 && lastGoodSnapshot) {
+    console.warn(
+      `[market] todas as fontes falharam — usando snapshot stale de ${Math.round((Date.now() - lastGoodSnapshot.at) / 1000)}s atrás`,
+    );
+    return {
+      prices: { ...lastGoodSnapshot.prices },
+      global: global ?? lastGoodSnapshot.global,
+      usingFallback: true,
+    };
+  }
+
+  // Persiste como último snapshot bom (se temos pelo menos preços)
+  if (Object.keys(prices).length > 0) {
+    lastGoodSnapshot = { prices, global, at: Date.now() };
   }
 
   return { prices, global, usingFallback };
