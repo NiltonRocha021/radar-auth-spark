@@ -89,8 +89,12 @@ export interface MarketSnapshotDTO {
 }
 
 // TTLs com mínimo seguro para evitar 429 da CoinGecko free/demo tier.
-const PRICES_TTL = Math.max(30, Number(process.env.CACHE_TTL_PRICES_SECONDS ?? 30));
+// 60s é o piso recomendado pelo plano free (30 req/min).
+const PRICES_TTL = Math.max(60, Number(process.env.CACHE_TTL_PRICES_SECONDS ?? 60));
 const SENTIMENT_TTL = Number(process.env.CACHE_TTL_SENTIMENT_SECONDS ?? 60);
+// Cache "stale" de longo prazo — usado quando TODAS as fontes ao vivo falham.
+const STALE_TTL = 60 * 60 * 6; // 6 horas
+const STALE_KEY = "market:prices+global:stale";
 
 // ---------------------------------------------------------------------------
 // Helpers
