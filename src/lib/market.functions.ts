@@ -319,6 +319,31 @@ async function loadPricesAndGlobal(): Promise<{
     }
   }
 
+  // --- Fallback CoinPaprika para métricas globais ---
+  if (!global) {
+    global = await fetchGlobalFromCoinPaprika();
+    if (global) {
+      console.info("[market] CoinPaprika preencheu métricas globais (fallback)");
+    }
+  }
+
+  // --- Stale snapshot: se tudo falhou, devolve último resultado conhecido ---
+  if (Object.keys(prices).length === 0 && lastGoodSnapshot) {
+    console.warn(
+      `[market] todas as fontes falharam — usando snapshot stale de ${Math.round((Date.now() - lastGoodSnapshot.at) / 1000)}s atrás`,
+    );
+    return {
+      prices: { ...lastGoodSnapshot.prices },
+      global: global ?? lastGoodSnapshot.global,
+      usingFallback: true,
+    };
+  }
+
+  // Persiste como último snapshot bom (se temos pelo menos preços)
+  if (Object.keys(prices).length > 0) {
+    lastGoodSnapshot = { prices, global, at: Date.now() };
+  }
+
   return { prices, global, usingFallback };
 }
 
