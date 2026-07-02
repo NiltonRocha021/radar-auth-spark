@@ -161,12 +161,12 @@ export async function drainDispatchQueue(opts: { userId?: string; limit?: number
         .update({ status: "sent", sent_at: new Date().toISOString(), attempts: row.attempts + 1 })
         .eq("id", row.id);
       // atualiza dispatch_state no evento
-      await admin.rpc as unknown; // no-op placeholder
       const stateKey = row.channel;
       await admin.from("alert_events")
-        .update({ dispatch_state: { [stateKey]: "sent" } as any })
+        .update({ dispatch_state: { [stateKey]: "sent" } as never })
         .eq("id", row.event_id);
       sent++;
+
     } catch (err: any) {
       const msg = String(err?.message ?? err);
       const attempts = row.attempts + 1;
