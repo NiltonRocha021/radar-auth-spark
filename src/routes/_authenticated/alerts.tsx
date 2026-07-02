@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, KeyboardEvent } from "react";
+import { useState, KeyboardEvent, useEffect, useRef } from "react";
 import { Send, Mail, Bell, MessageSquare, Phone, X, Check, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { TopBar } from "@/components/dashboard/top-bar";
@@ -10,10 +10,12 @@ import { MessagePreview } from "@/components/alerts/message-preview";
 import { RecentFeed } from "@/components/alerts/recent-feed";
 import { VolumeChart } from "@/components/alerts/volume-chart";
 import { useAlertsStore, type AlertType, type Frequency } from "@/lib/alerts-store";
+import { useAlertPreferences, useSaveAlertPreferences, useSendTestAlert } from "@/lib/alerts-hooks";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
 
 export const Route = createFileRoute("/_authenticated/alerts")({
   head: () => ({
