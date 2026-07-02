@@ -50,10 +50,11 @@ export type AlertEvent = {
   symbol: string | null;
   title: string;
   message: string;
-  payload: Record<string, unknown>;
+  payload: unknown;
   read_at: string | null;
   created_at: string;
 };
+
 
 // -------------------- getAlertPreferences --------------------
 export const getAlertPreferences = createServerFn({ method: "GET" })
