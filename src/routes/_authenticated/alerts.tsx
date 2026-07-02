@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, KeyboardEvent } from "react";
+import { useState, KeyboardEvent, useEffect, useRef } from "react";
 import { Send, Mail, Bell, MessageSquare, Phone, X, Check, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { TopBar } from "@/components/dashboard/top-bar";
@@ -10,10 +10,12 @@ import { MessagePreview } from "@/components/alerts/message-preview";
 import { RecentFeed } from "@/components/alerts/recent-feed";
 import { VolumeChart } from "@/components/alerts/volume-chart";
 import { useAlertsStore, type AlertType, type Frequency } from "@/lib/alerts-store";
+import { useAlertPreferences, useSaveAlertPreferences, useSendTestAlert } from "@/lib/alerts-hooks";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
 
 export const Route = createFileRoute("/_authenticated/alerts")({
   head: () => ({
@@ -50,6 +52,80 @@ function AlertsPage() {
   const [tgOpen, setTgOpen] = useState(false);
   const [assetInput, setAssetInput] = useState("");
 
+  // Hidrata store a partir do server ao montar
+  const { data: prefs } = useAlertPreferences();
+  const savePrefs = useSaveAlertPreferences();
+  const sendTest = useSendTestAlert();
+  const hydratedRef = useRef(false);
+
+  useEffect(() => {
+    if (!prefs || hydratedRef.current) return;
+    hydratedRef.current = true;
+    const ch = prefs.channels ?? {};
+    const th = prefs.thresholds ?? {};
+    const qh = prefs.quiet_hours ?? {};
+    s.hydrate({
+      channels: {
+        telegram: { on: !!ch.telegram?.enabled, username: ch.telegram?.chat_id ?? null },
+        email:    { on: !!ch.email?.enabled,    address:  ch.email?.address ?? "" },
+        discord:  { on: !!ch.discord?.enabled,  webhook:  ch.discord?.webhook_url ?? "" },
+        push:     { on: !!ch.push?.enabled },
+        whatsapp: { on: !!ch.whatsapp?.enabled },
+      },
+      types: (th.types as Record<AlertType, boolean>) ?? s.types,
+      minScore: typeof th.min_confidence === "number" ? th.min_confidence : s.minScore,
+      frequency: (th.frequency as Frequency) ?? s.frequency,
+      quietHours: {
+        on: !!qh.enabled,
+        from: qh.start ?? "22:00",
+        to: qh.end ?? "07:00",
+      },
+      assets: Array.isArray(th.assets) ? th.assets : [],
+      bot4x: th.bot4x ?? true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefs]);
+
+  // Persiste (debounce simples)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persist = () => {
+    if (!hydratedRef.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      savePrefs.mutate({
+        channels: {
+          telegram: { enabled: s.channels.telegram.on, chat_id: s.channels.telegram.username },
+          email:    { enabled: s.channels.email.on,    address: s.channels.email.address || null },
+          discord:  { enabled: s.channels.discord.on,  webhook_url: s.channels.discord.webhook || null },
+          push:     { enabled: s.channels.push.on },
+          whatsapp: { enabled: s.channels.whatsapp.on },
+        },
+        quiet_hours: {
+          enabled: s.quietHours.on,
+          start: s.quietHours.from,
+          end: s.quietHours.to,
+          timezone: "UTC",
+        },
+        thresholds: {
+          min_confidence: s.minScore,
+          types: s.types,
+          frequency: s.frequency,
+          assets: s.assets,
+          bot4x: s.bot4x,
+          symbols: s.assets,
+          severities: ["info", "warning", "critical"],
+          sources: ["signal", "trade", "system"],
+        },
+      });
+    }, 600);
+  };
+
+  // Persist quando qualquer campo relevante mudar
+  useEffect(persist, [
+    s.channels, s.types, s.minScore, s.frequency, s.quietHours, s.assets, s.bot4x,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ]);
+
   const addAsset = (raw: string) => {
     const t = raw.trim().toUpperCase().replace(/[, ]+/g, "");
     if (!t || s.assets.includes(t)) return;
@@ -66,24 +142,19 @@ function AlertsPage() {
   };
 
   const sendTestAlert = () => {
-    const active = Object.entries(s.channels).filter(([, c]) => c.on).map(([k]) => k);
-    if (active.length === 0) {
-      toast.error("No channels enabled", { description: "Turn on at least one delivery channel." });
-      return;
-    }
-    s.pushFeed({
-      id: `test-${Date.now()}`,
-      kind: "signal",
-      type: "Test alert",
-      asset: "BTC/USDT",
-      description: `Sample notification delivered via ${active.join(", ")}.`,
-      at: Date.now(),
-      read: false,
-    });
-    toast.success("Test alert sent", {
-      description: `Delivered to ${active.length} channel${active.length > 1 ? "s" : ""}: ${active.join(", ")}.`,
+    sendTest.mutate(undefined, {
+      onSuccess: (res) => {
+        toast.success("Test alert queued", {
+          description: `Sent to ${res.channels.length} channel${res.channels.length > 1 ? "s" : ""}: ${res.channels.join(", ")}.`,
+        });
+      },
+      onError: (err: unknown) => {
+        const msg = err instanceof Error ? err.message : "Failed to send.";
+        toast.error("Test alert failed", { description: msg });
+      },
     });
   };
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">

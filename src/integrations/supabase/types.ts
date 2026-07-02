@@ -47,6 +47,155 @@ export type Database = {
         }
         Relationships: []
       }
+      alert_dispatch_queue: {
+        Row: {
+          attempts: number
+          channel: string
+          created_at: string
+          event_id: string
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          channel: string
+          created_at?: string
+          event_id: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_dispatch_queue_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "alert_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alert_events: {
+        Row: {
+          created_at: string
+          dispatch_state: Json
+          id: string
+          kind: string
+          message: string
+          payload: Json
+          read_at: string | null
+          severity: Database["public"]["Enums"]["alert_severity"]
+          signal_id: string | null
+          source: Database["public"]["Enums"]["alert_source"]
+          symbol: string | null
+          title: string
+          trade_outbox_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dispatch_state?: Json
+          id?: string
+          kind: string
+          message: string
+          payload?: Json
+          read_at?: string | null
+          severity?: Database["public"]["Enums"]["alert_severity"]
+          signal_id?: string | null
+          source: Database["public"]["Enums"]["alert_source"]
+          symbol?: string | null
+          title: string
+          trade_outbox_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dispatch_state?: Json
+          id?: string
+          kind?: string
+          message?: string
+          payload?: Json
+          read_at?: string | null
+          severity?: Database["public"]["Enums"]["alert_severity"]
+          signal_id?: string | null
+          source?: Database["public"]["Enums"]["alert_source"]
+          symbol?: string | null
+          title?: string
+          trade_outbox_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_events_signal_id_fkey"
+            columns: ["signal_id"]
+            isOneToOne: false
+            referencedRelation: "signals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_events_trade_outbox_id_fkey"
+            columns: ["trade_outbox_id"]
+            isOneToOne: false
+            referencedRelation: "trade_outbox"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alert_preferences: {
+        Row: {
+          channels: Json
+          created_at: string
+          id: string
+          quiet_hours: Json
+          thresholds: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channels?: Json
+          created_at?: string
+          id?: string
+          quiet_hours?: Json
+          thresholds?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channels?: Json
+          created_at?: string
+          id?: string
+          quiet_hours?: Json
+          thresholds?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot4x_configs: {
         Row: {
           active: boolean
@@ -813,6 +962,8 @@ export type Database = {
       }
     }
     Enums: {
+      alert_severity: "info" | "warning" | "critical"
+      alert_source: "signal" | "trade" | "system"
       app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
@@ -941,6 +1092,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      alert_severity: ["info", "warning", "critical"],
+      alert_source: ["signal", "trade", "system"],
       app_role: ["admin", "moderator", "user"],
     },
   },
