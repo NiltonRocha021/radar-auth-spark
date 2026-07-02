@@ -42,6 +42,8 @@ export type AlertPreferences = {
   updated_at: string;
 };
 
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue };
+
 export type AlertEvent = {
   id: string;
   source: "signal" | "trade" | "system";
@@ -50,10 +52,11 @@ export type AlertEvent = {
   symbol: string | null;
   title: string;
   message: string;
-  payload: unknown;
+  payload: JsonValue;
   read_at: string | null;
   created_at: string;
 };
+
 
 
 // -------------------- getAlertPreferences --------------------
