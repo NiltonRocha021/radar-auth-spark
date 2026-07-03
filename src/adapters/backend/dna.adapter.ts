@@ -1,3 +1,4 @@
+// TODO: MIGRAÇÃO — removido na Fase 2/3 (ver MIGRATION_NOTES.md)
 // Mapeia DnaProfile do backend para o shape consumido pelo dashboard DNA.
 import { api, endpoints } from "./api.adapter";
 

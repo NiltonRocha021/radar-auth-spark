@@ -1,3 +1,4 @@
+// TODO: MIGRAÇÃO — removido na Fase 6 (ver MIGRATION_NOTES.md)
 // Normalizador de payloads entrando/saindo do WebSocket do Copilot.
 // Não altera UI nem o hook useCopilot — apenas oferece tradutores opcionais.
 
