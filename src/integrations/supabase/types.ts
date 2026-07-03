@@ -196,6 +196,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_cop_decisions: {
+        Row: {
+          context: Json
+          created_at: string
+          decision: string
+          id: string
+          reason: string | null
+          score: number | null
+          symbol: string
+          user_id: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          decision: string
+          id?: string
+          reason?: string | null
+          score?: number | null
+          symbol: string
+          user_id: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          decision?: string
+          id?: string
+          reason?: string | null
+          score?: number | null
+          symbol?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot4x_configs: {
         Row: {
           active: boolean
@@ -436,6 +469,69 @@ export type Database = {
         }
         Relationships: []
       }
+      dna_learning_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          user_id: string
+          weight: number | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          user_id: string
+          weight?: number | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          user_id?: string
+          weight?: number | null
+        }
+        Relationships: []
+      }
+      dna_profiles: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          patience_score: number | null
+          risk_appetite: number | null
+          score: number | null
+          temperament: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          patience_score?: number | null
+          risk_appetite?: number | null
+          score?: number | null
+          temperament?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          patience_score?: number | null
+          risk_appetite?: number | null
+          score?: number | null
+          temperament?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_send_log: {
         Row: {
           created_at: string
@@ -520,6 +616,147 @@ export type Database = {
           id?: string
           token?: string
           used_at?: string | null
+        }
+        Relationships: []
+      }
+      event_log: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json
+          source: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json
+          source?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          source?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      manipulation_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          data: Json
+          detected_at: string
+          id: string
+          message: string | null
+          severity: string
+          symbol: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          data?: Json
+          detected_at?: string
+          id?: string
+          message?: string | null
+          severity: string
+          symbol: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          data?: Json
+          detected_at?: string
+          id?: string
+          message?: string | null
+          severity?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
+      market_ohlcv: {
+        Row: {
+          close: number
+          created_at: string
+          high: number
+          id: string
+          low: number
+          open: number
+          open_time: string
+          quote_volume: number | null
+          symbol: string
+          timeframe: string
+          trades: number | null
+          volume: number
+        }
+        Insert: {
+          close: number
+          created_at?: string
+          high: number
+          id?: string
+          low: number
+          open: number
+          open_time: string
+          quote_volume?: number | null
+          symbol: string
+          timeframe: string
+          trades?: number | null
+          volume: number
+        }
+        Update: {
+          close?: number
+          created_at?: string
+          high?: number
+          id?: string
+          low?: number
+          open?: number
+          open_time?: string
+          quote_volume?: number | null
+          symbol?: string
+          timeframe?: string
+          trades?: number | null
+          volume?: number
+        }
+        Relationships: []
+      }
+      market_snapshot: {
+        Row: {
+          captured_at: string
+          change_24h: number | null
+          created_at: string
+          id: string
+          market_cap: number | null
+          price: number
+          source: string | null
+          symbol: string
+          volume_24h: number | null
+        }
+        Insert: {
+          captured_at?: string
+          change_24h?: number | null
+          created_at?: string
+          id?: string
+          market_cap?: number | null
+          price: number
+          source?: string | null
+          symbol: string
+          volume_24h?: number | null
+        }
+        Update: {
+          captured_at?: string
+          change_24h?: number | null
+          created_at?: string
+          id?: string
+          market_cap?: number | null
+          price?: number
+          source?: string | null
+          symbol?: string
+          volume_24h?: number | null
         }
         Relationships: []
       }
@@ -697,6 +934,72 @@ export type Database = {
         }
         Relationships: []
       }
+      risk_audit: {
+        Row: {
+          action: string
+          allowed: boolean
+          created_at: string
+          id: string
+          payload: Json
+          reason: string | null
+          risk_score: number | null
+          symbol: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          allowed: boolean
+          created_at?: string
+          id?: string
+          payload?: Json
+          reason?: string | null
+          risk_score?: number | null
+          symbol?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          payload?: Json
+          reason?: string | null
+          risk_score?: number | null
+          symbol?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      signal_subscriptions: {
+        Row: {
+          active: boolean
+          created_at: string
+          filters: Json
+          id: string
+          signal_source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          filters?: Json
+          id?: string
+          signal_source: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          filters?: Json
+          id?: string
+          signal_source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       signals: {
         Row: {
           ai_reasoning: string | null
@@ -769,6 +1072,157 @@ export type Database = {
         }
         Relationships: []
       }
+      simulation_results: {
+        Row: {
+          created_at: string
+          id: string
+          metric: string
+          payload: Json
+          run_id: string
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metric: string
+          payload?: Json
+          run_id: string
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metric?: string
+          payload?: Json
+          run_id?: string
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "simulation_results_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "simulation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      simulation_runs: {
+        Row: {
+          config: Json
+          created_at: string
+          finished_at: string | null
+          id: string
+          name: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          name?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          name?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      subscriber_executions: {
+        Row: {
+          created_at: string
+          detail: string | null
+          executed_at: string
+          id: string
+          payload: Json
+          status: string
+          subscriber_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          executed_at?: string
+          id?: string
+          payload?: Json
+          status: string
+          subscriber_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          executed_at?: string
+          id?: string
+          payload?: Json
+          status?: string
+          subscriber_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriber_executions_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: false
+            referencedRelation: "subscribers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscribers: {
+        Row: {
+          active: boolean
+          channel: string
+          config: Json
+          created_at: string
+          id: string
+          name: string
+          target: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          channel: string
+          config?: Json
+          created_at?: string
+          id?: string
+          name: string
+          target: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          channel?: string
+          config?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          target?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -790,6 +1244,27 @@ export type Database = {
           id?: string
           metadata?: Json | null
           reason?: string
+        }
+        Relationships: []
+      }
+      symbol_sequencer: {
+        Row: {
+          cursor: string | null
+          next_seq: number
+          symbol: string
+          updated_at: string
+        }
+        Insert: {
+          cursor?: string | null
+          next_seq?: number
+          symbol: string
+          updated_at?: string
+        }
+        Update: {
+          cursor?: string | null
+          next_seq?: number
+          symbol?: string
+          updated_at?: string
         }
         Relationships: []
       }

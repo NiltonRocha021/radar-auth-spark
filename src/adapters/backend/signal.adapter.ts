@@ -1,3 +1,4 @@
+// TODO: MIGRAÇÃO — removido na Fase 2/3 (ver MIGRATION_NOTES.md)
 // Tradutor entre o shape do backend (Signal) e o shape esperado pela UI (SignalUI).
 import { api, endpoints } from "./api.adapter";
 

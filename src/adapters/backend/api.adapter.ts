@@ -1,3 +1,4 @@
+// TODO: MIGRAÇÃO — removido na Fase 6 (ver MIGRATION_NOTES.md)
 // Camada central de endpoints REST do backend NestJS.
 // Não substitui o apiClient — apenas centraliza paths/uso.
 import { api, apiClient } from "@/lib/apiClient";

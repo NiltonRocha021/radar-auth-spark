@@ -26,30 +26,20 @@ const CopilotPanel = lazy(() =>
 );
 
 export const Route = createFileRoute("/_authenticated")({
-  // SEG-01 (rev): camada server-side via createServerFn + bearer attacher.
-  // - Em navegações client-side o functionMiddleware já anexa o Bearer; o
-  //   handler valida o token contra o Supabase Auth e retorna a sessão.
-  // - No SSR inicial (refresh / hard navigation) NÃO há bearer porque a
-  //   sessão Supabase vive em localStorage; getAuthSession retorna
-  //   isAuthenticated:false e DEIXAMOS passar — o AuthGate client-side
-  //   abaixo cobre esse caso (defense in depth).
-  // TODO(seg): migrar sessão para cookie httpOnly para conseguir bloquear
-  // o shell já no SSR sem causar redirect-loop em usuários autenticados.
+  // SEG-01 (Bloco C): sessão persistida em cookie via @supabase/ssr.
+  // getAuthSession resolve pela ordem: cookie SSR → bearer (server fn client).
+  // Como agora o SSR consegue ler a sessão do cookie, podemos redirecionar
+  // já no beforeLoad sem risco de loop em usuários autenticados.
   beforeLoad: async () => {
     const auth = await getAuthSession();
-    if (auth.isAuthenticated) {
-      return { serverUserId: auth.userId };
-    }
-    // Sem bearer: pode ser SSR sem cookie de sessão. Não redireciona aqui
-    // para evitar loop; AuthGate trata no client.
-    if (typeof window !== "undefined") {
-      // No client com bearer ausente/ inválido: redireciona.
+    if (!auth.isAuthenticated) {
       throw redirect({ to: "/login" });
     }
-    return { serverUserId: undefined as string | undefined };
+    return { serverUserId: auth.userId };
   },
   component: AuthGate,
 });
+
 
 
 function AuthGate() {

@@ -1,3 +1,4 @@
+// TODO: MIGRAÇÃO — removido na Fase 2/3 (ver MIGRATION_NOTES.md)
 // Adaptador para o Bot4x Calibration Engine (BCE).
 // Mapeia o JSON canônico do Calibrador para o consumo no frontend.
 // NÃO substitui o store local — apenas expõe os dados do backend.

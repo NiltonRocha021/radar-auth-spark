@@ -1,3 +1,4 @@
+// TODO: MIGRAÇÃO — removido na Fase 6 (ver ws-client.ts).
 // Variante "shared" do BackendWsClient: delega a conexão WebSocket para um
 // SharedWorker para que todas as abas do mesmo origin reaproveitem UMA única
 // conexão. API pública idêntica à do `BackendWsClient` original — assim
@@ -5,9 +6,10 @@
 //
 // Quando o navegador não suporta SharedWorker (Safari < 16.4, alguns mobile),
 // `ws-client.ts` escolhe a implementação clássica em vez desta.
-import { authAdapter } from "./auth.adapter";
+import { supabase } from "@/integrations/supabase/client";
 import { generateTraceId, getTraceId } from "@/lib/trace-context";
 import type { WsEvent, WsStatus } from "./ws-client";
+
 
 type Handler = (payload: unknown) => void;
 type StatusHandler = (status: WsStatus) => void;
@@ -101,7 +103,9 @@ export class BackendWsClientShared {
       this.setStatus("error");
       return this.status;
     }
-    const token = await authAdapter.getAccessToken();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token ?? null;
+
     if (!token) {
       this.setStatus("unauthenticated");
       return this.status;

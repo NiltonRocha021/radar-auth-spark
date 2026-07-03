@@ -1,3 +1,4 @@
+// TODO: MIGRAÇÃO — removido na Fase 6 (ver MIGRATION_NOTES.md)
 // SharedWorker que mantém UMA conexão WebSocket compartilhada entre todas as
 // abas do mesmo usuário/origin. Reduz N conexões (uma por aba) para 1 por
 // usuário. Reconnect com backoff exponencial (mesmos parâmetros do

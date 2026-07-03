@@ -1,3 +1,4 @@
+// TODO: MIGRAÇÃO — removido na Fase 3/4 (ver MIGRATION_NOTES.md)
 // Adaptador para configuração e execuções do Bot4x.
 import { api, endpoints } from "./api.adapter";
 

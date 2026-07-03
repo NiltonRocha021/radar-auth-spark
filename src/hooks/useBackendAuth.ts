@@ -1,6 +1,10 @@
+// TODO: MIGRAÇÃO — este hook inteiro é removido na Fase 6, quando não sobrar
+// consumidor de backend externo (NestJS) neste projeto.
+// Hoje ele só expõe { userId, ready } a partir da sessão Supabase local.
+// Não faz mais round-trip para /auth/me — o backend NestJS deixa de ser
+// fonte de verdade de identidade nesta fase-ponte.
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { authAdapter } from "@/adapters/backend/auth.adapter";
 
 export function useBackendAuth() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -9,12 +13,7 @@ export function useBackendAuth() {
   useEffect(() => {
     const sync = async () => {
       const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        const me = await authAdapter.getMe();
-        setUserId(me?.userId ?? data.session.user.id);
-      } else {
-        setUserId(null);
-      }
+      setUserId(data.session?.user?.id ?? null);
       setReady(true);
     };
     sync();

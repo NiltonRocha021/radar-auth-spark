@@ -1,3 +1,4 @@
+// TODO: MIGRAÇÃO — removido na Fase 6 (ver MIGRATION_NOTES.md)
 import axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
 import { supabase } from "@/integrations/supabase/client";
 import { Sentry } from "./sentry";

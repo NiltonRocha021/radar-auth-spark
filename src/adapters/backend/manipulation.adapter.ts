@@ -1,3 +1,4 @@
+// TODO: MIGRAÇÃO — removido na Fase 2/3 (ver MIGRATION_NOTES.md)
 // src/adapters/backend/manipulation.adapter.ts
 import { api } from "./api.adapter";
 import type { Alert, Severity, AlertType } from "@/lib/manipulation-data";
