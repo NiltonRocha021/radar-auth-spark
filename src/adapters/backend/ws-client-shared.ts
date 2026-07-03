@@ -103,7 +103,9 @@ export class BackendWsClientShared {
       this.setStatus("error");
       return this.status;
     }
-    const token = await authAdapter.getAccessToken();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token ?? null;
+
     if (!token) {
       this.setStatus("unauthenticated");
       return this.status;
