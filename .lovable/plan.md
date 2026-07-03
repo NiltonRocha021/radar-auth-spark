@@ -1,7 +1,14 @@
 
 # Fase-ponte: redirecionar para "zero NestJS"
 
+> **Estado real (atualizado ao fim da fase-ponte):** entregas 1–4 abaixo
+> executadas. Bloco C (SSR cookies) do plano original — que ficou registrado
+> como concluído em versões anteriores deste arquivo, mas nunca foi de fato
+> implementado — foi executado agora, nesta fase-ponte. Estado item-por-item
+> vive em `MIGRATION_NOTES.md` na raiz do repo.
+
 Vou executar o pedido em quatro entregas, nesta ordem, com stops para você revisar antes de eu prosseguir para a Fase 2 corrigida.
+
 
 ---
 
