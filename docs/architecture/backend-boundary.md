@@ -1,7 +1,20 @@
 # Backend boundary — Supabase × NestJS
 
-> Status: descrição do estado atual (auditoria 2026-06).
-> Próximo passo: discutir consolidação após Fases 1 e 2 estarem em prod.
+> **Status (fase-ponte, 2026-07):** decisão revertida ao plano original —
+> objetivo final é **zero NestJS**. Tudo que hoje depende do NestJS externo é
+> **transitório** e será absorvido como server function neste projeto
+> (TanStack Start + Supabase / Lovable Cloud) nas fases planejadas.
+> Ver `MIGRATION_NOTES.md` para o desmonte item-por-item e a fase de saída.
+>
+> **Sessão de auth**: migrada para cookie httpOnly via `@supabase/ssr` nesta
+> fase-ponte (Bloco C do `.lovable/plan.md`). O `beforeLoad` em
+> `src/routes/_authenticated.tsx` bloqueia rotas protegidas já no SSR
+> lendo `server-session.ts`; sem cookie → redirect a `/login` sem risco de
+> loop.
+>
+> A tabela abaixo descreve o **estado atual**, não o estado final.
+
+
 
 O sistema mantém dois backends paralelos que validam o mesmo JWT emitido
 pelo Supabase Auth. Esta nota define qual é a **fonte de verdade** para
