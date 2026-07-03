@@ -1,9 +1,13 @@
+// TODO: MIGRAÇÃO — removido na Fase 6 (streaming do copilot deixa de usar
+// WebSocket-pro-NestJS e passa a usar server function + Lovable AI Gateway,
+// ou short-polling — a Fase 6 define e documenta a escolha).
 // Cliente WebSocket único para o backend NestJS.
 // Roteia eventos: signal:new, bot4x:update, copilot:message, price:update.
 // Exige token JWT do usuário autenticado (Supabase) — sem token, não conecta.
-import { authAdapter } from "./auth.adapter";
+import { supabase } from "@/integrations/supabase/client";
 import { generateTraceId, getTraceId } from "@/lib/trace-context";
 import { BackendWsClientShared } from "./ws-client-shared";
+
 
 type Handler = (payload: unknown) => void;
 type StatusHandler = (status: WsStatus) => void;
