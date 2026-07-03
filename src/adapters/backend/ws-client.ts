@@ -87,7 +87,9 @@ export class BackendWsClient {
       return this.status;
     }
 
-    const token = await authAdapter.getAccessToken();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token ?? null;
+
     if (!token) {
       this.setStatus("unauthenticated");
       // Não agendar reconexão automática — esperar o app autenticar e chamar connect() de novo
