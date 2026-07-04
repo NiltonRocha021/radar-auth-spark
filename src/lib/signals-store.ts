@@ -132,7 +132,7 @@ export const useSignalsStore = create<State>((set, get) => ({
         id: s.id,
         asset: s.symbol,
         assetClass: "Crypto" as AssetClass,
-        exchange: s.exchange ?? "Binance",
+        exchange: "Binance",
         direction: s.direction,
         score: s.confidence,
         tf: (s.tf ?? "1H") as Signal["tf"],
