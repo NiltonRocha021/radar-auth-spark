@@ -58,7 +58,7 @@ export const getDnaProfile = createServerFn({ method: "GET" })
       score: data?.score != null ? Number(data.score) : null,
       riskAppetite: data?.risk_appetite != null ? Number(data.risk_appetite) : null,
       patienceScore: data?.patience_score != null ? Number(data.patience_score) : null,
-      data: (data?.data as Record<string, unknown> | null) ?? null,
+      data: (data?.data as Json | null) ?? null,
       updatedAt: (data?.updated_at as string | null) ?? null,
     };
   });
