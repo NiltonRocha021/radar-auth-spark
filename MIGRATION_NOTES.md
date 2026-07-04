@@ -65,6 +65,9 @@ divergir do código, o código é o certo — atualize este arquivo.
 `simulation_results`, `event_log`, `symbol_sequencer`, `manipulation_alerts`,
 `subscribers`, `subscriber_executions`, `signal_subscriptions`, `risk_audit`.
 
-**Pendente de decisão:** `AuditLog` genérico do Prisma vs `admin_audit_log`
-já existente + `event_log` novo — confirmar com o mantenedor antes de criar
-um terceiro.
+**Decisão de logs (aprovada):** manter dois destinos, sem criar um terceiro
+`audit_log` genérico do Prisma. `admin_audit_log` continua sendo o log de
+ações administrativas (quem fez o quê no painel de admin). `event_log` é o
+destino unificado para eventos operacionais do produto (bot pausado, erros
+de execução, quota, dispatches de alerta, etc.). Toda nova instrumentação
+operacional escreve em `event_log`.
