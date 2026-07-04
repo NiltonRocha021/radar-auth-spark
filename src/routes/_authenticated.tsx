@@ -28,9 +28,14 @@ const CopilotPanel = lazy(() =>
 export const Route = createFileRoute("/_authenticated")({
   // SEG-01 (Bloco C): sessão persistida em cookie via @supabase/ssr.
   // getAuthSession resolve pela ordem: cookie SSR → bearer (server fn client).
-  // Como agora o SSR consegue ler a sessão do cookie, podemos redirecionar
-  // já no beforeLoad sem risco de loop em usuários autenticados.
+  //
+  // NOTA (fase-ponte): mantemos o guard `typeof window !== 'undefined'` para
+  // pular o redirect no SSR até a validação Playwright confirmar que não há
+  // redirect loop após o refactor de cookies. O AuthGate no client cobre o
+  // caso não-autenticado enquanto isso. Remover em commit separado depois
+  // que o smoke test de auth passar.
   beforeLoad: async () => {
+    if (typeof window === "undefined") return;
     const auth = await getAuthSession();
     if (!auth.isAuthenticated) {
       throw redirect({ to: "/login" });
