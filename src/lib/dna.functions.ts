@@ -13,13 +13,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+type Json = string | number | boolean | null | { [k: string]: Json } | Json[];
+
 export interface DnaProfileDTO {
   userId: string;
   temperament: string | null;
   score: number | null;
   riskAppetite: number | null;
   patienceScore: number | null;
-  data: Record<string, unknown> | null | undefined;
+  data: Json | null;
   updatedAt: string | null;
 }
 
