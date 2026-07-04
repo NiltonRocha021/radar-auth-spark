@@ -19,7 +19,7 @@ export interface DnaProfileDTO {
   score: number | null;
   riskAppetite: number | null;
   patienceScore: number | null;
-  data: Record<string, unknown> | null;
+  data: Record<string, unknown> | null | undefined;
   updatedAt: string | null;
 }
 
