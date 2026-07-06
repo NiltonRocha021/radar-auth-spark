@@ -6,6 +6,7 @@
 // userId via argumento. Isso fecha o IDOR que o Nest já corrigiu removendo
 // /config/:userId.
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface BotConfigDTO {
