@@ -118,3 +118,72 @@ export const adminUpdateUser = createServerFn({ method: "POST" })
 
     return { ok: true, changed: auditRows.length };
   });
+
+// =========================================================================
+// Fase 3 — Admin overview + listSubscribers
+// =========================================================================
+
+export interface AdminOverviewDTO {
+  totalUsers: number;
+  totalSubscribers: number;
+  totalSignals: number;
+  totalOrders: number;
+  activeBots: number;
+  planBreakdown: Array<{ plan: string; count: number }>;
+}
+
+export const adminGetOverview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AdminOverviewDTO> => {
+    await assertAdmin(context);
+
+    const [usersRes, subsRes, signalsRes, ordersRes, botsRes, plansRes] = await Promise.all([
+      context.supabase.from("profiles").select("*", { count: "exact", head: true }),
+      context.supabase.from("subscribers").select("*", { count: "exact", head: true }),
+      context.supabase.from("signals").select("*", { count: "exact", head: true }),
+      context.supabase.from("orders").select("*", { count: "exact", head: true }),
+      context.supabase
+        .from("bot_system_state")
+        .select("*", { count: "exact", head: true })
+        .eq("state", "ACTIVE"),
+      context.supabase.from("profiles").select("plan_tier"),
+    ]);
+
+    const plans = new Map<string, number>();
+    for (const r of (plansRes.data ?? []) as Array<{ plan_tier: string | null }>) {
+      const key = r.plan_tier ?? "unknown";
+      plans.set(key, (plans.get(key) ?? 0) + 1);
+    }
+
+    return {
+      totalUsers: usersRes.count ?? 0,
+      totalSubscribers: subsRes.count ?? 0,
+      totalSignals: signalsRes.count ?? 0,
+      totalOrders: ordersRes.count ?? 0,
+      activeBots: botsRes.count ?? 0,
+      planBreakdown: Array.from(plans.entries()).map(([plan, count]) => ({ plan, count })),
+    };
+  });
+
+export const adminListSubscribers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d?: { limit?: number; activeOnly?: boolean }) =>
+    z
+      .object({
+        limit: z.number().int().min(1).max(500).optional(),
+        activeOnly: z.boolean().optional(),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    let q = context.supabase
+      .from("subscribers")
+      .select("id,user_id,name,channel,target,active,created_at,updated_at")
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 100);
+    if (data.activeOnly) q = q.eq("active", true);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return { subscribers: rows ?? [] };
+  });

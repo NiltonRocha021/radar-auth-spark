@@ -11,6 +11,7 @@
 // ainda calculado, retornamos defaults honestos (null / arrays vazios), NÃO
 // dados sintéticos.
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 type Json = string | number | boolean | null | { [k: string]: Json } | Json[];
@@ -158,5 +159,102 @@ export const getBot4xCompatibility = createServerFn({ method: "GET" })
       userId: context.userId,
       compatibility: 0.5,
       reason: `DNA=${dnaTemp} vs Bot=${botProfile} — considere ajustar o profile.`,
+    };
+  });
+
+// =========================================================================
+// Fase 3 — recalculateDnaProfile
+// Agrega os dna_learning_events do usuário e faz upsert em dna_profiles.
+// Regra: por padrão recalcula o próprio DNA (context.userId). Admin pode
+// passar targetUserId para recalcular o de outro usuário (via has_role).
+// Substitui o mock do DnaCalculatorService do Nest com heurística simples e
+// determinística — sem inventar métricas quantitativas novas.
+// =========================================================================
+
+function classifyTemperament(scoreAvg: number): string {
+  if (scoreAvg >= 0.5) return "AGGRESSIVE";
+  if (scoreAvg >= 0) return "MODERATE";
+  return "CONSERVATIVE";
+}
+
+export const recalculateDnaProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d?: { targetUserId?: string }) =>
+    z.object({ targetUserId: z.string().uuid().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<DnaProfileDTO> => {
+    const target = data.targetUserId ?? context.userId;
+
+    if (target !== context.userId) {
+      const { data: isAdmin, error: rErr } = await context.supabase.rpc("has_role", {
+        _user_id: context.userId,
+        _role: "admin",
+      });
+      if (rErr) throw new Error("Falha ao verificar permissões");
+      if (!isAdmin) throw new Error("Acesso negado: requer papel admin");
+    }
+
+    // Agrega eventos (limita a 5k pra proteger CPU do Worker).
+    const { data: events, error: eErr } = await context.supabase
+      .from("dna_learning_events")
+      .select("weight,event_type")
+      .eq("user_id", target)
+      .limit(5000);
+    if (eErr) throw new Error(eErr.message);
+
+    const rows = events ?? [];
+    const total = rows.length;
+    const sumW = rows.reduce((s: number, r: any) => s + Number(r.weight ?? 0), 0);
+    const avgW = total > 0 ? sumW / total : 0;
+
+    // Score consolidado 0..100 (mapeia avg de -1..1 para 0..100).
+    const score = Math.round(((avgW + 1) / 2) * 100);
+    const wins = rows.filter((r: any) => Number(r.weight) > 0).length;
+    const losses = rows.filter((r: any) => Number(r.weight) < 0).length;
+    const patienceScore = total > 0 ? Math.round(((total - losses) / total) * 100) : 0;
+    const riskAppetite = Math.max(0, Math.min(100, Math.round(50 + avgW * 50)));
+    const temperament = classifyTemperament(avgW);
+
+    // Escrita direta na tabela do usuário: a RLS já bloqueia targets alheios
+    // pra não-admins; admin recai em supabaseAdmin.
+    let updater = context.supabase;
+    if (target !== context.userId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      updater = supabaseAdmin;
+    }
+
+    const { data: upserted, error: uErr } = await updater
+      .from("dna_profiles")
+      .upsert(
+        {
+          user_id: target,
+          temperament,
+          score,
+          risk_appetite: riskAppetite,
+          patience_score: patienceScore,
+          data: { totalEvents: total, wins, losses, avgWeight: avgW },
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      )
+      .select("temperament,score,risk_appetite,patience_score,data,updated_at")
+      .single();
+    if (uErr) throw new Error("Falha ao gravar DNA: " + uErr.message);
+
+    await context.supabase.from("event_log").insert({
+      user_id: context.userId,
+      event_type: "dna.recalculated",
+      source: "dna.functions",
+      payload: { targetUserId: target, totalEvents: total, score },
+    });
+
+    return {
+      userId: target,
+      temperament: upserted.temperament as string | null,
+      score: upserted.score != null ? Number(upserted.score) : null,
+      riskAppetite: upserted.risk_appetite != null ? Number(upserted.risk_appetite) : null,
+      patienceScore: upserted.patience_score != null ? Number(upserted.patience_score) : null,
+      data: (upserted.data as Json | null) ?? null,
+      updatedAt: (upserted.updated_at as string | null) ?? null,
     };
   });

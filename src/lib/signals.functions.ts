@@ -2,8 +2,9 @@
 // Porta o SignalController do Nest (GET /signals, GET /signals/:id).
 // Sinais são globais de mercado — a RLS da tabela `signals` cobre a política
 // de acesso; NÃO filtramos por user_id aqui, replicando o contrato do Nest.
-// POST /signals/feedback (escrita) fica para a Fase 3.
+// Fase 3 adiciona POST /signals/feedback (submitSignalFeedback).
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface SignalListItemDTO {
@@ -150,4 +151,52 @@ export const getSignalById = createServerFn({ method: "GET" })
       invalidations: s.invalidations ?? undefined,
       updatedAt: s.updated_at ?? undefined,
     };
+  });
+
+// =========================================================================
+// Fase 3 — submitSignalFeedback: grava avaliação do usuário sobre um sinal
+// em dna_learning_events (WIN/LOSS/SKIP/HELPFUL/NOT_HELPFUL). Alimenta o DNA.
+// =========================================================================
+
+const FEEDBACK_KINDS = ["WIN", "LOSS", "SKIP", "HELPFUL", "NOT_HELPFUL"] as const;
+
+export const submitSignalFeedback = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { signalId: string; feedback: (typeof FEEDBACK_KINDS)[number]; note?: string }) =>
+    z
+      .object({
+        signalId: z.string().uuid(),
+        feedback: z.enum(FEEDBACK_KINDS),
+        note: z.string().trim().max(500).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    // Confirma que o sinal existe antes de gravar (evita eventos órfãos).
+    const { data: sig, error: sErr } = await context.supabase
+      .from("signals")
+      .select("id,pair")
+      .eq("id", data.signalId)
+      .maybeSingle();
+    if (sErr) throw new Error(sErr.message);
+    if (!sig) throw new Error("Sinal não encontrado");
+
+    const weight = data.feedback === "WIN" || data.feedback === "HELPFUL" ? 1 : data.feedback === "SKIP" ? 0 : -1;
+
+    const { error } = await context.supabase.from("dna_learning_events").insert({
+      user_id: context.userId,
+      event_type: `signal_feedback.${data.feedback.toLowerCase()}`,
+      weight,
+      payload: { signalId: data.signalId, pair: sig.pair, note: data.note ?? null },
+    });
+    if (error) throw new Error("Falha ao gravar feedback: " + error.message);
+
+    await context.supabase.from("event_log").insert({
+      user_id: context.userId,
+      event_type: "signal.feedback",
+      source: "signals.functions",
+      payload: { signalId: data.signalId, feedback: data.feedback },
+    });
+
+    return { ok: true };
   });
