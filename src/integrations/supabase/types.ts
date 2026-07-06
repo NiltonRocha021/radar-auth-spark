@@ -229,6 +229,33 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_system_state: {
+        Row: {
+          changed_at: string
+          created_at: string
+          reason: string | null
+          state: Database["public"]["Enums"]["bot_state"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          changed_at?: string
+          created_at?: string
+          reason?: string | null
+          state?: Database["public"]["Enums"]["bot_state"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          changed_at?: string
+          created_at?: string
+          reason?: string | null
+          state?: Database["public"]["Enums"]["bot_state"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot4x_configs: {
         Row: {
           active: boolean
@@ -757,6 +784,75 @@ export type Database = {
           source?: string | null
           symbol?: string
           volume_24h?: number | null
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          closed_at: string | null
+          created_at: string
+          entry_price: number
+          exit_price: number | null
+          id: string
+          metadata: Json
+          mode: string
+          opened_at: string
+          order_type: string
+          pnl: number | null
+          pnl_pct: number | null
+          quantity: number
+          side: string
+          signal_id: string | null
+          status: string
+          stop_loss: number | null
+          symbol: string
+          take_profit: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string
+          entry_price: number
+          exit_price?: number | null
+          id?: string
+          metadata?: Json
+          mode?: string
+          opened_at?: string
+          order_type?: string
+          pnl?: number | null
+          pnl_pct?: number | null
+          quantity: number
+          side: string
+          signal_id?: string | null
+          status?: string
+          stop_loss?: number | null
+          symbol: string
+          take_profit?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string
+          entry_price?: number
+          exit_price?: number | null
+          id?: string
+          metadata?: Json
+          mode?: string
+          opened_at?: string
+          order_type?: string
+          pnl?: number | null
+          pnl_pct?: number | null
+          quantity?: number
+          side?: string
+          signal_id?: string | null
+          status?: string
+          stop_loss?: number | null
+          symbol?: string
+          take_profit?: number | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1379,6 +1475,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_two_factor: {
+        Row: {
+          backup_codes: string[]
+          created_at: string
+          enabled: boolean
+          enabled_at: string | null
+          last_used_at: string | null
+          secret: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          backup_codes?: string[]
+          created_at?: string
+          enabled?: boolean
+          enabled_at?: string | null
+          last_used_at?: string | null
+          secret: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          backup_codes?: string[]
+          created_at?: string
+          enabled?: boolean
+          enabled_at?: string | null
+          last_used_at?: string | null
+          secret?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1406,6 +1535,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -1440,6 +1570,7 @@ export type Database = {
       alert_severity: "info" | "warning" | "critical"
       alert_source: "signal" | "trade" | "system"
       app_role: "admin" | "moderator" | "user"
+      bot_state: "ACTIVE" | "INACTIVE" | "PAUSED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1570,6 +1701,7 @@ export const Constants = {
       alert_severity: ["info", "warning", "critical"],
       alert_source: ["signal", "trade", "system"],
       app_role: ["admin", "moderator", "user"],
+      bot_state: ["ACTIVE", "INACTIVE", "PAUSED"],
     },
   },
 } as const
