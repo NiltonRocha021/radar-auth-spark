@@ -168,7 +168,7 @@ export const updateBotConfig = createServerFn({ method: "POST" })
 
     const { error } = await context.supabase
       .from("bot4x_configs")
-      .upsert(patch, { onConflict: "user_id" });
+      .upsert(patch as never, { onConflict: "user_id" });
     if (error) throw new Error("Falha ao salvar config: " + error.message);
 
     // Retorna estado consolidado usando a leitura já pronta.
