@@ -4,11 +4,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   X, Bell, Bookmark, LineChart, Share2, ChevronDown, AlertTriangle, Check,
   TrendingUp, TrendingDown, Globe, Activity, ShieldCheck, Shield, ShieldAlert, Sparkles, GripVertical,
+  ThumbsUp, ThumbsDown, MinusCircle,
 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { ScoreBadge, scoreColor } from "@/components/dashboard/score-badge";
 import { useSignalsStore } from "@/lib/signals-store";
+import { submitSignalFeedback } from "@/lib/signals.functions";
 import { formatPrice, formatAge, type Signal } from "@/lib/signals-data";
 import { MiniChart } from "./mini-chart";
+
 
 function tierLabel(score: number) {
   if (score >= 90) return "Institutional Premium";
