@@ -703,6 +703,7 @@ function Footer({ signal }: { signal: Signal }) {
         {alertOpen && <AlertPopover signal={signal} onClose={() => setAlertOpen(false)} />}
         {shareOpen && <SharePopover signal={signal} onClose={() => setShareOpen(false)} />}
       </AnimatePresence>
+      <FeedbackRow signal={signal} />
       <div className="flex items-center gap-2">
         <FooterBtn icon={<Bell className="size-3.5" />} label="Set Alert" onClick={() => { setAlertOpen((o) => !o); setShareOpen(false); }} />
         <FooterBtn icon={<Bookmark className="size-3.5" />} label="Save" />
@@ -712,6 +713,89 @@ function Footer({ signal }: { signal: Signal }) {
         </button>
       </div>
     </footer>
+  );
+}
+
+// UUID v1-v5 — filtra os mocks de dev (que usam ids tipo "sig-1").
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function FeedbackRow({ signal }: { signal: Signal }) {
+  const [submitted, setSubmitted] = useState<null | "WIN" | "LOSS" | "SKIP">(null);
+  const submit = useServerFn(submitSignalFeedback);
+  const mutation = useMutation({
+    mutationFn: (feedback: "WIN" | "LOSS" | "SKIP") =>
+      submit({ data: { signalId: signal.id, feedback } }),
+    onSuccess: (_res, feedback) => {
+      setSubmitted(feedback);
+      toast.success("Feedback registrado — obrigado por treinar o DNA.");
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "Falha ao enviar feedback";
+      toast.error(msg);
+    },
+  });
+
+  // Sinal mock (id não-uuid): feedback só faz sentido para sinal real do backend.
+  if (!UUID_RE.test(signal.id)) return null;
+
+  const disabled = mutation.isPending || submitted !== null;
+  return (
+    <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">
+        Este sinal foi útil?
+      </span>
+      <FeedbackBtn
+        icon={<ThumbsUp className="size-3.5" />}
+        label="WIN"
+        color="#1D9E75"
+        active={submitted === "WIN"}
+        disabled={disabled}
+        onClick={() => mutation.mutate("WIN")}
+      />
+      <FeedbackBtn
+        icon={<MinusCircle className="size-3.5" />}
+        label="SKIP"
+        color="#8892A1"
+        active={submitted === "SKIP"}
+        disabled={disabled}
+        onClick={() => mutation.mutate("SKIP")}
+      />
+      <FeedbackBtn
+        icon={<ThumbsDown className="size-3.5" />}
+        label="LOSS"
+        color="#E24B4A"
+        active={submitted === "LOSS"}
+        disabled={disabled}
+        onClick={() => mutation.mutate("LOSS")}
+      />
+    </div>
+  );
+}
+
+function FeedbackBtn({
+  icon, label, color, active, disabled, onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  color: string;
+  active: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="h-7 px-2 rounded-md border text-[11px] font-semibold inline-flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{
+        borderColor: active ? color : "var(--border)",
+        color: active ? color : "var(--foreground)",
+        background: active ? `color-mix(in oklab, ${color} 15%, transparent)` : "transparent",
+      }}
+    >
+      {icon} {label}
+    </button>
   );
 }
 
@@ -725,6 +809,7 @@ function FooterBtn({ icon, label, onClick }: { icon: React.ReactNode; label: str
     </button>
   );
 }
+
 
 function AlertPopover({ signal, onClose }: { signal: Signal; onClose: () => void }) {
   const [trigger, setTrigger] = useState<"price" | "score" | "expiry">("price");
