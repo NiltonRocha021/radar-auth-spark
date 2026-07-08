@@ -22,15 +22,23 @@ export interface DnaProfileUI extends DnaProfileDTO {
 
 function toUI(dto: DnaProfileDTO): DnaProfileUI {
   const raw = (dto.data ?? {}) as Record<string, unknown>;
-  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
-  return {
-    ...dto,
-    dnaConsistency: num(raw.dnaConsistency ?? raw.consistency),
-    dnaDiscipline: num(raw.dnaDiscipline ?? raw.discipline),
-    dnaRiskControl: num(raw.dnaRiskControl ?? raw.riskControl),
-    dnaTiming: num(raw.dnaTiming ?? raw.timing),
-    dnaEmotionalControl: num(raw.dnaEmotionalControl ?? raw.emotionalControl),
-  };
+  const num = (v: unknown): number | undefined =>
+    typeof v === "number" && Number.isFinite(v) ? v : undefined;
+  const out: DnaProfileUI = { ...dto };
+  // Só emite as chaves quando há valor real — o consumidor usa `"dnaConsistency" in data`
+  // como sinal de "tenho dado ao vivo"; incluir a chave com `undefined` acenderia o
+  // badge "ao vivo" mostrando números de demo.
+  const c = num(raw.dnaConsistency ?? raw.consistency);
+  const d = num(raw.dnaDiscipline ?? raw.discipline);
+  const r = num(raw.dnaRiskControl ?? raw.riskControl);
+  const t = num(raw.dnaTiming ?? raw.timing);
+  const e = num(raw.dnaEmotionalControl ?? raw.emotionalControl);
+  if (c !== undefined) out.dnaConsistency = c;
+  if (d !== undefined) out.dnaDiscipline = d;
+  if (r !== undefined) out.dnaRiskControl = r;
+  if (t !== undefined) out.dnaTiming = t;
+  if (e !== undefined) out.dnaEmotionalControl = e;
+  return out;
 }
 
 export function useDnaProfile(userId: string | undefined) {
