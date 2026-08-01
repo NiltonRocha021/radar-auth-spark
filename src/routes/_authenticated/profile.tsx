@@ -122,9 +122,8 @@ function ProfilePage() {
             <TabsContent value="wishlist">
               <WishlistTab />
             </TabsContent>
-          </Tabs>
-        </main>
-      </div>
-    </div>
+      </Tabs>
+    </ProfileShell>
+
   );
 }
