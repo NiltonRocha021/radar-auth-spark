@@ -22,9 +22,9 @@ export const Route = createFileRoute("/_authenticated/profile")({
   }),
   // `tab` é opcional: sem ele a página abre na aba "profile". Manter opcional
   // é o que permite `<Link to="/profile">` sem `search` obrigatório.
-  validateSearch: (search: Record<string, unknown>) => ({
-    tab: search.tab === "wishlist" ? ("wishlist" as const) : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { tab?: "wishlist" } =>
+    search.tab === "wishlist" ? { tab: "wishlist" } : {},
+
   errorComponent: ProfileErrorState,
   component: ProfilePage,
 });
