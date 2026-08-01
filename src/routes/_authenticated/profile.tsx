@@ -97,21 +97,15 @@ function ProfilePage() {
 
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <TopBar />
-      <div className="flex">
-        <LeftSidebar />
-        <main className="flex-1 min-w-0 p-5 space-y-5 max-w-5xl">
-          <header>
-            <h1 className="text-xl font-semibold tracking-tight">Profile</h1>
-            <p className="text-sm text-muted-foreground mt-1">Your identity, preferences, and integrations.</p>
-          </header>
+    <ProfileShell>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) =>
+          navigate({ search: { tab: v === "wishlist" ? ("wishlist" as const) : undefined } })
+        }
+        className="space-y-5"
+      >
 
-          <Tabs
-            value={tab}
-            onValueChange={(v) => navigate({ search: { tab: v as "profile" | "wishlist" } })}
-            className="space-y-5"
-          >
             <TabsList>
               <TabsTrigger value="profile" className="gap-2"><User className="size-3.5" /> Profile</TabsTrigger>
               <TabsTrigger value="wishlist" className="gap-2"><Heart className="size-3.5" /> Wishlist</TabsTrigger>
