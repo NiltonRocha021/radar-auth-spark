@@ -13,9 +13,6 @@ export const endpoints = {
     list: "/signals",
     byId: (id: string) => `/signals/${id}`,
   },
-  dna: {
-    profile: (userId: string) => `/dna/profile/${userId}`,
-  },
   bot4x: {
     config: (userId: string) => `/bot4x/config/${userId}`,
     updateConfig: (userId: string) => `/bot4x/config/${userId}`,
