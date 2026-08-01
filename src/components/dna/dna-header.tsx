@@ -109,7 +109,20 @@ export function DnaHeader() {
                 </span>
               )}
             </div>
+            {isError && (
+              <div
+                data-testid="dna-header-error"
+                role="alert"
+                className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-300"
+              >
+                <AlertTriangle className="size-3.5 shrink-0 mt-px" />
+                <span>
+                  Não foi possível carregar seu DNA ({(error as Error)?.message || "erro desconhecido"}). Exibindo valores de demonstração.
+                </span>
+              </div>
+            )}
           </div>
+
         </div>
 
         <div className="lg:ml-auto grid grid-cols-3 md:grid-cols-5 gap-3">
