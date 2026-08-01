@@ -1,12 +1,17 @@
 import { motion } from "framer-motion";
+import { AlertTriangle } from "lucide-react";
 import { CircularGauge } from "./circular-gauge";
 import { GAUGES } from "@/lib/dna-data";
 import { useDnaProfile } from "@/hooks/useDnaProfile";
 import { useAuth } from "@/lib/auth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function DnaHeader() {
   const { session } = useAuth();
-  const { data: dnaData } = useDnaProfile(session?.user?.id);
+  const { data: dnaData, isPending, isError, error } = useDnaProfile(session?.user?.id);
+
+  // Loading só conta quando a query está realmente habilitada (há sessão).
+  const isLoading = !!session?.user?.id && isPending;
 
   const hasLive =
     !!dnaData && typeof dnaData === "object" && "dnaConsistency" in dnaData;
@@ -20,6 +25,33 @@ export function DnaHeader() {
         { label: "Emotional Control", value: Math.round((dnaData as any).dnaEmotionalControl  ?? GAUGES[4].value) },
       ]
     : GAUGES;
+
+  if (isLoading) {
+    return (
+      <div
+        data-testid="dna-header-loading"
+        aria-busy="true"
+        className="rounded-xl border border-border bg-gradient-to-br from-card/60 to-card/20 p-5"
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <Skeleton className="size-[88px] rounded-full" />
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-6 w-52" />
+              <Skeleton className="h-3 w-40" />
+            </div>
+          </div>
+          <div className="lg:ml-auto grid grid-cols-3 md:grid-cols-5 gap-3">
+            {GAUGES.map((g) => (
+              <Skeleton key={g.label} className="h-20 w-20 rounded-full" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 
   const consistency = gauges[0].value;
   const size = 88;
@@ -77,7 +109,20 @@ export function DnaHeader() {
                 </span>
               )}
             </div>
+            {isError && (
+              <div
+                data-testid="dna-header-error"
+                role="alert"
+                className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-300"
+              >
+                <AlertTriangle className="size-3.5 shrink-0 mt-px" />
+                <span>
+                  Não foi possível carregar seu DNA ({(error as Error)?.message || "erro desconhecido"}). Exibindo valores de demonstração.
+                </span>
+              </div>
+            )}
           </div>
+
         </div>
 
         <div className="lg:ml-auto grid grid-cols-3 md:grid-cols-5 gap-3">

@@ -16,12 +16,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    // Um evento do listener é sempre mais recente que o snapshot do
+    // getSession() em voo — sem esta flag, um SIGNED_IN que chega antes do
+    // getSession resolver era sobrescrito por `null` (usuário "deslogava"
+    // sozinho logo após entrar).
+    let sawEvent = false;
 
     // 1) Subscreve PRIMEIRO para não perder eventos disparados durante a
     //    hidratação inicial (SIGNED_IN logo após restore do localStorage,
     //    TOKEN_REFRESHED enquanto getSession ainda resolve, etc.).
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (!mounted) return;
+      sawEvent = true;
       setSession(s);
       setLoading(false);
     });
@@ -33,13 +39,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .getSession()
       .then(({ data }) => {
         if (!mounted) return;
-        setSession(data.session);
+        if (!sawEvent) setSession(data.session);
         setLoading(false);
       })
       .catch(() => {
         if (!mounted) return;
         setLoading(false);
       });
+
 
     // 3) Garante refresh do token quando a aba volta a ficar visível ou
     //    a rede reconecta — evita 401 silencioso após sleep / suspensão

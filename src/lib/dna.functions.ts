@@ -47,22 +47,25 @@ export interface DnaCompatibilityDTO {
 export const getDnaProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<DnaProfileDTO> => {
+    const { parseDnaProfileRow, DnaFormatError } = await import("@/lib/dna-schema");
     const { data, error } = await context.supabase
       .from("dna_profiles")
       .select("temperament,score,risk_appetite,patience_score,data,updated_at")
       .eq("user_id", context.userId)
       .maybeSingle();
     if (error) console.warn("[dna.functions] getDnaProfile error:", error.message);
-    return {
-      userId: context.userId,
-      temperament: (data?.temperament as string | null) ?? null,
-      score: data?.score != null ? Number(data.score) : null,
-      riskAppetite: data?.risk_appetite != null ? Number(data.risk_appetite) : null,
-      patienceScore: data?.patience_score != null ? Number(data.patience_score) : null,
-      data: (data?.data as Json | null) ?? null,
-      updatedAt: (data?.updated_at as string | null) ?? null,
-    };
+    try {
+      const row = parseDnaProfileRow(data);
+      return { userId: context.userId, ...row } as DnaProfileDTO;
+    } catch (e) {
+      if (e instanceof DnaFormatError) {
+        console.warn("[dna.functions] getDnaProfile schema mismatch:", e.message);
+        throw e;
+      }
+      throw e;
+    }
   });
+
 
 export const getDnaHeatmap = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
