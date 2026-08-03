@@ -75,13 +75,33 @@ async function addSecurityHeaders(response: Response, nonce: string): Promise<Re
   // controle nosso (atualmente quebraria SSR styles).
   const styleSrc = "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com";
 
+  // Origens necessárias para o fluxo de OAuth gerenciado (Google) — o broker
+  // roda em *.lovable.app / *.lovable.dev e o consentimento em accounts.google.com.
+  const oauthOrigins = [
+    "https://oauth.lovable.app",
+    "https://*.lovable.app",
+    "https://*.lovable.dev",
+  ];
+
   const connectSrc = [
     "connect-src 'self'",
     supabaseOrigin,
     supabaseWss,
     apiOrigin,
     apiWsOrigin,
+    ...oauthOrigins,
     ...devOrigins,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const frameSrc = ["frame-src 'self'", ...oauthOrigins, "https://accounts.google.com"].join(" ");
+
+  const formAction = [
+    "form-action 'self'",
+    supabaseOrigin,
+    ...oauthOrigins,
+    "https://accounts.google.com",
   ]
     .filter(Boolean)
     .join(" ");
@@ -99,9 +119,10 @@ async function addSecurityHeaders(response: Response, nonce: string): Promise<Re
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
       connectSrc,
+      frameSrc,
       frameAncestors,
       "base-uri 'self'",
-      "form-action 'self'",
+      formAction,
       "object-src 'none'",
     ].join("; "),
   );
