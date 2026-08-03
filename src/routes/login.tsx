@@ -72,10 +72,19 @@ function LoginPage() {
   }, [loading, session]);
 
   async function routeAfterLogin() {
-    const uid = (await supabase.auth.getUser()).data.user?.id;
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    const uid = userData.user?.id;
+    if (userError) return;
     if (!uid) return;
-    const { data } = await supabase.from("profiles").select("onboarding_completed").eq("id", uid).maybeSingle();
-    navigate({ to: data?.onboarding_completed ? "/dashboard" : "/onboarding" });
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", uid)
+      .maybeSingle();
+
+    // A autenticação já foi confirmada. Uma falha momentânea ao carregar o
+    // perfil não deve manter o usuário preso para sempre na tela de login.
+    navigate({ to: !error && data?.onboarding_completed ? "/dashboard" : "/onboarding" });
   }
 
   return (
