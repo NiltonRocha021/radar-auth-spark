@@ -67,8 +67,8 @@ async function addSecurityHeaders(response: Response, nonce: string): Promise<Re
     : [];
 
   const scriptSrc = isDev
-    ? `script-src 'self' 'nonce-${nonce}' 'unsafe-eval'`
-    : `script-src 'self' 'nonce-${nonce}'`;
+    ? `script-src 'self' 'nonce-${nonce}' 'sha256-5JWwy+7uKg5sThoXTA/f+fIQGbgi139V0o+JSV8++EQ=' 'unsafe-eval'`
+    : `script-src 'self' 'nonce-${nonce}' 'sha256-5JWwy+7uKg5sThoXTA/f+fIQGbgi139V0o+JSV8++EQ='`;
 
   // TODO(csp): substituir 'unsafe-inline' por 'nonce-${nonce}' em style-src
   // assim que o pipeline do Tailwind v4 não emitir mais <style> inline sem

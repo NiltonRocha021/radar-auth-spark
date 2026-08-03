@@ -10,6 +10,38 @@ interface AuthCtx {
 
 const AuthContext = createContext<AuthCtx>({ session: null, user: null, loading: true });
 
+type LegacyStoredSession = {
+  access_token?: unknown;
+  refresh_token?: unknown;
+  currentSession?: LegacyStoredSession;
+};
+
+function readLegacyStoredSession(): { access_token: string; refresh_token: string } | null {
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key || !/^sb-.+-auth-token$/.test(key)) continue;
+
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as LegacyStoredSession;
+      const candidate = parsed.currentSession ?? parsed;
+      if (
+        typeof candidate.access_token === "string" &&
+        typeof candidate.refresh_token === "string"
+      ) {
+        return {
+          access_token: candidate.access_token,
+          refresh_token: candidate.refresh_token,
+        };
+      }
+    }
+  } catch {
+    // Storage legado inválido ou indisponível: o fluxo normal de login segue.
+  }
+  return null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,9 +69,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     //    como "tela em branco" ao recarregar).
     supabase.auth
       .getSession()
-      .then(({ data }) => {
+      .then(async ({ data }) => {
         if (!mounted) return;
-        if (!sawEvent) setSession(data.session);
+        if (data.session) {
+          if (!sawEvent) setSession(data.session);
+          setLoading(false);
+          return;
+        }
+
+        // Migração única para usuários que já estavam autenticados antes da
+        // troca do storage de localStorage para cookies com @supabase/ssr.
+        // Sem isso, a sessão continuava válida no navegador, mas a tela de
+        // login não a enxergava e nunca entrava no sistema.
+        const legacySession = readLegacyStoredSession();
+        if (legacySession) {
+          const { data: migrated, error } = await supabase.auth.setSession(legacySession);
+          if (!mounted) return;
+          if (!error && migrated.session && !sawEvent) {
+            setSession(migrated.session);
+          }
+        } else if (!sawEvent) {
+          setSession(null);
+        }
         setLoading(false);
       })
       .catch(() => {
