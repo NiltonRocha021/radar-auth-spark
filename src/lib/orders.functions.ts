@@ -99,10 +99,10 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     if (data.mode === "LIVE") {
       const { data: tfa } = await context.supabase
         .from("user_two_factor")
-        .select("verified")
+        .select("enabled")
         .eq("user_id", context.userId)
         .maybeSingle();
-      if (!tfa?.verified) {
+      if (!tfa?.enabled) {
         throw new Error("Ative o 2FA antes de operar em modo LIVE.");
       }
 
