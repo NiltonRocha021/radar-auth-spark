@@ -146,9 +146,9 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
 /** Alias explícito para a Fase 4 — mesmo pipeline, aceita mode='LIVE'. */
 export const placeOrder = placeDemoOrder;
 
-// ---------- closeDemoOrder -------------------------------------------------
-// pnl mock derivado do market_snapshot (preço corrente). Fase 4 substituirá
-// pelo fill real do exchange.
+// ---------- closeOrder (DEMO | LIVE) ---------------------------------------
+// DEMO: pnl derivado do market_snapshot. LIVE (Fase 4): envia a ordem MARKET
+// oposta na Binance e usa o preço médio de execução real como saída.
 
 export const closeDemoOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -168,14 +168,26 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
     if (!order) throw new Error("Ordem não encontrada");
     if (order.status !== "OPEN") throw new Error("Ordem já encerrada");
 
+    const row = order as OrderRow;
     let exit = data.exitPrice;
+
+    if (row.mode === "LIVE") {
+      const { closeBinancePosition, fetchBinancePrice } = await import("./binance.server");
+      const fill = await closeBinancePosition({
+        symbol: row.symbol,
+        side: row.side,
+        quantity: Number(row.quantity),
+      });
+      exit = fill.avgPrice > 0 ? fill.avgPrice : ((await fetchBinancePrice(row.symbol)) ?? exit);
+    }
+
     if (exit == null) {
       const { data: snap } = await context.supabase
         .from("market_snapshot")
         .select("price")
-        .eq("symbol", (order as OrderRow).symbol)
+        .eq("symbol", row.symbol)
         .maybeSingle();
-      exit = snap?.price != null ? Number(snap.price) : Number((order as OrderRow).entry_price);
+      exit = snap?.price != null ? Number(snap.price) : Number(row.entry_price);
     }
     const qty = Number((order as OrderRow).quantity);
     const entry = Number((order as OrderRow).entry_price);
