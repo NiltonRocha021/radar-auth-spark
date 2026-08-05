@@ -9,50 +9,44 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticated/signals'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedSentimentRouteImport } from './routes/_authenticated/sentiment'
-import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
-import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
-import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
-import { Route as AuthenticatedMarketplaceRouteImport } from './routes/_authenticated/marketplace'
-import { Route as AuthenticatedManipulationRouteImport } from './routes/_authenticated/manipulation'
-import { Route as AuthenticatedDnaTraderRouteImport } from './routes/_authenticated/dna-trader'
-import { Route as AuthenticatedDnaPairsRouteImport } from './routes/_authenticated/dna-pairs'
-import { Route as AuthenticatedDnaCorrectionsRouteImport } from './routes/_authenticated/dna-corrections'
-import { Route as AuthenticatedDiagnosticsRouteImport } from './routes/_authenticated/diagnostics'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedCopyTradingRouteImport } from './routes/_authenticated/copy-trading'
-import { Route as AuthenticatedCalibratorRouteImport } from './routes/_authenticated/calibrator'
-import { Route as AuthenticatedBot4xRouteImport } from './routes/_authenticated/bot4x'
-import { Route as AuthenticatedApiRouteImport } from './routes/_authenticated/api'
-import { Route as AuthenticatedAlertsRouteImport } from './routes/_authenticated/alerts'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
-import { Route as AuthenticatedCalibratorHistoryRouteImport } from './routes/_authenticated/calibrator.history'
+import { Route as AuthenticatedAlertsRouteImport } from './routes/_authenticated/alerts'
+import { Route as AuthenticatedApiRouteImport } from './routes/_authenticated/api'
+import { Route as AuthenticatedBot4xRouteImport } from './routes/_authenticated/bot4x'
+import { Route as AuthenticatedCalibratorRouteImport } from './routes/_authenticated/calibrator'
+import { Route as AuthenticatedCopyTradingRouteImport } from './routes/_authenticated/copy-trading'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedDiagnosticsRouteImport } from './routes/_authenticated/diagnostics'
+import { Route as AuthenticatedDnaCorrectionsRouteImport } from './routes/_authenticated/dna-corrections'
+import { Route as AuthenticatedDnaPairsRouteImport } from './routes/_authenticated/dna-pairs'
+import { Route as AuthenticatedDnaTraderRouteImport } from './routes/_authenticated/dna-trader'
+import { Route as AuthenticatedManipulationRouteImport } from './routes/_authenticated/manipulation'
+import { Route as AuthenticatedMarketplaceRouteImport } from './routes/_authenticated/marketplace'
+import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
+import { Route as AuthenticatedSentimentRouteImport } from './routes/_authenticated/sentiment'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticated/signals'
 import { Route as AuthenticatedBot4xOnboardingRouteImport } from './routes/_authenticated/bot4x.onboarding'
-import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
-import { Route as ApiPublicAlertsDispatchRouteImport } from './routes/api/public/alerts/dispatch'
+import { Route as AuthenticatedCalibratorHistoryRouteImport } from './routes/_authenticated/calibrator.history'
 import { Route as AuthenticatedCalibratorHistoryIdRouteImport } from './routes/_authenticated/calibrator.history.$id'
+import { Route as ApiPublicAlertsDispatchRouteImport } from './routes/api/public/alerts/dispatch'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -60,82 +54,44 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: '/_authenticated',
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedSignalsRoute = AuthenticatedSignalsRouteImport.update({
-  id: '/signals',
-  path: '/signals',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const AuthenticatedAlertsRoute = AuthenticatedAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedSentimentRoute = AuthenticatedSentimentRouteImport.update({
-  id: '/sentiment',
-  path: '/sentiment',
+const AuthenticatedApiRoute = AuthenticatedApiRouteImport.update({
+  id: '/api',
+  path: '/api',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
+const AuthenticatedBot4xRoute = AuthenticatedBot4xRouteImport.update({
+  id: '/bot4x',
+  path: '/bot4x',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedPricingRoute = AuthenticatedPricingRouteImport.update({
-  id: '/pricing',
-  path: '/pricing',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedMarketplaceRoute =
-  AuthenticatedMarketplaceRouteImport.update({
-    id: '/marketplace',
-    path: '/marketplace',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedManipulationRoute =
-  AuthenticatedManipulationRouteImport.update({
-    id: '/manipulation',
-    path: '/manipulation',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedDnaTraderRoute = AuthenticatedDnaTraderRouteImport.update({
-  id: '/dna-trader',
-  path: '/dna-trader',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedDnaPairsRoute = AuthenticatedDnaPairsRouteImport.update({
-  id: '/dna-pairs',
-  path: '/dna-pairs',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedDnaCorrectionsRoute =
-  AuthenticatedDnaCorrectionsRouteImport.update({
-    id: '/dna-corrections',
-    path: '/dna-corrections',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedDiagnosticsRoute =
-  AuthenticatedDiagnosticsRouteImport.update({
-    id: '/diagnostics',
-    path: '/diagnostics',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const AuthenticatedCalibratorRoute = AuthenticatedCalibratorRouteImport.update({
+  id: '/calibrator',
+  path: '/calibrator',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedCopyTradingRoute =
@@ -144,59 +100,103 @@ const AuthenticatedCopyTradingRoute =
     path: '/copy-trading',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedCalibratorRoute = AuthenticatedCalibratorRouteImport.update({
-  id: '/calibrator',
-  path: '/calibrator',
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedBot4xRoute = AuthenticatedBot4xRouteImport.update({
-  id: '/bot4x',
-  path: '/bot4x',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedApiRoute = AuthenticatedApiRouteImport.update({
-  id: '/api',
-  path: '/api',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedAlertsRoute = AuthenticatedAlertsRouteImport.update({
-  id: '/alerts',
-  path: '/alerts',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedCalibratorHistoryRoute =
-  AuthenticatedCalibratorHistoryRouteImport.update({
-    id: '/history',
-    path: '/history',
-    getParentRoute: () => AuthenticatedCalibratorRoute,
+const AuthenticatedDiagnosticsRoute =
+  AuthenticatedDiagnosticsRouteImport.update({
+    id: '/diagnostics',
+    path: '/diagnostics',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedDnaCorrectionsRoute =
+  AuthenticatedDnaCorrectionsRouteImport.update({
+    id: '/dna-corrections',
+    path: '/dna-corrections',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedDnaPairsRoute = AuthenticatedDnaPairsRouteImport.update({
+  id: '/dna-pairs',
+  path: '/dna-pairs',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedDnaTraderRoute = AuthenticatedDnaTraderRouteImport.update({
+  id: '/dna-trader',
+  path: '/dna-trader',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedManipulationRoute =
+  AuthenticatedManipulationRouteImport.update({
+    id: '/manipulation',
+    path: '/manipulation',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedMarketplaceRoute =
+  AuthenticatedMarketplaceRouteImport.update({
+    id: '/marketplace',
+    path: '/marketplace',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedPricingRoute = AuthenticatedPricingRouteImport.update({
+  id: '/pricing',
+  path: '/pricing',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSentimentRoute = AuthenticatedSentimentRouteImport.update({
+  id: '/sentiment',
+  path: '/sentiment',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSignalsRoute = AuthenticatedSignalsRouteImport.update({
+  id: '/signals',
+  path: '/signals',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedBot4xOnboardingRoute =
   AuthenticatedBot4xOnboardingRouteImport.update({
     id: '/onboarding',
     path: '/onboarding',
     getParentRoute: () => AuthenticatedBot4xRoute,
   } as any)
-const LovableEmailQueueProcessRoute =
-  LovableEmailQueueProcessRouteImport.update({
-    id: '/lovable/email/queue/process',
-    path: '/lovable/email/queue/process',
-    getParentRoute: () => rootRouteImport,
+const AuthenticatedCalibratorHistoryRoute =
+  AuthenticatedCalibratorHistoryRouteImport.update({
+    id: '/history',
+    path: '/history',
+    getParentRoute: () => AuthenticatedCalibratorRoute,
+  } as any)
+const AuthenticatedCalibratorHistoryIdRoute =
+  AuthenticatedCalibratorHistoryIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedCalibratorHistoryRoute,
   } as any)
 const ApiPublicAlertsDispatchRoute = ApiPublicAlertsDispatchRouteImport.update({
   id: '/api/public/alerts/dispatch',
   path: '/api/public/alerts/dispatch',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedCalibratorHistoryIdRoute =
-  AuthenticatedCalibratorHistoryIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AuthenticatedCalibratorHistoryRoute,
+const LovableEmailQueueProcessRoute =
+  LovableEmailQueueProcessRouteImport.update({
+    id: '/lovable/email/queue/process',
+    path: '/lovable/email/queue/process',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -404,32 +404,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -439,130 +418,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/signals': {
-      id: '/_authenticated/signals'
-      path: '/signals'
-      fullPath: '/signals'
-      preLoaderRoute: typeof AuthenticatedSignalsRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/sentiment': {
-      id: '/_authenticated/sentiment'
-      path: '/sentiment'
-      fullPath: '/sentiment'
-      preLoaderRoute: typeof AuthenticatedSentimentRouteImport
-      parentRoute: typeof AuthenticatedRoute
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/profile': {
-      id: '/_authenticated/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof AuthenticatedProfileRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/pricing': {
-      id: '/_authenticated/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof AuthenticatedPricingRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/onboarding': {
-      id: '/_authenticated/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/marketplace': {
-      id: '/_authenticated/marketplace'
-      path: '/marketplace'
-      fullPath: '/marketplace'
-      preLoaderRoute: typeof AuthenticatedMarketplaceRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/manipulation': {
-      id: '/_authenticated/manipulation'
-      path: '/manipulation'
-      fullPath: '/manipulation'
-      preLoaderRoute: typeof AuthenticatedManipulationRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/dna-trader': {
-      id: '/_authenticated/dna-trader'
-      path: '/dna-trader'
-      fullPath: '/dna-trader'
-      preLoaderRoute: typeof AuthenticatedDnaTraderRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/dna-pairs': {
-      id: '/_authenticated/dna-pairs'
-      path: '/dna-pairs'
-      fullPath: '/dna-pairs'
-      preLoaderRoute: typeof AuthenticatedDnaPairsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/dna-corrections': {
-      id: '/_authenticated/dna-corrections'
-      path: '/dna-corrections'
-      fullPath: '/dna-corrections'
-      preLoaderRoute: typeof AuthenticatedDnaCorrectionsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/diagnostics': {
-      id: '/_authenticated/diagnostics'
-      path: '/diagnostics'
-      fullPath: '/diagnostics'
-      preLoaderRoute: typeof AuthenticatedDiagnosticsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/dashboard': {
-      id: '/_authenticated/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/copy-trading': {
-      id: '/_authenticated/copy-trading'
-      path: '/copy-trading'
-      fullPath: '/copy-trading'
-      preLoaderRoute: typeof AuthenticatedCopyTradingRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/calibrator': {
-      id: '/_authenticated/calibrator'
-      path: '/calibrator'
-      fullPath: '/calibrator'
-      preLoaderRoute: typeof AuthenticatedCalibratorRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/bot4x': {
-      id: '/_authenticated/bot4x'
-      path: '/bot4x'
-      fullPath: '/bot4x'
-      preLoaderRoute: typeof AuthenticatedBot4xRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/api': {
-      id: '/_authenticated/api'
-      path: '/api'
-      fullPath: '/api'
-      preLoaderRoute: typeof AuthenticatedApiRouteImport
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/alerts': {
@@ -572,19 +460,124 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAlertsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/admin': {
-      id: '/_authenticated/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+    '/_authenticated/api': {
+      id: '/_authenticated/api'
+      path: '/api'
+      fullPath: '/api'
+      preLoaderRoute: typeof AuthenticatedApiRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/calibrator/history': {
-      id: '/_authenticated/calibrator/history'
-      path: '/history'
-      fullPath: '/calibrator/history'
-      preLoaderRoute: typeof AuthenticatedCalibratorHistoryRouteImport
-      parentRoute: typeof AuthenticatedCalibratorRoute
+    '/_authenticated/bot4x': {
+      id: '/_authenticated/bot4x'
+      path: '/bot4x'
+      fullPath: '/bot4x'
+      preLoaderRoute: typeof AuthenticatedBot4xRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/calibrator': {
+      id: '/_authenticated/calibrator'
+      path: '/calibrator'
+      fullPath: '/calibrator'
+      preLoaderRoute: typeof AuthenticatedCalibratorRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/copy-trading': {
+      id: '/_authenticated/copy-trading'
+      path: '/copy-trading'
+      fullPath: '/copy-trading'
+      preLoaderRoute: typeof AuthenticatedCopyTradingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/diagnostics': {
+      id: '/_authenticated/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/diagnostics'
+      preLoaderRoute: typeof AuthenticatedDiagnosticsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dna-corrections': {
+      id: '/_authenticated/dna-corrections'
+      path: '/dna-corrections'
+      fullPath: '/dna-corrections'
+      preLoaderRoute: typeof AuthenticatedDnaCorrectionsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dna-pairs': {
+      id: '/_authenticated/dna-pairs'
+      path: '/dna-pairs'
+      fullPath: '/dna-pairs'
+      preLoaderRoute: typeof AuthenticatedDnaPairsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dna-trader': {
+      id: '/_authenticated/dna-trader'
+      path: '/dna-trader'
+      fullPath: '/dna-trader'
+      preLoaderRoute: typeof AuthenticatedDnaTraderRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/manipulation': {
+      id: '/_authenticated/manipulation'
+      path: '/manipulation'
+      fullPath: '/manipulation'
+      preLoaderRoute: typeof AuthenticatedManipulationRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/marketplace': {
+      id: '/_authenticated/marketplace'
+      path: '/marketplace'
+      fullPath: '/marketplace'
+      preLoaderRoute: typeof AuthenticatedMarketplaceRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/onboarding': {
+      id: '/_authenticated/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/pricing': {
+      id: '/_authenticated/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof AuthenticatedPricingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/sentiment': {
+      id: '/_authenticated/sentiment'
+      path: '/sentiment'
+      fullPath: '/sentiment'
+      preLoaderRoute: typeof AuthenticatedSentimentRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/signals': {
+      id: '/_authenticated/signals'
+      path: '/signals'
+      fullPath: '/signals'
+      preLoaderRoute: typeof AuthenticatedSignalsRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/bot4x/onboarding': {
       id: '/_authenticated/bot4x/onboarding'
@@ -593,12 +586,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBot4xOnboardingRouteImport
       parentRoute: typeof AuthenticatedBot4xRoute
     }
-    '/lovable/email/queue/process': {
-      id: '/lovable/email/queue/process'
-      path: '/lovable/email/queue/process'
-      fullPath: '/lovable/email/queue/process'
-      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_authenticated/calibrator/history': {
+      id: '/_authenticated/calibrator/history'
+      path: '/history'
+      fullPath: '/calibrator/history'
+      preLoaderRoute: typeof AuthenticatedCalibratorHistoryRouteImport
+      parentRoute: typeof AuthenticatedCalibratorRoute
+    }
+    '/_authenticated/calibrator/history/$id': {
+      id: '/_authenticated/calibrator/history/$id'
+      path: '/$id'
+      fullPath: '/calibrator/history/$id'
+      preLoaderRoute: typeof AuthenticatedCalibratorHistoryIdRouteImport
+      parentRoute: typeof AuthenticatedCalibratorHistoryRoute
     }
     '/api/public/alerts/dispatch': {
       id: '/api/public/alerts/dispatch'
@@ -607,12 +607,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAlertsDispatchRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/calibrator/history/$id': {
-      id: '/_authenticated/calibrator/history/$id'
-      path: '/$id'
-      fullPath: '/calibrator/history/$id'
-      preLoaderRoute: typeof AuthenticatedCalibratorHistoryIdRouteImport
-      parentRoute: typeof AuthenticatedCalibratorHistoryRoute
+    '/lovable/email/queue/process': {
+      id: '/lovable/email/queue/process'
+      path: '/lovable/email/queue/process'
+      fullPath: '/lovable/email/queue/process'
+      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
