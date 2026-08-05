@@ -11,7 +11,8 @@ import { LiquidityMap } from "@/components/manipulation/liquidity-map";
 import { AggressionAnalysis } from "@/components/manipulation/aggression-analysis";
 import { HistoricalLog } from "@/components/manipulation/historical-log";
 import { ALERTS as MOCK_ALERTS } from "@/lib/manipulation-data";
-import { manipulationAdapter } from "@/adapters/backend/manipulation.adapter";
+import { listManipulationAlerts } from "@/lib/manipulation.functions";
+import { mapManipulationAlert } from "@/lib/manipulation-map";
 
 export const Route = createFileRoute("/_authenticated/manipulation")({
   head: () => ({
@@ -28,7 +29,7 @@ function ManipulationPage() {
 
   const { data: liveAlerts } = useQuery({
     queryKey: ["manipulation-alerts"],
-    queryFn: () => manipulationAdapter.getAlerts(20),
+    queryFn: async () => (await listManipulationAlerts({ data: {} })).map(mapManipulationAlert),
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
