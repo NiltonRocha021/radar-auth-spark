@@ -1,16 +1,11 @@
-// Hook único do Copilot. Usa o cliente WebSocket compartilhado `backendWs`
-// (multiplexado) — sem criar uma segunda conexão dedicada. Toda autenticação
-// e reconexão é delegada ao backendWs; este hook apenas escuta o canal
-// "copilot" e envia mensagens via `backendWs.send`.
+// Fase 6 — Copilot 100% dentro do TanStack Start.
+// O WebSocket do NestJS (`backendWs` canal "copilot") foi substituído por
+// streaming HTTP contra a server route `/api/copilot/chat`, que fala com o
+// Lovable AI Gateway. Sem localhost:3001, sem ws-client, sem copilot.adapter.
 //
-// CORREÇÃO: mensagens de usuário e assistente agora são persistidas na tabela
-// `copilot_history` do Supabase. Antes o histórico vivia apenas em useState —
-// cada reload ou fechamento do painel apagava tudo. A tabela já possui RLS,
-// rate-limit (60 inserts/min) e TTL de 90 dias (pg_cron).
+// Histórico continua persistido em `copilot_history` (RLS + TTL 90 dias).
 import { useCallback, useEffect, useRef, useState } from "react";
-import { backendWs, type WsStatus } from "@/adapters/backend/ws-client";
 import { supabase } from "@/integrations/supabase/client";
-import { buildChatMessage, buildInit, normalizeInbound } from "@/adapters/backend/copilot.adapter";
 import { logger } from "@/lib/logger";
 
 export type OrbState = "idle" | "listening" | "thinking" | "speaking" | "alert";
