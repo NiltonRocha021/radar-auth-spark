@@ -70,9 +70,10 @@ function toDto(r: OrderRow): OrderDTO {
   };
 }
 
-// ---------- placeDemoOrder -------------------------------------------------
-// Fase 3: só aceita mode='DEMO'. Fase 4 removerá o refinement e passará a
-// aceitar 'LIVE' após integração real com exchange + verificação de kyc/2fa.
+// ---------- placeOrder (DEMO | LIVE) ---------------------------------------
+// Fase 4: mode='LIVE' executa de fato contra a Binance dentro do Worker
+// (src/lib/binance.server.ts, import dinâmico p/ não vazar ao bundle client).
+// Guardas para LIVE: 2FA verificado + credenciais Binance configuradas.
 
 export const placeDemoOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -89,10 +90,38 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
         signalId: z.string().uuid().optional(),
         mode: z.enum(MODES).default("DEMO"),
       })
-      .refine((v) => v.mode === "DEMO", { message: "LIVE mode disponível na Fase 4" })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<OrderDTO> => {
+    let entryPrice = data.entryPrice;
+    let quantity = data.quantity;
+
+    if (data.mode === "LIVE") {
+      const { data: tfa } = await context.supabase
+        .from("user_two_factor")
+        .select("verified")
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      if (!tfa?.verified) {
+        throw new Error("Ative o 2FA antes de operar em modo LIVE.");
+      }
+
+      const { placeBinanceOrder, isLiveTradingConfigured } = await import("./binance.server");
+      if (!isLiveTradingConfigured()) {
+        throw new Error("Execução LIVE indisponível: credenciais da Binance não configuradas.");
+      }
+
+      const fill = await placeBinanceOrder({
+        symbol: data.symbol,
+        side: data.side,
+        orderType: data.orderType,
+        quantity: data.quantity,
+        price: data.orderType === "LIMIT" ? data.entryPrice : undefined,
+      });
+      if (fill.avgPrice > 0) entryPrice = fill.avgPrice;
+      if (fill.executedQty > 0) quantity = fill.executedQty;
+    }
+
     const { data: row, error } = await context.supabase
       .from("orders")
       .insert({
@@ -101,8 +130,8 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
         symbol: data.symbol,
         side: data.side,
         order_type: data.orderType,
-        quantity: data.quantity,
-        entry_price: data.entryPrice,
+        quantity,
+        entry_price: entryPrice,
         stop_loss: data.stopLoss ?? null,
         take_profit: data.takeProfit ?? null,
         signal_id: data.signalId ?? null,
@@ -113,6 +142,9 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     if (error) throw new Error("Falha ao registrar ordem: " + error.message);
     return toDto(row as OrderRow);
   });
+
+/** Alias explícito para a Fase 4 — mesmo pipeline, aceita mode='LIVE'. */
+export const placeOrder = placeDemoOrder;
 
 // ---------- closeDemoOrder -------------------------------------------------
 // pnl mock derivado do market_snapshot (preço corrente). Fase 4 substituirá
