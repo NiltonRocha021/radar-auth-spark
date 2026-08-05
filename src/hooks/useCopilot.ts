@@ -147,37 +147,45 @@ async function loadHistory(userId: string, limit = 50): Promise<CopilotMessage[]
   }));
 }
 
+// ─── Streaming HTTP contra a server route ───────────────────────────────────
+const CHAT_ENDPOINT = "/api/copilot/chat";
+
 // ─── Hook ───────────────────────────────────────────────────────────────────
 export function useCopilot(config: CopilotConfig) {
   const { userId, marketContext = {}, traderProfile = {}, onAlert } = config;
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const initSentRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [orbState, setOrbState] = useState<OrbState>("idle");
-  const [isConnected, setIsConnected] = useState(false);
-  const [, setWsStatus] = useState<WsStatus>("idle");
+  const [isConnected, setIsConnected] = useState(true); // HTTP: sempre "conectado"
   const [isRecording, setIsRecording] = useState(false);
   const [latency, setLatency] = useState(0);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  // Adiciona uma mensagem ao estado e persiste no banco quando aplicável.
+  const messagesRef = useRef<CopilotMessage[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const historyLoadedRef = useRef(false);
+  useEffect(() => {
+    historyLoadedRef.current = historyLoaded;
+  }, [historyLoaded]);
+
   const addMessage = useCallback(
     (m: CopilotMessage) => {
       setMessages((p) => [...p, m]);
-      if (historyLoaded) {
-        // Não await — fire-and-forget para não bloquear a UI.
-        void persistMessage(userId, m);
-      }
+      if (historyLoadedRef.current) void persistMessage(userId, m);
     },
-    [userId, historyLoaded],
+    [userId],
   );
 
+  const authMsgIdRef = useRef<string | null>(null);
   const hasShownAuthMsgRef = useRef(false);
   const pendingMessageRef = useRef<string | null>(null);
-  const authMsgIdRef = useRef<string | null>(null);
 
   const clearUnauthMessage = useCallback(() => {
     const id = authMsgIdRef.current;
@@ -185,133 +193,6 @@ export function useCopilot(config: CopilotConfig) {
     authMsgIdRef.current = null;
     hasShownAuthMsgRef.current = false;
   }, []);
-
-  function playAudio(base64: string) {
-    const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
-    setOrbState("speaking");
-    audio.onended = () => setOrbState("idle");
-    audio.play().catch(() => setOrbState("idle"));
-  }
-
-  // Carregar histórico do banco ao montar (uma única vez por userId).
-  useEffect(() => {
-    if (!userId || historyLoaded) return;
-    loadHistory(userId, 50).then((hist) => {
-      if (hist.length > 0) setMessages(hist);
-      setHistoryLoaded(true);
-    });
-  }, [userId, historyLoaded]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const offStatus = backendWs.onStatus((s) => {
-      if (cancelled) return;
-      setWsStatus(s);
-      setIsConnected(s === "open");
-      if (s === "open" && !initSentRef.current) {
-        backendWs.send(
-          "copilot:init",
-          buildInit(userId, marketContext as Record<string, unknown>, traderProfile as Record<string, unknown>),
-        );
-        initSentRef.current = true;
-      }
-      if (s === "unauthenticated" && !hasShownAuthMsgRef.current) {
-        const m = newMsg(
-          "system",
-          "Você precisa estar autenticado para usar o Copilot. Clique em Reconectar para tentar novamente ou faça login.",
-          { metadata: { action: "reconnect" } },
-        );
-        authMsgIdRef.current = m.id;
-        // Mensagem de sistema — não persiste, só adiciona ao estado local.
-        setMessages((p) => [...p, m]);
-        hasShownAuthMsgRef.current = true;
-        setOrbState("idle");
-      }
-      if (s === "open") {
-        if (authMsgIdRef.current) {
-          const id = authMsgIdRef.current;
-          setMessages((p) => p.filter((mm) => mm.id !== id));
-          authMsgIdRef.current = null;
-        }
-        hasShownAuthMsgRef.current = false;
-        const pending = pendingMessageRef.current;
-        pendingMessageRef.current = null;
-        if (pending) {
-          backendWs.send(
-            "chat_message",
-            buildChatMessage(
-              userId,
-              pending,
-              marketContext as Record<string, unknown>,
-              traderProfile as Record<string, unknown>,
-            ),
-          );
-          addMessage(newMsg("user", pending));
-          setOrbState("thinking");
-        }
-      }
-    });
-
-    backendWs.connect("/copilot");
-
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        initSentRef.current = false;
-        backendWs.connect("/copilot");
-      }
-      if (event === "SIGNED_OUT") {
-        initSentRef.current = false;
-        backendWs.close();
-      }
-    });
-
-    // Escuta todos os eventos do canal "copilot".
-    const off = backendWs.onChannel("copilot", (payload) => {
-      const data = normalizeInbound(payload);
-      if (!data) return;
-      switch (data.type) {
-        case "thinking":
-          setOrbState("thinking");
-          break;
-        case "chat_response":
-          addMessage(newMsg("assistant", data.text ?? "", { metadata: data.metadata }));
-          setOrbState("idle");
-          if (typeof data.latency === "number") setLatency(data.latency);
-          break;
-        case "voice_response":
-          addMessage(newMsg("assistant", data.text ?? "", { metadata: data.metadata }));
-          if (data.audio_base64) playAudio(data.audio_base64);
-          setOrbState("idle");
-          break;
-        case "transcript":
-          addMessage(newMsg("user", data.text ?? ""));
-          setOrbState("thinking");
-          break;
-        case "proactive_alert": {
-          const alert = newMsg("alert", data.content ?? "", { agent: data.agent });
-          // Alertas são efêmeros — adiciona ao estado mas não persiste.
-          setMessages((p) => [...p, alert]);
-          setOrbState("alert");
-          onAlert?.(alert);
-          setTimeout(() => setOrbState("idle"), 4000);
-          break;
-        }
-        case "system_message":
-          // Mensagens de sistema são efêmeras — não persiste.
-          setMessages((p) => [...p, newMsg("system", data.content ?? "")]);
-          break;
-      }
-    });
-
-    return () => {
-      cancelled = true;
-      off();
-      offStatus();
-      sub.subscription.unsubscribe();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
 
   const showUnauthMessage = useCallback(() => {
     if (hasShownAuthMsgRef.current) return;
@@ -326,96 +207,159 @@ export function useCopilot(config: CopilotConfig) {
     setOrbState("idle");
   }, []);
 
-  const tryRefreshAndReconnect = useCallback(async (): Promise<WsStatus> => {
-    const { data, error } = await supabase.auth.refreshSession();
-    if (error || !data.session?.access_token) return "unauthenticated";
-    initSentRef.current = false;
-    return backendWs.connect("/copilot");
-  }, []);
+  // Carregar histórico do banco ao montar (uma única vez por userId).
+  useEffect(() => {
+    if (!userId || historyLoaded) return;
+    loadHistory(userId, 50).then((hist) => {
+      if (hist.length > 0) setMessages(hist);
+      setHistoryLoaded(true);
+    });
+  }, [userId, historyLoaded]);
 
-  const doSend = useCallback(
-    (text: string) => {
-      addMessage(newMsg("user", text));
+  useEffect(() => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        clearUnauthMessage();
+        setIsConnected(true);
+      }
+      if (event === "SIGNED_OUT") setIsConnected(false);
+    });
+    return () => {
+      sub.subscription.unsubscribe();
+      abortRef.current?.abort();
+    };
+  }, [clearUnauthMessage]);
+
+  /** Faz a chamada streaming e vai atualizando a mensagem do assistente. */
+  const streamAssistant = useCallback(
+    async (history: CopilotMessage[], token: string) => {
+      const controller = new AbortController();
+      abortRef.current?.abort();
+      abortRef.current = controller;
+
+      const startedAt = Date.now();
       setOrbState("thinking");
-      return backendWs.send(
-        "chat_message",
-        buildChatMessage(
-          userId,
-          text,
-          marketContext as Record<string, unknown>,
-          traderProfile as Record<string, unknown>,
-        ),
-      );
+
+      const res = await fetch(CHAT_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: "include",
+        signal: controller.signal,
+        body: JSON.stringify({
+          messages: history
+            .filter((m) => m.role === "user" || m.role === "assistant")
+            .map((m) => ({ role: m.role, content: m.content })),
+          marketContext,
+          traderProfile,
+        }),
+      });
+
+      if (res.status === 401) {
+        setOrbState("idle");
+        showUnauthMessage();
+        return false;
+      }
+      if (!res.ok || !res.body) {
+        const detail = await res.text().catch(() => "");
+        setOrbState("idle");
+        setMessages((p) => [
+          ...p,
+          newMsg("system", `Falha ao responder (${res.status}). ${detail.slice(0, 160)}`),
+        ]);
+        return false;
+      }
+
+      const assistantId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      setMessages((p) => [
+        ...p,
+        { id: assistantId, role: "assistant", content: "", timestamp: new Date() },
+      ]);
+      setOrbState("speaking");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let acc = "";
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          acc += decoder.decode(value, { stream: true });
+          setMessages((p) =>
+            p.map((m) => (m.id === assistantId ? { ...m, content: acc } : m)),
+          );
+        }
+      } catch (err) {
+        logger.warn("[copilot] stream interrompido", { error: String(err) });
+      }
+
+      setLatency(Date.now() - startedAt);
+      setOrbState("idle");
+
+      if (acc.trim()) {
+        void persistMessage(userId, {
+          id: assistantId,
+          role: "assistant",
+          content: acc,
+          timestamp: new Date(),
+        });
+      }
+      return true;
     },
-    [userId, marketContext, traderProfile, addMessage],
+    [marketContext, traderProfile, showUnauthMessage, userId],
+  );
+
+  const runTurn = useCallback(
+    async (text: string) => {
+      const { data } = await supabase.auth.getSession();
+      let token = data.session?.access_token;
+      if (!token) {
+        const refreshed = await supabase.auth.refreshSession();
+        token = refreshed.data.session?.access_token;
+      }
+      if (!token) {
+        pendingMessageRef.current = text;
+        showUnauthMessage();
+        return;
+      }
+
+      const userMsg = newMsg("user", text);
+      addMessage(userMsg);
+      const history = [...messagesRef.current, userMsg];
+      await streamAssistant(history, token);
+    },
+    [addMessage, streamAssistant, showUnauthMessage],
   );
 
   const sendMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
-
-      const { data } = await supabase.auth.getSession();
-      let token = data.session?.access_token;
-      if (!token) {
-        const status = await tryRefreshAndReconnect();
-        if (status !== "open") {
-          pendingMessageRef.current = trimmed;
-          showUnauthMessage();
-          return;
-        }
-        token = (await supabase.auth.getSession()).data.session?.access_token;
-      }
-
-      if (!backendWs.isAuthenticatedOpen()) {
-        const status = await backendWs.connect("/copilot");
-        if (status !== "open") {
-          const refreshed = await tryRefreshAndReconnect();
-          if (refreshed !== "open") {
-            pendingMessageRef.current = trimmed;
-            showUnauthMessage();
-            return;
-          }
-        }
-      }
-
-      const sent = doSend(trimmed);
-      if (!sent) {
-        pendingMessageRef.current = trimmed;
-        showUnauthMessage();
-      }
+      await runTurn(trimmed);
     },
-    [doSend, showUnauthMessage, tryRefreshAndReconnect],
+    [runTurn],
   );
 
   const reconnect = useCallback(async () => {
     setOrbState("thinking");
-    const status = await tryRefreshAndReconnect();
-    if (status === "open") {
-      clearUnauthMessage();
-      const pending = pendingMessageRef.current;
-      pendingMessageRef.current = null;
-      if (pending) doSend(pending);
-      else setOrbState("idle");
-    } else {
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error || !data.session?.access_token) {
       setOrbState("idle");
+      return;
     }
-  }, [tryRefreshAndReconnect, clearUnauthMessage, doSend]);
+    clearUnauthMessage();
+    setIsConnected(true);
+    const pending = pendingMessageRef.current;
+    pendingMessageRef.current = null;
+    if (pending) await runTurn(pending);
+    else setOrbState("idle");
+  }, [clearUnauthMessage, runTurn]);
 
-  function sendVoice(blob: Blob, mimeType: string) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      backendWs.send("voice_input", {
-        userId,
-        audio_base64: base64,
-        mime_type: mimeType,
-        context: { market: marketContext, trader: traderProfile },
-      });
-    };
-    reader.readAsDataURL(blob);
-  }
-
+  // Voz: a transcrição vivia no serviço Python do backend legado. Enquanto o
+  // STT não é portado (Fase 6.1), o áudio gravado não é enviado — o usuário
+  // recebe aviso explícito em vez de silêncio.
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -428,9 +372,12 @@ export function useCopilot(config: CopilotConfig) {
         if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
       recorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType });
         stream.getTracks().forEach((t) => t.stop());
-        sendVoice(blob, recorder.mimeType);
+        setMessages((p) => [
+          ...p,
+          newMsg("system", "Entrada por voz estará disponível em breve — envie sua mensagem por texto."),
+        ]);
+        setOrbState("idle");
       };
       recorder.start(100);
       mediaRecorderRef.current = recorder;
@@ -439,7 +386,6 @@ export function useCopilot(config: CopilotConfig) {
     } catch (err) {
       logger.error("[Copilot] microphone denied", { error: err });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stopRecording = useCallback(() => {
@@ -448,7 +394,18 @@ export function useCopilot(config: CopilotConfig) {
     setOrbState("thinking");
   }, []);
 
-  // clearHistory: limpa o estado local E apaga do banco (GDPR / usuário pediu).
+  // Alertas proativos podem ser injetados por quem consome o hook.
+  const pushAlert = useCallback(
+    (content: string, agent?: string) => {
+      const alert = newMsg("alert", content, { agent });
+      setMessages((p) => [...p, alert]);
+      setOrbState("alert");
+      onAlert?.(alert);
+      setTimeout(() => setOrbState("idle"), 4000);
+    },
+    [onAlert],
+  );
+
   const clearHistory = useCallback(async () => {
     setMessages([]);
     const { error } = await supabase.from("copilot_history").delete().eq("user_id", userId);
@@ -467,6 +424,7 @@ export function useCopilot(config: CopilotConfig) {
     stopRecording,
     clearHistory,
     reconnect,
+    pushAlert,
   };
 }
 
