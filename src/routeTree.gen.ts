@@ -36,6 +36,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticated/signals'
 import { Route as AuthenticatedBot4xOnboardingRouteImport } from './routes/_authenticated/bot4x.onboarding'
 import { Route as AuthenticatedCalibratorHistoryRouteImport } from './routes/_authenticated/calibrator.history'
+import { Route as ApiCopilotChatRouteImport } from './routes/api/copilot/chat'
 import { Route as AuthenticatedCalibratorHistoryIdRouteImport } from './routes/_authenticated/calibrator.history.$id'
 import { Route as ApiPublicAlertsDispatchRouteImport } from './routes/api/public/alerts/dispatch'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -181,6 +182,11 @@ const AuthenticatedCalibratorHistoryRoute =
     path: '/history',
     getParentRoute: () => AuthenticatedCalibratorRoute,
   } as any)
+const ApiCopilotChatRoute = ApiCopilotChatRouteImport.update({
+  id: '/api/copilot/chat',
+  path: '/api/copilot/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedCalibratorHistoryIdRoute =
   AuthenticatedCalibratorHistoryIdRouteImport.update({
     id: '/$id',
@@ -226,6 +232,7 @@ export interface FileRoutesByFullPath {
   '/signals': typeof AuthenticatedSignalsRoute
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
+  '/api/copilot/chat': typeof ApiCopilotChatRoute
   '/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/signals': typeof AuthenticatedSignalsRoute
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
+  '/api/copilot/chat': typeof ApiCopilotChatRoute
   '/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -290,6 +298,7 @@ export interface FileRoutesById {
   '/_authenticated/signals': typeof AuthenticatedSignalsRoute
   '/_authenticated/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/_authenticated/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
+  '/api/copilot/chat': typeof ApiCopilotChatRoute
   '/_authenticated/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -323,6 +332,7 @@ export interface FileRouteTypes {
     | '/signals'
     | '/bot4x/onboarding'
     | '/calibrator/history'
+    | '/api/copilot/chat'
     | '/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
     | '/lovable/email/queue/process'
@@ -354,6 +364,7 @@ export interface FileRouteTypes {
     | '/signals'
     | '/bot4x/onboarding'
     | '/calibrator/history'
+    | '/api/copilot/chat'
     | '/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
     | '/lovable/email/queue/process'
@@ -386,6 +397,7 @@ export interface FileRouteTypes {
     | '/_authenticated/signals'
     | '/_authenticated/bot4x/onboarding'
     | '/_authenticated/calibrator/history'
+    | '/api/copilot/chat'
     | '/_authenticated/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
     | '/lovable/email/queue/process'
@@ -398,6 +410,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
+  ApiCopilotChatRoute: typeof ApiCopilotChatRoute
   ApiPublicAlertsDispatchRoute: typeof ApiPublicAlertsDispatchRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
@@ -593,6 +606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCalibratorHistoryRouteImport
       parentRoute: typeof AuthenticatedCalibratorRoute
     }
+    '/api/copilot/chat': {
+      id: '/api/copilot/chat'
+      path: '/api/copilot/chat'
+      fullPath: '/api/copilot/chat'
+      preLoaderRoute: typeof ApiCopilotChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/calibrator/history/$id': {
       id: '/_authenticated/calibrator/history/$id'
       path: '/$id'
@@ -713,6 +733,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
+  ApiCopilotChatRoute: ApiCopilotChatRoute,
   ApiPublicAlertsDispatchRoute: ApiPublicAlertsDispatchRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
