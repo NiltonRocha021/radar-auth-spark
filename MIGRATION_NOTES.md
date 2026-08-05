@@ -71,3 +71,22 @@ ações administrativas (quem fez o quê no painel de admin). `event_log` é o
 destino unificado para eventos operacionais do produto (bot pausado, erros
 de execução, quota, dispatches de alerta, etc.). Toda nova instrumentação
 operacional escreve em `event_log`.
+
+## Fase 4 — Execução real (Binance no Worker)
+- `src/lib/binance.server.ts`: assinatura HMAC-SHA256 via Web Crypto (Worker-safe),
+  `placeBinanceOrder`, `closeBinancePosition`, `fetchBinancePrice`.
+- `orders.functions.ts` aceita `mode: 'LIVE'` (alias `placeOrder`); LIVE exige 2FA
+  habilitado + `BINANCE_API_KEY` / `BINANCE_API_SECRET` (`BINANCE_BASE_URL` opcional,
+  default testnet). Fechamento LIVE usa o preço médio do fill real.
+
+## Desmonte Fase 2/3
+- Removidos: `signal.adapter.ts`, `copilot.adapter.ts`, `manipulation.adapter.ts`.
+- `/manipulation` agora consome `listManipulationAlerts` (server fn) + `manipulation-map.ts`.
+- Restam (Fase 5): `calibrator.adapter.ts`, `bot4x.adapter.ts`, `ws-client*`, `apiClient.ts`
+  — ainda com consumers em calibrator/bot4x/signals-store.
+
+## Fase 6 — Copilot streaming
+- Server route `POST /api/copilot/chat` (auth por cookie SSR ou Bearer) usando
+  Lovable AI Gateway (`src/lib/ai-gateway.server.ts`, modelo google/gemini-2.5-flash).
+- `useCopilot` migrado de WebSocket para streaming HTTP; histórico segue em
+  `copilot_history`. Entrada por voz (STT) pendente — Fase 6.1.
