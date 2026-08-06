@@ -333,6 +333,11 @@ export function useCopilot(config: CopilotConfig) {
     [addMessage, streamAssistant, showUnauthMessage],
   );
 
+  const runTurnRef = useRef<((text: string) => Promise<void>) | null>(null);
+  useEffect(() => {
+    runTurnRef.current = runTurn;
+  }, [runTurn]);
+
   const sendMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
@@ -357,15 +362,118 @@ export function useCopilot(config: CopilotConfig) {
     else setOrbState("idle");
   }, [clearUnauthMessage, runTurn]);
 
-  // Voz: a transcrição vivia no serviço Python do backend legado. Enquanto o
-  // STT não é portado (Fase 6.1), o áudio gravado não é enviado — o usuário
-  // recebe aviso explícito em vez de silêncio.
+  // Voz (Fase 6.1): o áudio gravado é enviado para /api/copilot/transcribe
+  // (Lovable AI Gateway → STT em SSE) e o texto transcrito entra no mesmo
+  // fluxo de streaming das mensagens digitadas.
+  const transcribeAndSend = useCallback(
+    async (blob: Blob) => {
+      if (blob.size < 2048) {
+        setOrbState("idle");
+        setMessages((p) => [
+          ...p,
+          newMsg("system", "Gravação muito curta — segure o botão e fale novamente."),
+        ]);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      let token = data.session?.access_token;
+      if (!token) {
+        const refreshed = await supabase.auth.refreshSession();
+        token = refreshed.data.session?.access_token;
+      }
+      if (!token) {
+        setOrbState("idle");
+        showUnauthMessage();
+        return;
+      }
+
+      const form = new FormData();
+      form.append("audio", blob, "recording.webm");
+
+      try {
+        const res = await fetch("/api/copilot/transcribe", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
+          body: form,
+        });
+
+        if (res.status === 401) {
+          setOrbState("idle");
+          showUnauthMessage();
+          return;
+        }
+        if (!res.ok || !res.body) {
+          const detail = await res.text().catch(() => "");
+          setOrbState("idle");
+          setMessages((p) => [
+            ...p,
+            newMsg("system", `Falha na transcrição (${res.status}). ${detail.slice(0, 160)}`),
+          ]);
+          return;
+        }
+
+        // SSE: acumula transcript.text.delta / usa transcript.text.done.
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let transcript = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data:")) continue;
+            const payload = trimmed.slice(5).trim();
+            if (!payload || payload === "[DONE]") continue;
+            try {
+              const evt = JSON.parse(payload) as {
+                type?: string;
+                delta?: string;
+                text?: string;
+              };
+              if (evt.type === "transcript.text.delta" && evt.delta) transcript += evt.delta;
+              else if (evt.type === "transcript.text.done" && evt.text) transcript = evt.text;
+            } catch {
+              /* evento parcial — ignora */
+            }
+          }
+        }
+
+        const finalText = transcript.trim();
+        if (!finalText) {
+          setOrbState("idle");
+          setMessages((p) => [
+            ...p,
+            newMsg("system", "Não consegui entender o áudio — tente novamente."),
+          ]);
+          return;
+        }
+        await runTurnRef.current?.(finalText);
+      } catch (err) {
+        logger.error("[copilot] transcrição falhou", { error: String(err) });
+        setOrbState("idle");
+        setMessages((p) => [
+          ...p,
+          newMsg("system", "Falha ao enviar o áudio. Verifique sua conexão e tente novamente."),
+        ]);
+      }
+    },
+    [showUnauthMessage],
+  );
+
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
-        : "audio/webm";
+        : MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : "audio/mp4";
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
       recorder.ondataavailable = (e) => {
@@ -373,23 +481,28 @@ export function useCopilot(config: CopilotConfig) {
       };
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
-        setMessages((p) => [
-          ...p,
-          newMsg("system", "Entrada por voz estará disponível em breve — envie sua mensagem por texto."),
-        ]);
-        setOrbState("idle");
+        const chunks = audioChunksRef.current;
+        audioChunksRef.current = [];
+        // Sem timeslice: o blob final é um arquivo completo e decodificável.
+        const blob = new Blob(chunks, { type: mimeType.split(";")[0] });
+        void transcribeAndSend(blob);
       };
-      recorder.start(100);
+      recorder.start();
       mediaRecorderRef.current = recorder;
       setIsRecording(true);
       setOrbState("listening");
     } catch (err) {
       logger.error("[Copilot] microphone denied", { error: err });
+      setMessages((p) => [
+        ...p,
+        newMsg("system", "Não foi possível acessar o microfone. Permita o acesso e tente de novo."),
+      ]);
     }
-  }, []);
+  }, [transcribeAndSend]);
 
   const stopRecording = useCallback(() => {
     mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
     setIsRecording(false);
     setOrbState("thinking");
   }, []);
