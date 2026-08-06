@@ -57,7 +57,7 @@ export const Route = createFileRoute("/api/copilot/transcribe")({
         }
 
         const audio = form.get("audio");
-        if (!(audio instanceof File) && !(audio instanceof Blob)) {
+        if (!audio || typeof audio === "string") {
           return new Response("Campo 'audio' ausente", { status: 400 });
         }
         if (audio.size < MIN_BYTES) {
