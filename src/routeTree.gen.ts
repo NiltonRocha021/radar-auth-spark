@@ -26,6 +26,7 @@ import { Route as AuthenticatedDiagnosticsRouteImport } from './routes/_authenti
 import { Route as AuthenticatedDnaCorrectionsRouteImport } from './routes/_authenticated/dna-corrections'
 import { Route as AuthenticatedDnaPairsRouteImport } from './routes/_authenticated/dna-pairs'
 import { Route as AuthenticatedDnaTraderRouteImport } from './routes/_authenticated/dna-trader'
+import { Route as AuthenticatedLiveTradingRouteImport } from './routes/_authenticated/live-trading'
 import { Route as AuthenticatedManipulationRouteImport } from './routes/_authenticated/manipulation'
 import { Route as AuthenticatedMarketplaceRouteImport } from './routes/_authenticated/marketplace'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
@@ -37,6 +38,7 @@ import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedBot4xOnboardingRouteImport } from './routes/_authenticated/bot4x.onboarding'
 import { Route as AuthenticatedCalibratorHistoryRouteImport } from './routes/_authenticated/calibrator.history'
 import { Route as ApiCopilotChatRouteImport } from './routes/api/copilot/chat'
+import { Route as ApiCopilotTranscribeRouteImport } from './routes/api/copilot/transcribe'
 import { Route as AuthenticatedCalibratorHistoryIdRouteImport } from './routes/_authenticated/calibrator.history.$id'
 import { Route as ApiPublicAlertsDispatchRouteImport } from './routes/api/public/alerts/dispatch'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
@@ -128,6 +130,12 @@ const AuthenticatedDnaTraderRoute = AuthenticatedDnaTraderRouteImport.update({
   path: '/dna-trader',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedLiveTradingRoute =
+  AuthenticatedLiveTradingRouteImport.update({
+    id: '/live-trading',
+    path: '/live-trading',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedManipulationRoute =
   AuthenticatedManipulationRouteImport.update({
     id: '/manipulation',
@@ -187,6 +195,11 @@ const ApiCopilotChatRoute = ApiCopilotChatRouteImport.update({
   path: '/api/copilot/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCopilotTranscribeRoute = ApiCopilotTranscribeRouteImport.update({
+  id: '/api/copilot/transcribe',
+  path: '/api/copilot/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedCalibratorHistoryIdRoute =
   AuthenticatedCalibratorHistoryIdRouteImport.update({
     id: '/$id',
@@ -222,6 +235,7 @@ export interface FileRoutesByFullPath {
   '/dna-corrections': typeof AuthenticatedDnaCorrectionsRoute
   '/dna-pairs': typeof AuthenticatedDnaPairsRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
+  '/live-trading': typeof AuthenticatedLiveTradingRoute
   '/manipulation': typeof AuthenticatedManipulationRoute
   '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
@@ -233,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
   '/api/copilot/chat': typeof ApiCopilotChatRoute
+  '/api/copilot/transcribe': typeof ApiCopilotTranscribeRoute
   '/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -254,6 +269,7 @@ export interface FileRoutesByTo {
   '/dna-corrections': typeof AuthenticatedDnaCorrectionsRoute
   '/dna-pairs': typeof AuthenticatedDnaPairsRoute
   '/dna-trader': typeof AuthenticatedDnaTraderRoute
+  '/live-trading': typeof AuthenticatedLiveTradingRoute
   '/manipulation': typeof AuthenticatedManipulationRoute
   '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
@@ -265,6 +281,7 @@ export interface FileRoutesByTo {
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
   '/api/copilot/chat': typeof ApiCopilotChatRoute
+  '/api/copilot/transcribe': typeof ApiCopilotTranscribeRoute
   '/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -288,6 +305,7 @@ export interface FileRoutesById {
   '/_authenticated/dna-corrections': typeof AuthenticatedDnaCorrectionsRoute
   '/_authenticated/dna-pairs': typeof AuthenticatedDnaPairsRoute
   '/_authenticated/dna-trader': typeof AuthenticatedDnaTraderRoute
+  '/_authenticated/live-trading': typeof AuthenticatedLiveTradingRoute
   '/_authenticated/manipulation': typeof AuthenticatedManipulationRoute
   '/_authenticated/marketplace': typeof AuthenticatedMarketplaceRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
@@ -299,6 +317,7 @@ export interface FileRoutesById {
   '/_authenticated/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/_authenticated/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
   '/api/copilot/chat': typeof ApiCopilotChatRoute
+  '/api/copilot/transcribe': typeof ApiCopilotTranscribeRoute
   '/_authenticated/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -322,6 +341,7 @@ export interface FileRouteTypes {
     | '/dna-corrections'
     | '/dna-pairs'
     | '/dna-trader'
+    | '/live-trading'
     | '/manipulation'
     | '/marketplace'
     | '/onboarding'
@@ -333,6 +353,7 @@ export interface FileRouteTypes {
     | '/bot4x/onboarding'
     | '/calibrator/history'
     | '/api/copilot/chat'
+    | '/api/copilot/transcribe'
     | '/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
     | '/lovable/email/queue/process'
@@ -354,6 +375,7 @@ export interface FileRouteTypes {
     | '/dna-corrections'
     | '/dna-pairs'
     | '/dna-trader'
+    | '/live-trading'
     | '/manipulation'
     | '/marketplace'
     | '/onboarding'
@@ -365,6 +387,7 @@ export interface FileRouteTypes {
     | '/bot4x/onboarding'
     | '/calibrator/history'
     | '/api/copilot/chat'
+    | '/api/copilot/transcribe'
     | '/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
     | '/lovable/email/queue/process'
@@ -387,6 +410,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dna-corrections'
     | '/_authenticated/dna-pairs'
     | '/_authenticated/dna-trader'
+    | '/_authenticated/live-trading'
     | '/_authenticated/manipulation'
     | '/_authenticated/marketplace'
     | '/_authenticated/onboarding'
@@ -398,6 +422,7 @@ export interface FileRouteTypes {
     | '/_authenticated/bot4x/onboarding'
     | '/_authenticated/calibrator/history'
     | '/api/copilot/chat'
+    | '/api/copilot/transcribe'
     | '/_authenticated/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
     | '/lovable/email/queue/process'
@@ -411,6 +436,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   TermsRoute: typeof TermsRoute
   ApiCopilotChatRoute: typeof ApiCopilotChatRoute
+  ApiCopilotTranscribeRoute: typeof ApiCopilotTranscribeRoute
   ApiPublicAlertsDispatchRoute: typeof ApiPublicAlertsDispatchRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
@@ -536,6 +562,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDnaTraderRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/live-trading': {
+      id: '/_authenticated/live-trading'
+      path: '/live-trading'
+      fullPath: '/live-trading'
+      preLoaderRoute: typeof AuthenticatedLiveTradingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/manipulation': {
       id: '/_authenticated/manipulation'
       path: '/manipulation'
@@ -611,6 +644,13 @@ declare module '@tanstack/react-router' {
       path: '/api/copilot/chat'
       fullPath: '/api/copilot/chat'
       preLoaderRoute: typeof ApiCopilotChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/copilot/transcribe': {
+      id: '/api/copilot/transcribe'
+      path: '/api/copilot/transcribe'
+      fullPath: '/api/copilot/transcribe'
+      preLoaderRoute: typeof ApiCopilotTranscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/calibrator/history/$id': {
@@ -690,6 +730,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDnaCorrectionsRoute: typeof AuthenticatedDnaCorrectionsRoute
   AuthenticatedDnaPairsRoute: typeof AuthenticatedDnaPairsRoute
   AuthenticatedDnaTraderRoute: typeof AuthenticatedDnaTraderRoute
+  AuthenticatedLiveTradingRoute: typeof AuthenticatedLiveTradingRoute
   AuthenticatedManipulationRoute: typeof AuthenticatedManipulationRoute
   AuthenticatedMarketplaceRoute: typeof AuthenticatedMarketplaceRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
@@ -712,6 +753,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDnaCorrectionsRoute: AuthenticatedDnaCorrectionsRoute,
   AuthenticatedDnaPairsRoute: AuthenticatedDnaPairsRoute,
   AuthenticatedDnaTraderRoute: AuthenticatedDnaTraderRoute,
+  AuthenticatedLiveTradingRoute: AuthenticatedLiveTradingRoute,
   AuthenticatedManipulationRoute: AuthenticatedManipulationRoute,
   AuthenticatedMarketplaceRoute: AuthenticatedMarketplaceRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
@@ -734,9 +776,20 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   TermsRoute: TermsRoute,
   ApiCopilotChatRoute: ApiCopilotChatRoute,
+  ApiCopilotTranscribeRoute: ApiCopilotTranscribeRoute,
   ApiPublicAlertsDispatchRoute: ApiPublicAlertsDispatchRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

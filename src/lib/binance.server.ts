@@ -152,3 +152,9 @@ export async function fetchBinancePrice(symbol: string): Promise<number | null> 
     return null;
   }
 }
+
+/** Conta autenticada — usado para validar credenciais/permissões. */
+export async function fetchBinanceAccount(): Promise<{ canTrade: boolean }> {
+  const res = await signedRequest<{ canTrade?: boolean }>("/api/v3/account", "GET", {});
+  return { canTrade: Boolean(res.canTrade) };
+}
