@@ -47,6 +47,32 @@ export interface SimulationRequest {
   end_date?: string;
 }
 
+/** Formato bruto retornado pelo motor de backtest (snake_case). */
+export interface BackendSimulationPoint {
+  t: string;
+  equity: number;
+}
+
+export interface BackendSimulationResponse {
+  trades: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  pnl: number;
+  pnl_pct: number;
+  max_drawdown: number;
+  sharpe?: number;
+  equity_curve: BackendSimulationPoint[];
+  dna_feedback?: {
+    pattern_detected?: string;
+    correction?: string;
+    expected_improvement?: string;
+  };
+  commentary?: string;
+  by_pair?: { symbol: string; trades: number; wins: number; losses: number; pnl: number }[];
+  risk?: { dayStops: number; dayTakes: number; haltedDays: number; liquidated: boolean };
+}
+
 export interface PairStatUI {
   symbol: string;
   trades: number;
@@ -80,6 +106,8 @@ export interface SimulationResultUI {
   commentary: string;
   byPair?: PairStatUI[];
   risk?: RiskSummaryUI;
+  /** Payload bruto do backtest, usado na tela de histórico/debug. */
+  raw?: unknown;
 }
 
 // ─── Parsing defensivo ────────────────────────────────────────────────────────
@@ -156,6 +184,7 @@ export function mapSimulationResult(raw: unknown): SimulationResultUI {
     commentary: r.commentary ?? "",
     byPair: r.by_pair,
     risk: r.risk,
+    raw,
   };
 }
 
