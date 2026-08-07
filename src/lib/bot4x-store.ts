@@ -441,9 +441,9 @@ export const useBot4xStore = create<State>()(
       cleanup: () => {
         const t = get()._ticker;
         if (t) clearInterval(t);
-        if (wsUnsub) {
-          wsUnsub();
-          wsUnsub = null;
+        if (realPollCleanup) {
+          realPollCleanup();
+          realPollCleanup = null;
         }
         set({ _ticker: undefined });
       },
