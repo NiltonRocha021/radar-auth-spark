@@ -11,8 +11,7 @@ import {
   genHistory,
 } from "./bot4x-data";
 import { PROFILES } from "./bot4x-data";
-import { bot4xAdapter, type BackendBot4xExecution } from "@/adapters/backend/bot4x.adapter";
-import { backendWs } from "@/adapters/backend/ws-client";
+import type { BotConfigDTO, BotExecutionDTO } from "./bot.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { saveTrade, loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
 import { logger } from "./logger";
