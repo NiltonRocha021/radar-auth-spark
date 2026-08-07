@@ -14,7 +14,7 @@ import type {
   BackendSimulationResponse,
   BackendSimulationPoint,
   SimulationProfile,
-} from "@/adapters/backend/calibrator.adapter";
+} from "@/lib/calibrator";
 
 // CORREÇÃO: importar calcRSI do engine para garantir que backtest e engine
 // usem o mesmo algoritmo (Wilder smoothing). A função local usava média simples,
