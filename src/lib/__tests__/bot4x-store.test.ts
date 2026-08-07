@@ -1,8 +1,8 @@
 // Testa regras puras do bot4x-store: getEffectiveMode, limites de setters
 // e o handler SIGNED_OUT que limpa history/orders.
 //
-// Mocks necessários: adapters/db helpers e ws-client são importados no
-// top-level do store e disparam efeitos de rede/persistência.
+// Mocks necessários: server functions e db helpers são importados pelo
+// store e disparam efeitos de rede/persistência.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/integrations/supabase/client", () => {
@@ -21,23 +21,9 @@ vi.mock("@/integrations/supabase/client", () => {
   return { supabase: { auth, from: vi.fn() } };
 });
 
-vi.mock("@/adapters/backend/bot4x.adapter", () => ({
-  bot4xAdapter: {
-    getConfig: vi.fn().mockResolvedValue(null),
-    executions: vi.fn().mockResolvedValue([]),
-  },
-}));
-
-vi.mock("@/adapters/backend/ws-client", () => ({
-  backendWs: {
-    on: vi.fn(() => () => {}),
-    onChannel: vi.fn(() => () => {}),
-    onStatus: vi.fn(() => () => {}),
-    send: vi.fn(),
-    connect: vi.fn().mockResolvedValue("open"),
-    close: vi.fn(),
-    isAuthenticatedOpen: vi.fn(() => false),
-  },
+vi.mock("../bot.functions", () => ({
+  getBotConfig: vi.fn().mockResolvedValue(null),
+  getBotExecutions: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("../bot4x-trades-db", () => ({
