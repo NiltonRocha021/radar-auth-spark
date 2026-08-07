@@ -168,7 +168,7 @@ function executionToTrade(e: BotExecutionDTO, profile: CalibProfile, leverage: n
 }
 
 
-let wsUnsub: (() => void) | null = null;
+let realPollCleanup: (() => void) | null = null;
 
 // ─── STORE ────────────────────────────────────────────────────────────────────
 
