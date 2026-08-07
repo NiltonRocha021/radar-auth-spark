@@ -119,7 +119,7 @@ function genCtxTick(get: () => State): Tick {
   });
 }
 
-function mapBackendProfile(p: string | undefined): CalibProfile {
+function mapBackendProfile(p: string | null | undefined): CalibProfile {
   if (p === "calibradoRSI") return "rsi";
   if (p === "calibradoAiScore") return "aiscore";
   if (
@@ -137,30 +137,36 @@ function mapBackendProfile(p: string | undefined): CalibProfile {
   return "conservador";
 }
 
-function executionToTrade(e: BackendBot4xExecution, profile: CalibProfile, leverage: number): Trade {
+function executionToTrade(e: BotExecutionDTO, profile: CalibProfile, leverage: number): Trade {
   const openedAt = e.createdAt ? new Date(e.createdAt).getTime() : Date.now();
   const pnl = e.pnl ?? 0;
   const side: Side = e.side === "BUY" || e.side === "LONG" ? "LONG" : "SHORT";
-  const result: Trade["result"] = e.status === "open" || e.status === "pending" ? "BLOCKED" : pnl >= 0 ? "WIN" : "LOSS";
-  const entry = e.entryPrice ?? 0;
+  const result: Trade["result"] =
+    e.result === "WIN" || e.result === "LOSS" || e.result === "BLOCKED"
+      ? (e.result as Trade["result"])
+      : pnl >= 0
+        ? "WIN"
+        : "LOSS";
+  const entry = e.entry ?? 0;
   return {
     id: e.id,
-    day: new Date(openedAt).toISOString().slice(0, 10),
+    day: e.day ?? new Date(openedAt).toISOString().slice(0, 10),
     pair: e.pair,
     side,
     entry,
-    stop: entry,
-    target: entry,
+    stop: e.stop ?? entry,
+    target: e.target ?? entry,
     result,
     pnl,
-    pnlPct: pnl,
+    pnlPct: e.pnlPct ?? pnl,
     accumulated: 0,
-    profile,
-    leverage,
+    profile: mapBackendProfile(e.profile) ?? profile,
+    leverage: e.leverage ?? leverage,
     motivo: "",
     hour: new Date(openedAt).getHours(),
   };
 }
+
 
 let wsUnsub: (() => void) | null = null;
 
