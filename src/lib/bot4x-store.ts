@@ -395,68 +395,46 @@ export const useBot4xStore = create<State>()(
           const uid = user?.id;
           if (!uid) throw new Error("Usuário não autenticado");
 
-          const [config, executions] = await Promise.all([bot4xAdapter.getConfig(uid), bot4xAdapter.executions()]);
+          const { getBotConfig, getBotExecutions } = await import("./bot.functions");
 
-          const profile = mapBackendProfile(config?.profile);
-          const leverage = get().leverage;
+          const applySnapshot = (config: BotConfigDTO | null, executions: BotExecutionDTO[]) => {
+            const profile = mapBackendProfile(config?.profile);
+            const leverage = config?.leverage ?? get().leverage;
+            const mappedHistory: Trade[] = executions.map((e) => executionToTrade(e, profile, leverage));
+            set({
+              status: config?.active ? "RUNNING" : "IDLE",
+              profile,
+              circuitBreaker: (config?.circuitBreaker as State["circuitBreaker"]) ?? "none",
+              dailyPnlPct: config?.dailyPnl ?? get().dailyPnlPct,
+              history: mappedHistory,
+              errorMsg: null,
+            });
+          };
 
-          const mappedHistory: Trade[] = (executions ?? []).map((e: BackendBot4xExecution) =>
-            executionToTrade(e, profile, leverage),
-          );
+          const pull = async () => {
+            const [config, executions] = await Promise.all([
+              getBotConfig(),
+              getBotExecutions({ data: { limit: 200 } }),
+            ]);
+            applySnapshot(config ?? null, executions ?? []);
+          };
 
-          set({
-            status: config?.active ? "RUNNING" : "IDLE",
-            profile,
-            circuitBreaker: (config?.circuitBreaker as State["circuitBreaker"]) ?? "none",
-            history: mappedHistory,
-            errorMsg: null,
-          });
+          await pull();
 
-          wsUnsub = backendWs.on("bot4x:update", (raw) => {
-            const event = raw as { type: string; [k: string]: unknown };
-            switch (event.type) {
-              case "EXECUTION": {
-                const ex = event.execution as BackendBot4xExecution;
-                const s = get();
-                const trade = executionToTrade(ex, s.profile, s.leverage);
-                set((prev) => ({
-                  history: [trade, ...prev.history].slice(0, 500),
-                }));
-                // REAL mode: persist via outbox to survive replication failures.
-                if (s.userId) {
-                  void saveTradeWithOutbox(s.userId, trade).catch((err) =>
-                    logger.error("[Bot4x] saveTradeWithOutbox failed", { error: err, tradeId: trade.id }),
-                  );
-                }
-                break;
-              }
-              case "CIRCUIT_BREAKER": {
-                set({
-                  status: "STOPPED",
-                  circuitBreaker: (event.reason as State["circuitBreaker"]) ?? "emergency",
-                });
-                break;
-              }
-              case "STATUS": {
-                set({ status: event.status as State["status"] });
-                break;
-              }
-              case "CAPITAL_UPDATE": {
-                set({ dailyPnlPct: (event.dailyPnL as number) ?? 0 });
-                break;
-              }
-              default:
-                break;
-            }
-          });
+          // Sem WebSocket: polling leve enquanto a tela do bot estiver aberta.
+          const pollId = window.setInterval(() => {
+            void pull().catch((err) => logger.warn?.("[Bot4x] poll falhou", { error: err }));
+          }, 15_000);
+          realPollCleanup = () => window.clearInterval(pollId);
         } catch (err) {
           logger.error("[Bot4x] init real failed", { error: err });
           set({
             status: "ERROR",
-            errorMsg: "Não foi possível conectar ao backend. Tente novamente.",
+            errorMsg: "Não foi possível carregar os dados do bot. Tente novamente.",
             realInited: false,
           });
         }
+
       },
 
       // ─── CLEANUP ──────────────────────────────────────────────────────────
