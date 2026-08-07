@@ -157,16 +157,28 @@ export const useSignalsStore = create<State>((set, get) => ({
       // Em dev mantemos mocks atrás dos sinais reais para visualização;
       // em produção os mocks são descartados para evitar decisões baseadas
       // em dados fictícios.
-      set((st) => ({
-        signals: [
-          ...mapped,
-          ...(import.meta.env.DEV ? st.signals.filter((s) => s.isMock) : []),
-        ].slice(0, 60),
-        lastSyncAt: Date.now(),
-      }));
+      set((st) => {
+        const known = new Set(st.signals.map((s) => s.id));
+        const fresh = st.lastSyncAt ? mapped.filter((s) => !known.has(s.id)) : [];
+        return {
+          signals: [
+            ...mapped,
+            ...(import.meta.env.DEV ? st.signals.filter((s) => s.isMock) : []),
+          ].slice(0, 60),
+          toasts: fresh.length
+            ? [
+                ...fresh.slice(0, 3).map((signal) => ({ id: signal.id, signal, createdAt: Date.now() })),
+                ...st.toasts,
+              ].slice(0, 3)
+            : st.toasts,
+          flashIds: fresh.length ? fresh.map((s) => s.id) : st.flashIds,
+          lastSyncAt: Date.now(),
+        };
+      });
     } catch {
       // silencioso — mantém o que já estiver em memória
     }
+
   },
   init: () => {
     if (get()._intervalIds.size > 0 || get()._wsUnsub) return;
