@@ -182,27 +182,16 @@ export const useSignalsStore = create<State>((set, get) => ({
     // Sync inicial
     get().syncFromBackend();
 
-    // Stream em tempo real via WebSocket: substitui o setInterval de 10s.
-    const unsub = backendWs.on("signal:new", (payload) => {
-      if (!get().live) return;
-      const signal = payload as Signal;
-      if (!signal?.id) return;
-      set((st) => ({
-        signals: [signal, ...st.signals.filter((x) => x.id !== signal.id)].slice(0, 60),
-        toasts: [{ id: signal.id, signal, createdAt: Date.now() }, ...st.toasts].slice(0, 3),
-      }));
-    });
-
-    // Fallback: re-sync a cada 60s se o WS não estiver autenticado/ativo.
+    // Sem WebSocket (backend NestJS removido): polling da server fn.
+    // 20s quando "live", pausado quando o usuário desliga o modo live.
     const syncInterval = window.setInterval(() => {
-      if (backendWs.isAuthenticatedOpen()) return; // WS está cuidando dos updates
-      get().syncFromBackend();
-    }, 60_000);
+      if (!get().live) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      void get().syncFromBackend();
+    }, 20_000);
 
-    set({
-      _intervalIds: new Set<number>([syncInterval]),
-      _wsUnsub: unsub,
-    });
+    set({ _intervalIds: new Set<number>([syncInterval]), _wsUnsub: null });
+
   },
   cleanup: () => {
     get()._intervalIds.forEach((id) => clearInterval(id));
