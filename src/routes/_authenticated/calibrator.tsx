@@ -8,11 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
-import {
-  calibratorAdapter,
-  type SimulationProfile,
-  type SimulationResultUI,
-} from "@/adapters/backend/calibrator.adapter";
+import { calibrator, type SimulationProfile, type SimulationResultUI } from "@/lib/calibrator";
 import { TOP_20_USDT_PAIRS, planFetch } from "@/lib/market-data";
 import { recordSimulation } from "@/lib/calibrator-history-store";
 import { Switch } from "@/components/ui/switch";
@@ -132,7 +128,7 @@ function CalibratorPage() {
       setResult(null);
       setMultiResults(null);
       try {
-        const res = await calibratorAdapter.simulatePortfolio(user.id, {
+        const res = await calibrator.simulatePortfolio({
           ...baseReq,
           symbols: TOP_20_USDT_PAIRS.map((p) => p.symbol),
         });
@@ -163,7 +159,7 @@ function CalibratorPage() {
     };
     try {
       setMultiResults(null);
-      const res = await calibratorAdapter.simulate(user.id, {
+      const res = await calibrator.simulate({
         ...baseReq,
         symbol: params.symbol,
       });

@@ -11,8 +11,7 @@ import {
   genHistory,
 } from "./bot4x-data";
 import { PROFILES } from "./bot4x-data";
-import { bot4xAdapter, type BackendBot4xExecution } from "@/adapters/backend/bot4x.adapter";
-import { backendWs } from "@/adapters/backend/ws-client";
+import type { BotConfigDTO, BotExecutionDTO } from "./bot.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { saveTrade, loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
 import { logger } from "./logger";
@@ -120,7 +119,7 @@ function genCtxTick(get: () => State): Tick {
   });
 }
 
-function mapBackendProfile(p: string | undefined): CalibProfile {
+function mapBackendProfile(p: string | null | undefined): CalibProfile {
   if (p === "calibradoRSI") return "rsi";
   if (p === "calibradoAiScore") return "aiscore";
   if (
@@ -138,32 +137,38 @@ function mapBackendProfile(p: string | undefined): CalibProfile {
   return "conservador";
 }
 
-function executionToTrade(e: BackendBot4xExecution, profile: CalibProfile, leverage: number): Trade {
+function executionToTrade(e: BotExecutionDTO, profile: CalibProfile, leverage: number): Trade {
   const openedAt = e.createdAt ? new Date(e.createdAt).getTime() : Date.now();
   const pnl = e.pnl ?? 0;
   const side: Side = e.side === "BUY" || e.side === "LONG" ? "LONG" : "SHORT";
-  const result: Trade["result"] = e.status === "open" || e.status === "pending" ? "BLOCKED" : pnl >= 0 ? "WIN" : "LOSS";
-  const entry = e.entryPrice ?? 0;
+  const result: Trade["result"] =
+    e.result === "WIN" || e.result === "LOSS" || e.result === "BLOCKED"
+      ? (e.result as Trade["result"])
+      : pnl >= 0
+        ? "WIN"
+        : "LOSS";
+  const entry = e.entry ?? 0;
   return {
     id: e.id,
-    day: new Date(openedAt).toISOString().slice(0, 10),
+    day: e.day ?? new Date(openedAt).toISOString().slice(0, 10),
     pair: e.pair,
     side,
     entry,
-    stop: entry,
-    target: entry,
+    stop: e.stop ?? entry,
+    target: e.target ?? entry,
     result,
     pnl,
-    pnlPct: pnl,
+    pnlPct: e.pnlPct ?? pnl,
     accumulated: 0,
-    profile,
-    leverage,
+    profile: mapBackendProfile(e.profile) ?? profile,
+    leverage: e.leverage ?? leverage,
     motivo: "",
     hour: new Date(openedAt).getHours(),
   };
 }
 
-let wsUnsub: (() => void) | null = null;
+
+let realPollCleanup: (() => void) | null = null;
 
 // ─── STORE ────────────────────────────────────────────────────────────────────
 
@@ -390,77 +395,55 @@ export const useBot4xStore = create<State>()(
           const uid = user?.id;
           if (!uid) throw new Error("Usuário não autenticado");
 
-          const [config, executions] = await Promise.all([bot4xAdapter.getConfig(uid), bot4xAdapter.executions()]);
+          const { getBotConfig, getBotExecutions } = await import("./bot.functions");
 
-          const profile = mapBackendProfile(config?.profile);
-          const leverage = get().leverage;
+          const applySnapshot = (config: BotConfigDTO | null, executions: BotExecutionDTO[]) => {
+            const profile = mapBackendProfile(config?.profile);
+            const leverage = config?.leverage ?? get().leverage;
+            const mappedHistory: Trade[] = executions.map((e) => executionToTrade(e, profile, leverage));
+            set({
+              status: config?.active ? "RUNNING" : "IDLE",
+              profile,
+              circuitBreaker: (config?.circuitBreaker as State["circuitBreaker"]) ?? "none",
+              dailyPnlPct: config?.dailyPnl ?? get().dailyPnlPct,
+              history: mappedHistory,
+              errorMsg: null,
+            });
+          };
 
-          const mappedHistory: Trade[] = (executions ?? []).map((e: BackendBot4xExecution) =>
-            executionToTrade(e, profile, leverage),
-          );
+          const pull = async () => {
+            const [config, executions] = await Promise.all([
+              getBotConfig(),
+              getBotExecutions({ data: { limit: 200 } }),
+            ]);
+            applySnapshot(config ?? null, executions ?? []);
+          };
 
-          set({
-            status: config?.active ? "RUNNING" : "IDLE",
-            profile,
-            circuitBreaker: (config?.circuitBreaker as State["circuitBreaker"]) ?? "none",
-            history: mappedHistory,
-            errorMsg: null,
-          });
+          await pull();
 
-          wsUnsub = backendWs.on("bot4x:update", (raw) => {
-            const event = raw as { type: string; [k: string]: unknown };
-            switch (event.type) {
-              case "EXECUTION": {
-                const ex = event.execution as BackendBot4xExecution;
-                const s = get();
-                const trade = executionToTrade(ex, s.profile, s.leverage);
-                set((prev) => ({
-                  history: [trade, ...prev.history].slice(0, 500),
-                }));
-                // REAL mode: persist via outbox to survive replication failures.
-                if (s.userId) {
-                  void saveTradeWithOutbox(s.userId, trade).catch((err) =>
-                    logger.error("[Bot4x] saveTradeWithOutbox failed", { error: err, tradeId: trade.id }),
-                  );
-                }
-                break;
-              }
-              case "CIRCUIT_BREAKER": {
-                set({
-                  status: "STOPPED",
-                  circuitBreaker: (event.reason as State["circuitBreaker"]) ?? "emergency",
-                });
-                break;
-              }
-              case "STATUS": {
-                set({ status: event.status as State["status"] });
-                break;
-              }
-              case "CAPITAL_UPDATE": {
-                set({ dailyPnlPct: (event.dailyPnL as number) ?? 0 });
-                break;
-              }
-              default:
-                break;
-            }
-          });
+          // Sem WebSocket: polling leve enquanto a tela do bot estiver aberta.
+          const pollId = window.setInterval(() => {
+            void pull().catch((err) => logger.warn?.("[Bot4x] poll falhou", { error: err }));
+          }, 15_000);
+          realPollCleanup = () => window.clearInterval(pollId);
         } catch (err) {
           logger.error("[Bot4x] init real failed", { error: err });
           set({
             status: "ERROR",
-            errorMsg: "Não foi possível conectar ao backend. Tente novamente.",
+            errorMsg: "Não foi possível carregar os dados do bot. Tente novamente.",
             realInited: false,
           });
         }
+
       },
 
       // ─── CLEANUP ──────────────────────────────────────────────────────────
       cleanup: () => {
         const t = get()._ticker;
         if (t) clearInterval(t);
-        if (wsUnsub) {
-          wsUnsub();
-          wsUnsub = null;
+        if (realPollCleanup) {
+          realPollCleanup();
+          realPollCleanup = null;
         }
         set({ _ticker: undefined });
       },

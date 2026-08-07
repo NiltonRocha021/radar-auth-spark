@@ -8,7 +8,7 @@ import { useBot4xStore } from "@/lib/bot4x-store";
 import { PROFILES, type CalibProfile, type ProfileSpec } from "@/lib/bot4x-data";
 import { useCalibratorState } from "@/hooks/useCalibratorState";
 import { useAuth } from "@/lib/auth";
-import { calibratorAdapter, type SimulationResultUI } from "@/adapters/backend/calibrator.adapter";
+import { calibrator as calibratorEngine, type SimulationResultUI } from "@/lib/calibrator";
 import { proposeSimCorrections, applySimCorrections, describeProposal, type SimProposal } from "@/lib/dna-sim-corrector";
 
 
@@ -221,8 +221,8 @@ function SimulationModal({ profile, onClose }: { profile: ProfileSpec; onClose: 
     setLoading(true);
     setErr(null);
     setSim(null);
-    calibratorAdapter
-      .simulate(user?.id ?? "local", {
+    calibratorEngine
+      .simulate({
         profile: profile.id,
         symbol: "BTCUSDT",
         period_days: 30,

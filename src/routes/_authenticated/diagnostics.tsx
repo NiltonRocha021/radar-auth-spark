@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
-import { WsStatusPanel } from "@/components/diagnostics/ws-status-panel";
 import { RsiCalibrationReport } from "@/components/diagnostics/rsi-calibration-report";
 
 export const Route = createFileRoute("/_authenticated/diagnostics")({
@@ -31,7 +30,6 @@ function DiagnosticsPage() {
               Verificações de integridade do WebSocket e da calibração RSI.
             </p>
           </header>
-          <WsStatusPanel />
           <RsiCalibrationReport />
         </main>
       </div>

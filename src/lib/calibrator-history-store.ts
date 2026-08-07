@@ -6,7 +6,7 @@ import { logger } from "./logger";
 import type {
   SimulationProfile,
   SimulationResultUI,
-} from "@/adapters/backend/calibrator.adapter";
+} from "@/lib/calibrator";
 
 
 export interface CalibratorHistoryEntry {

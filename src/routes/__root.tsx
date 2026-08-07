@@ -13,7 +13,6 @@ import * as Sentry from "@sentry/react";
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
-import { backendWs } from "@/adapters/backend/ws-client";
 import { initSentry } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { registerPWA } from "@/lib/pwa/register";
@@ -247,13 +246,6 @@ function RootComponent() {
   useEffect(() => {
     // PWA-01: o wrapper recusa dev/preview/iframe/?sw=off internamente.
     registerPWA();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        backendWs.resetAndReconnect();
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
   return (

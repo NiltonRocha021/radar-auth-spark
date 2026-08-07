@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { createSelector } from "reselect";
 import { type Signal, type AssetClass } from "./signals-data";
-import { backendWs } from "@/adapters/backend/ws-client";
+
 
 
 export type ViewMode = "cards" | "table" | "radar";
@@ -157,16 +157,28 @@ export const useSignalsStore = create<State>((set, get) => ({
       // Em dev mantemos mocks atrás dos sinais reais para visualização;
       // em produção os mocks são descartados para evitar decisões baseadas
       // em dados fictícios.
-      set((st) => ({
-        signals: [
-          ...mapped,
-          ...(import.meta.env.DEV ? st.signals.filter((s) => s.isMock) : []),
-        ].slice(0, 60),
-        lastSyncAt: Date.now(),
-      }));
+      set((st) => {
+        const known = new Set(st.signals.map((s) => s.id));
+        const fresh = st.lastSyncAt ? mapped.filter((s) => !known.has(s.id)) : [];
+        return {
+          signals: [
+            ...mapped,
+            ...(import.meta.env.DEV ? st.signals.filter((s) => s.isMock) : []),
+          ].slice(0, 60),
+          toasts: fresh.length
+            ? [
+                ...fresh.slice(0, 3).map((signal) => ({ id: signal.id, signal, createdAt: Date.now() })),
+                ...st.toasts,
+              ].slice(0, 3)
+            : st.toasts,
+          flashIds: fresh.length ? fresh.map((s) => s.id) : st.flashIds,
+          lastSyncAt: Date.now(),
+        };
+      });
     } catch {
       // silencioso — mantém o que já estiver em memória
     }
+
   },
   init: () => {
     if (get()._intervalIds.size > 0 || get()._wsUnsub) return;
@@ -182,27 +194,16 @@ export const useSignalsStore = create<State>((set, get) => ({
     // Sync inicial
     get().syncFromBackend();
 
-    // Stream em tempo real via WebSocket: substitui o setInterval de 10s.
-    const unsub = backendWs.on("signal:new", (payload) => {
-      if (!get().live) return;
-      const signal = payload as Signal;
-      if (!signal?.id) return;
-      set((st) => ({
-        signals: [signal, ...st.signals.filter((x) => x.id !== signal.id)].slice(0, 60),
-        toasts: [{ id: signal.id, signal, createdAt: Date.now() }, ...st.toasts].slice(0, 3),
-      }));
-    });
-
-    // Fallback: re-sync a cada 60s se o WS não estiver autenticado/ativo.
+    // Sem WebSocket (backend NestJS removido): polling da server fn.
+    // 20s quando "live", pausado quando o usuário desliga o modo live.
     const syncInterval = window.setInterval(() => {
-      if (backendWs.isAuthenticatedOpen()) return; // WS está cuidando dos updates
-      get().syncFromBackend();
-    }, 60_000);
+      if (!get().live) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      void get().syncFromBackend();
+    }, 20_000);
 
-    set({
-      _intervalIds: new Set<number>([syncInterval]),
-      _wsUnsub: unsub,
-    });
+    set({ _intervalIds: new Set<number>([syncInterval]), _wsUnsub: null });
+
   },
   cleanup: () => {
     get()._intervalIds.forEach((id) => clearInterval(id));
