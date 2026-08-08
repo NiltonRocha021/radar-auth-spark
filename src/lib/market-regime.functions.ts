@@ -17,6 +17,7 @@
 // Normalizamos removendo `/` e `-` (mesma regra usada em prices.functions.ts).
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { parseRows, usableOhlcvSchema } from "@/lib/db-schemas";
 
 // ── Indicadores (cópia literal do FeaturesService do Nest) ────────────────
 function calculateEMA(prices: number[], period: number): number {
