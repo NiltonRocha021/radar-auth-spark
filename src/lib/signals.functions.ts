@@ -46,28 +46,9 @@ function normalizeState(status: string | null | undefined): SignalListItemDTO["s
   return "active";
 }
 
-type SignalRow = {
-  id: string;
-  pair: string | null;
-  side: string | null;
-  score: number | null;
-  ai_score: number | null;
-  entry_price: number | null;
-  stop_loss: number | null;
-  take_profit1: number | null;
-  take_profit2: number | null;
-  timeframe: string | null;
-  status: string | null;
-  channel_zone: string | null;
-  rsi: number | null;
-  liquidity_grab: boolean | null;
-  ai_reasoning: string | null;
-  confirmations: string | null;
-  invalidations: string | null;
-  expires_at: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-};
+// Forma da linha validada por Zod (ver src/lib/db-schemas.ts) — o DTO só é
+// construído a partir de linhas que passaram na validação.
+type SignalRow = z.infer<typeof signalRowSchema>;
 
 function toListItem(s: SignalRow): SignalListItemDTO {
   return {
