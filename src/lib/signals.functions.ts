@@ -6,6 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { parseRow, parseRows, signalRowSchema } from "@/lib/db-schemas";
 
 export interface SignalListItemDTO {
   id: string;
