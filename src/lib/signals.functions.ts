@@ -122,8 +122,8 @@ export const getSignalById = createServerFn({ method: "GET" })
       console.warn("[signals.functions] getSignalById error:", error.message);
       return null;
     }
-    if (!row) return null;
-    const s = row as SignalRow;
+    const s = parseRow(signalRowSchema, row, "signals.getSignalById");
+    if (!s) return null;
     return {
       ...toListItem(s),
       aiScore: s.ai_score != null ? Number(s.ai_score) : undefined,
