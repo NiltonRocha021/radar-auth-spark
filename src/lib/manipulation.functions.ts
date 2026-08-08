@@ -7,6 +7,7 @@
 // RLS da tabela é quem decide o acesso. Não filtramos por user_id.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { manipulationAlertRowSchema, parseRows } from "@/lib/db-schemas";
 
 type Json = string | number | boolean | null | { [k: string]: Json } | Json[];
 
