@@ -125,6 +125,7 @@ export const useSignalsStore = create<State>((set, get) => ({
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   lastSyncAt: null,
   lastError: null,
+  syncing: false,
   syncFromBackend: async () => {
     set({ syncing: true });
     try {
