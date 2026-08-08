@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { createSelector } from "reselect";
 import { type Signal, type AssetClass } from "./signals-data";
+import { trackPoll } from "./polling-metrics";
 
 
 
@@ -42,6 +43,10 @@ type State = {
   toasts: SignalToast[];
   flashIds: string[];
   lastSyncAt: number | null;
+  /** Erro do último ciclo de sync (null quando o último ciclo teve sucesso). */
+  lastError: string | null;
+  /** true enquanto um ciclo de sync está em andamento. */
+  syncing: boolean;
   _intervalIds: Set<number>;
   _wsUnsub: (() => void) | null;
   syncFromBackend: () => Promise<void>;
@@ -119,14 +124,26 @@ export const useSignalsStore = create<State>((set, get) => ({
   closeDetail: () => set({ detailId: null }),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   lastSyncAt: null,
+  lastError: null,
+  syncing: false,
   syncFromBackend: async () => {
+    set({ syncing: true });
     try {
-      // Server fn cacheada (caches.default, TTL 10s por usuário) em vez de
-      // chamar direto signalAdapter no browser — reduz carga sobre o backend
-      // NestJS quando o usuário tem várias abas/refresh rápido.
-      const { getSignalsList } = await import("@/lib/signals.functions");
-      const backendSignals = await getSignalsList();
-      if (!backendSignals?.length) return;
+      // Server fn cacheada (caches.default, TTL 10s por usuário) — polling.
+      // Cada ciclo é medido (latência / taxa de falha) via trackPoll para
+      // diagnóstico em LIVE.
+      const backendSignals = await trackPoll(
+        "signals",
+        async () => {
+          const { getSignalsList } = await import("@/lib/signals.functions");
+          return await getSignalsList();
+        },
+        (rows) => ({ received: rows?.length ?? 0 }),
+      );
+      if (!backendSignals?.length) {
+        set({ syncing: false, lastError: null, lastSyncAt: Date.now() });
+        return;
+      }
 
       const mapped: Signal[] = backendSignals.map((s) => ({
         id: s.id,
@@ -173,10 +190,16 @@ export const useSignalsStore = create<State>((set, get) => ({
             : st.toasts,
           flashIds: fresh.length ? fresh.map((s) => s.id) : st.flashIds,
           lastSyncAt: Date.now(),
+          lastError: null,
+          syncing: false,
         };
       });
-    } catch {
-      // silencioso — mantém o que já estiver em memória
+    } catch (err) {
+      // Mantém o que já estiver em memória, mas expõe o erro para a UI.
+      set({
+        syncing: false,
+        lastError: err instanceof Error ? err.message : "Falha ao sincronizar sinais",
+      });
     }
 
   },

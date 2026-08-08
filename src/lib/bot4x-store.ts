@@ -15,6 +15,7 @@ import type { BotConfigDTO, BotExecutionDTO } from "./bot.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { saveTrade, loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
 import { logger } from "./logger";
+import { trackPoll } from "./polling-metrics";
 import { loadConfig, saveConfig } from "./bot4x-config-db";
 import type { CalibProfile as CalibProfileType } from "./bot4x-data";
 
@@ -411,19 +412,28 @@ export const useBot4xStore = create<State>()(
             });
           };
 
-          const pull = async () => {
-            const [config, executions] = await Promise.all([
-              getBotConfig(),
-              getBotExecutions({ data: { limit: 200 } }),
-            ]);
-            applySnapshot(config ?? null, executions ?? []);
-          };
+          const pull = async () =>
+            trackPoll(
+              "bot4x",
+              async () => {
+                const [config, executions] = await Promise.all([
+                  getBotConfig(),
+                  getBotExecutions({ data: { limit: 200 } }),
+                ]);
+                applySnapshot(config ?? null, executions ?? []);
+                return { executions: executions?.length ?? 0, active: config?.active ?? false };
+              },
+              (r) => r,
+            );
 
           await pull();
 
           // Sem WebSocket: polling leve enquanto a tela do bot estiver aberta.
           const pollId = window.setInterval(() => {
-            void pull().catch((err) => logger.warn?.("[Bot4x] poll falhou", { error: err }));
+            void pull().catch((err) => {
+              logger.warn?.("[Bot4x] poll falhou", { error: err });
+              set({ errorMsg: "Falha ao atualizar os dados do bot. Tentando novamente..." });
+            });
           }, 15_000);
           realPollCleanup = () => window.clearInterval(pollId);
         } catch (err) {

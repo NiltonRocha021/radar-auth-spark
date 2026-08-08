@@ -7,6 +7,7 @@
 // RLS da tabela é quem decide o acesso. Não filtramos por user_id.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { manipulationAlertRowSchema, parseRows } from "@/lib/db-schemas";
 
 type Json = string | number | boolean | null | { [k: string]: Json } | Json[];
 
@@ -44,26 +45,14 @@ export const listManipulationAlerts = createServerFn({ method: "GET" })
       console.warn("[manipulation.functions] listManipulationAlerts error:", error.message);
       return [];
     }
-    return (rows ?? []).map((r) => {
-      const row = r as {
-        id: string;
-        symbol: string;
-        alert_type: string;
-        severity: string;
-        message: string;
-        data: Json | null;
-        detected_at: string;
-        created_at: string;
-      };
-      return {
-        id: row.id,
-        symbol: row.symbol,
-        alertType: row.alert_type,
-        severity: row.severity,
-        message: row.message,
-        data: row.data ?? null,
-        detectedAt: row.detected_at,
-        createdAt: row.created_at,
-      };
-    });
+    return parseRows(manipulationAlertRowSchema, rows, "manipulation.listManipulationAlerts").map((row) => ({
+      id: row.id,
+      symbol: row.symbol,
+      alertType: row.alert_type,
+      severity: row.severity,
+      message: row.message ?? "",
+      data: (row.data ?? null) as Json | null,
+      detectedAt: row.detected_at ?? row.created_at ?? new Date().toISOString(),
+      createdAt: row.created_at ?? new Date().toISOString(),
+    }));
   });
