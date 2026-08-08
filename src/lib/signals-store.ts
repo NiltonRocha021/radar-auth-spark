@@ -43,6 +43,10 @@ type State = {
   toasts: SignalToast[];
   flashIds: string[];
   lastSyncAt: number | null;
+  /** Erro do último ciclo de sync (null quando o último ciclo teve sucesso). */
+  lastError: string | null;
+  /** true enquanto um ciclo de sync está em andamento. */
+  syncing: boolean;
   _intervalIds: Set<number>;
   _wsUnsub: (() => void) | null;
   syncFromBackend: () => Promise<void>;
