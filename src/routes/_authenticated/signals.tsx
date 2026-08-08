@@ -86,10 +86,32 @@ function SignalsPage() {
           <FilterBar />
           <StatsBar />
           <div className="flex">
-            <main className="flex-1 min-w-0 p-5">
-              {view === "cards" && <CardGrid signals={filtered} />}
-              {view === "table" && <TableView signals={filtered} />}
-              {view === "radar" && <RadarMap signals={filtered} />}
+            <main className="flex-1 min-w-0 p-5 space-y-5">
+              <MarketRegimeCard />
+              <AsyncState
+                isLoading={isFirstLoad}
+                error={lastError && !filtered.length ? new Error(lastError) : undefined}
+                isEmpty={!filtered.length}
+                onRetry={() => void syncFromBackend()}
+                loading={<LoadingState rows={4} label="Carregando sinais" />}
+                errorTitle="Não foi possível carregar os sinais"
+                errorMessage="A conexão com o radar falhou. Seus sinais anteriores continuam visíveis assim que voltarmos a sincronizar."
+                empty={
+                  <EmptyState
+                    title="Nenhum sinal para exibir"
+                    message="Não há sinais que atendam aos filtros atuais. Ajuste os filtros ou aguarde o próximo ciclo do radar."
+                  />
+                }
+              >
+                {view === "cards" && <CardGrid signals={filtered} />}
+                {view === "table" && <TableView signals={filtered} />}
+                {view === "radar" && <RadarMap signals={filtered} />}
+              </AsyncState>
+              {lastError && filtered.length > 0 && (
+                <p role="status" className="text-xs text-amber-400">
+                  Última sincronização falhou — exibindo os dados mais recentes em memória.
+                </p>
+              )}
             </main>
             <QuickViewPanel />
           </div>
