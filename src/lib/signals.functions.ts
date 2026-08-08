@@ -93,7 +93,7 @@ export const getSignalsList = createServerFn({ method: "GET" })
       console.warn("[signals.functions] getSignalsList error:", error.message);
       return [];
     }
-    return (rows ?? []).map((r) => toListItem(r as SignalRow));
+    return parseRows(signalRowSchema, rows, "signals.getSignalsList").map(toListItem);
   });
 
 /**
