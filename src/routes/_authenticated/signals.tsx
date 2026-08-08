@@ -42,6 +42,11 @@ function SignalsPage() {
   const bot4xProfile = useBot4xStore((s) => s.profile);
   const bot4xPnl = useBot4xStore((s) => s.dailyPnlPct);
   const filteredBase = useFilteredSignals();
+  const lastError = useSignalsStore((s) => s.lastError);
+  const lastSyncAt = useSignalsStore((s) => s.lastSyncAt);
+  const syncing = useSignalsStore((s) => s.syncing);
+  const syncFromBackend = useSignalsStore((s) => s.syncFromBackend);
+  const isFirstLoad = lastSyncAt === null && syncing;
   const filtered = bot4xOnly
     ? filteredBase.filter(
         (sig) => bot4xEligibility(sig, { mode: bot4xMode, profile: bot4xProfile, dailyPnlPct: bot4xPnl }) === "EXECUTAR",
