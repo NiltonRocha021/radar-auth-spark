@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { createSelector } from "reselect";
 import { type Signal, type AssetClass } from "./signals-data";
-import { trackPoll } from "./polling-metrics";
+import { pollWithRetry } from "./polling-metrics";
 
 
 
@@ -130,15 +130,15 @@ export const useSignalsStore = create<State>((set, get) => ({
     set({ syncing: true });
     try {
       // Server fn cacheada (caches.default, TTL 10s por usuário) — polling.
-      // Cada ciclo é medido (latência / taxa de falha) via trackPoll para
-      // diagnóstico em LIVE.
-      const backendSignals = await trackPoll(
+      // Cada tentativa é medida (latência / taxa de falha) e falhas são
+      // repetidas com backoff exponencial + jitter antes de virar erro na UI.
+      const backendSignals = await pollWithRetry(
         "signals",
         async () => {
           const { getSignalsList } = await import("@/lib/signals.functions");
           return await getSignalsList();
         },
-        (rows) => ({ received: rows?.length ?? 0 }),
+        { maxRetries: 3, extra: (rows) => ({ received: rows?.length ?? 0 }) },
       );
       if (!backendSignals?.length) {
         set({ syncing: false, lastError: null, lastSyncAt: Date.now() });
@@ -195,10 +195,13 @@ export const useSignalsStore = create<State>((set, get) => ({
         };
       });
     } catch (err) {
-      // Mantém o que já estiver em memória, mas expõe o erro para a UI.
+      // Retries em backoff já se esgotaram: mantém o que estiver em memória,
+      // mas expõe o erro amigável para a UI.
       set({
         syncing: false,
-        lastError: err instanceof Error ? err.message : "Falha ao sincronizar sinais",
+        lastError:
+          "Não foi possível atualizar os sinais após várias tentativas. Verifique sua conexão." +
+          (err instanceof Error && import.meta.env.DEV ? ` (${err.message})` : ""),
       });
     }
 
