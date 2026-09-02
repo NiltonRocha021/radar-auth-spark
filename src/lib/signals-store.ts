@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { createSelector } from "reselect";
 import { type Signal, type AssetClass } from "./signals-data";
-import { trackPoll } from "./polling-metrics";
+import { pollWithRetry } from "./polling-metrics";
 
 
 
@@ -195,10 +195,13 @@ export const useSignalsStore = create<State>((set, get) => ({
         };
       });
     } catch (err) {
-      // Mantém o que já estiver em memória, mas expõe o erro para a UI.
+      // Retries em backoff já se esgotaram: mantém o que estiver em memória,
+      // mas expõe o erro amigável para a UI.
       set({
         syncing: false,
-        lastError: err instanceof Error ? err.message : "Falha ao sincronizar sinais",
+        lastError:
+          "Não foi possível atualizar os sinais após várias tentativas. Verifique sua conexão." +
+          (err instanceof Error && import.meta.env.DEV ? ` (${err.message})` : ""),
       });
     }
 

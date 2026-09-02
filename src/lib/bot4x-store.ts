@@ -15,7 +15,7 @@ import type { BotConfigDTO, BotExecutionDTO } from "./bot.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { saveTrade, loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
 import { logger } from "./logger";
-import { trackPoll } from "./polling-metrics";
+import { pollWithRetry } from "./polling-metrics";
 import { loadConfig, saveConfig } from "./bot4x-config-db";
 import type { CalibProfile as CalibProfileType } from "./bot4x-data";
 
@@ -413,7 +413,7 @@ export const useBot4xStore = create<State>()(
           };
 
           const pull = async () =>
-            trackPoll(
+            pollWithRetry(
               "bot4x",
               async () => {
                 const [config, executions] = await Promise.all([
@@ -423,16 +423,21 @@ export const useBot4xStore = create<State>()(
                 applySnapshot(config ?? null, executions ?? []);
                 return { executions: executions?.length ?? 0, active: config?.active ?? false };
               },
-              (r) => r,
+              { maxRetries: 3, extra: (r) => r },
             );
 
           await pull();
 
           // Sem WebSocket: polling leve enquanto a tela do bot estiver aberta.
+          // Falhas passam por retries em backoff exponencial + jitter antes de
+          // cair no estado de erro amigável.
           const pollId = window.setInterval(() => {
             void pull().catch((err) => {
-              logger.warn?.("[Bot4x] poll falhou", { error: err });
-              set({ errorMsg: "Falha ao atualizar os dados do bot. Tentando novamente..." });
+              logger.warn?.("[Bot4x] poll falhou após retries", { error: err });
+              set({
+                errorMsg:
+                  "Não foi possível atualizar os dados do bot após várias tentativas. Verifique sua conexão.",
+              });
             });
           }, 15_000);
           realPollCleanup = () => window.clearInterval(pollId);
