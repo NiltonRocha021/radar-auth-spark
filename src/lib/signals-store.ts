@@ -130,15 +130,15 @@ export const useSignalsStore = create<State>((set, get) => ({
     set({ syncing: true });
     try {
       // Server fn cacheada (caches.default, TTL 10s por usuário) — polling.
-      // Cada ciclo é medido (latência / taxa de falha) via trackPoll para
-      // diagnóstico em LIVE.
-      const backendSignals = await trackPoll(
+      // Cada tentativa é medida (latência / taxa de falha) e falhas são
+      // repetidas com backoff exponencial + jitter antes de virar erro na UI.
+      const backendSignals = await pollWithRetry(
         "signals",
         async () => {
           const { getSignalsList } = await import("@/lib/signals.functions");
           return await getSignalsList();
         },
-        (rows) => ({ received: rows?.length ?? 0 }),
+        { maxRetries: 3, extra: (rows) => ({ received: rows?.length ?? 0 }) },
       );
       if (!backendSignals?.length) {
         set({ syncing: false, lastError: null, lastSyncAt: Date.now() });
