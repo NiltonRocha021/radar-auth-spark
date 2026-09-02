@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { RsiCalibrationReport } from "@/components/diagnostics/rsi-calibration-report";
+import { PollingMetricsPanel } from "@/components/diagnostics/polling-metrics-panel";
 
 export const Route = createFileRoute("/_authenticated/diagnostics")({
   head: () => ({
@@ -30,6 +31,7 @@ function DiagnosticsPage() {
               Verificações de integridade do WebSocket e da calibração RSI.
             </p>
           </header>
+          <PollingMetricsPanel />
           <RsiCalibrationReport />
         </main>
       </div>
