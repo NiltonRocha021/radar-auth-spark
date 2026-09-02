@@ -21,6 +21,8 @@ import { SignalDrawer } from "@/components/dashboard/signal-drawer";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { AnnouncementBanner } from "@/components/dashboard/announcement-banner";
 import { IntegrationWidgets } from "@/components/dashboard/integration-widgets";
+import { PollingAlertBanner } from "@/components/diagnostics/polling-alert-banner";
+import { PollingMetricsPanel } from "@/components/diagnostics/polling-metrics-panel";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -58,6 +60,7 @@ function Dashboard() {
     <div className="min-h-screen bg-background text-foreground">
       <TopBar />
       <AnnouncementBanner />
+      <PollingAlertBanner />
       <div className="flex">
         <LeftSidebar />
         <main className="flex-1 min-w-0 p-5 space-y-5">
@@ -87,6 +90,8 @@ function Dashboard() {
             <div className="lg:col-span-3"><MarketCalendar /></div>
             <div className="lg:col-span-2"><QuickActions /></div>
           </div>
+
+          <PollingMetricsPanel />
         </main>
       </div>
 
