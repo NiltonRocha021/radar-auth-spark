@@ -23,15 +23,14 @@ type View = "auth" | "forgot" | "forgot-sent";
 type Tab = "signin" | "signup";
 
 const signInSchema = z.object({
-  email: z.string().trim().email("Invalid email"),
-  password: z.string().min(1, "Password required"),
-  remember: z.boolean().optional(),
+  email: z.string().trim().email("Email inválido"),
+  password: z.string().min(1, "Informe sua senha"),
 });
 
 const signUpSchema = z
   .object({
-    fullName: z.string().trim().min(2, "Enter your full name").max(80),
-    email: z.string().trim().email("Invalid email"),
+    fullName: z.string().trim().min(2, "Informe seu nome completo").max(80),
+    email: z.string().trim().email("Email inválido"),
     password: z
       .string()
       .min(12, "A senha deve ter no mínimo 12 caracteres")
@@ -40,11 +39,29 @@ const signUpSchema = z
       .regex(/[0-9]/, "A senha deve conter pelo menos um dígito")
       .regex(/[^A-Za-z0-9]/, "A senha deve conter pelo menos um caractere especial"),
     confirm: z.string(),
-    terms: z.literal(true, { errorMap: () => ({ message: "Please accept the terms" }) }),
+    terms: z.literal(true, { errorMap: () => ({ message: "Aceite os termos para continuar" }) }),
   })
-  .refine((d) => d.password === d.confirm, { path: ["confirm"], message: "Passwords don't match" });
+  .refine((d) => d.password === d.confirm, { path: ["confirm"], message: "As senhas não conferem" });
 
-const forgotSchema = z.object({ email: z.string().trim().email("Invalid email") });
+const forgotSchema = z.object({ email: z.string().trim().email("Email inválido") });
+
+// Traduz mensagens cruas do serviço de autenticação para algo acionável.
+function friendlyAuthError(message?: string | null): string {
+  const m = (message ?? "").toLowerCase();
+  if (m.includes("invalid login credentials")) return "Email ou senha incorretos.";
+  if (m.includes("email not confirmed")) return "Confirme seu email antes de entrar. Verifique sua caixa de entrada.";
+  if (m.includes("user already registered") || m.includes("already been registered"))
+    return "Já existe uma conta com este email. Faça login ou recupere a senha.";
+  if (m.includes("rate limit") || m.includes("too many"))
+    return "Muitas tentativas seguidas. Aguarde um minuto e tente novamente.";
+  if (m.includes("password should be") || m.includes("weak password"))
+    return "Senha muito fraca. Use no mínimo 12 caracteres com maiúscula, minúscula, número e símbolo.";
+  if (m.includes("failed to fetch") || m.includes("network"))
+    return "Sem conexão com o servidor. Verifique sua internet e tente de novo.";
+  if (m.includes("popup") || m.includes("cancel")) return "Login com Google cancelado.";
+  return message?.trim() || "Não foi possível concluir. Tente novamente.";
+}
+
 
 // Cinco critérios alinhados ao signUpSchema: comprimento, maiúscula,
 // minúscula, dígito e caractere especial. Cada um vale 1 ponto (0–5).
