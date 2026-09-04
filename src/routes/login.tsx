@@ -277,48 +277,42 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
 
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
       <Field icon={<Mail className="size-4" />} error={errors.email?.message}>
-        <input type="email" placeholder="Email" autoComplete="email" className={inputCls} {...register("email")} />
+        <input type="email" placeholder="Email" aria-label="Email" autoComplete="email" className={inputCls} {...register("email")} />
       </Field>
       <Field icon={<Lock className="size-4" />} error={errors.password?.message}>
         <input
           type={showPw ? "text" : "password"}
-          placeholder="Password"
+          placeholder="Senha"
+          aria-label="Senha"
           autoComplete="current-password"
           className={inputCls}
           {...register("password")}
         />
-        <button type="button" onClick={() => setShowPw((v) => !v)} className="text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          aria-label={showPw ? "Ocultar senha" : "Mostrar senha"}
+          onClick={() => setShowPw((v) => !v)}
+          className="text-muted-foreground hover:text-foreground"
+        >
           {showPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
         </button>
       </Field>
 
-      <div className="flex items-center justify-between text-sm">
-        <label className="flex items-center gap-2 text-muted-foreground cursor-pointer">
-          <input type="checkbox" {...register("remember")} className="size-4 rounded border-border bg-secondary accent-[var(--brand-blue)]" />
-          Remember me
-        </label>
+      <div className="flex items-center justify-end text-sm">
         <button type="button" onClick={onForgot} className="text-[var(--brand-cyan)] hover:underline">
-          Forgot password?
+          Esqueceu a senha?
         </button>
       </div>
 
-      {formErr && <p className="text-xs text-destructive">{formErr}</p>}
+      {formErr && (
+        <p role="alert" aria-live="polite" className="text-xs text-destructive">
+          {formErr}
+        </p>
+      )}
 
-      <PrimaryButton loading={isSubmitting} type="submit">Sign in</PrimaryButton>
-
-      <div className="text-center">
-        <button
-          type="button"
-          onClick={signInDemo}
-          disabled={demoLoading}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-[var(--brand-cyan)] transition-colors disabled:opacity-60"
-        >
-          {demoLoading && <Loader2 className="size-3 animate-spin" />}
-          New here? Try demo
-        </button>
-      </div>
+      <PrimaryButton loading={isSubmitting} type="submit">Entrar</PrimaryButton>
 
       <Divider />
       <GoogleButton
@@ -326,18 +320,19 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
         onClick={async () => {
           setGoogleLoading(true);
           const r = await signInWithGoogle();
-          if (r.error) { setFormErr(r.error.message ?? "Google sign-in failed"); setGoogleLoading(false); }
+          if (r.error) { setFormErr(friendlyAuthError(r.error.message)); setGoogleLoading(false); }
         }}
       />
 
       <p className="text-[11px] text-muted-foreground text-center pt-2">
-        By signing in you agree to our{" "}
+        Ao entrar você concorda com nossos{" "}
         <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
-          Terms of Service
+          Termos de Serviço
         </a>
       </p>
     </form>
   );
+
 }
 
 function SignUpForm() {
