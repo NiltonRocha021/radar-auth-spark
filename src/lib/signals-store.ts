@@ -138,7 +138,7 @@ export const useSignalsStore = create<State>((set, get) => ({
           const { getSignalsList } = await import("@/lib/signals.functions");
           return await getSignalsList();
         },
-        { maxRetries: 3, extra: (rows) => ({ received: rows?.length ?? 0 }) },
+        { maxRetries: 3, extra: (rows: { id: string }[] | null) => ({ received: rows?.length ?? 0 }) },
       );
       if (!backendSignals?.length) {
         set({ syncing: false, lastError: null, lastSyncAt: Date.now() });
