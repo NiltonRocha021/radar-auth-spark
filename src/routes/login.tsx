@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,8 +12,8 @@ import { BrandLogo, GoogleIcon } from "@/components/brand-logo";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Sign in — AISignalRadar" },
-      { name: "description", content: "Sign in to AISignalRadar — the trading intelligence platform." },
+      { title: "Entrar — AISignalRadar" },
+      { name: "description", content: "Acesse o AISignalRadar — plataforma de inteligência para trading." },
     ],
   }),
   component: LoginPage,
@@ -180,7 +180,7 @@ function PillTabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
           tab === "signin" ? "text-foreground" : "text-muted-foreground"
         }`}
       >
-        Sign In
+        Entrar
       </button>
       <button
         type="button"
@@ -189,7 +189,7 @@ function PillTabs({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) {
           tab === "signup" ? "text-foreground" : "text-muted-foreground"
         }`}
       >
-        Create account
+        Criar conta
       </button>
       <div
         className="absolute top-1 bottom-1 w-1/2 rounded-full bg-card transition-transform duration-300 ease-out border border-border"
@@ -253,7 +253,7 @@ function GoogleButton({ loading, onClick }: { loading: boolean; onClick: () => v
       style={{ background: "var(--card)" }}
     >
       {loading ? <Loader2 className="size-4 animate-spin" /> : <GoogleIcon />}
-      Continue with Google
+      Continuar com Google
     </button>
   );
 }
@@ -262,7 +262,7 @@ function Divider() {
   return (
     <div className="flex items-center gap-3 my-5">
       <div className="flex-1 h-px bg-border" />
-      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">or continue with</span>
+      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">ou continue com</span>
       <div className="flex-1 h-px bg-border" />
     </div>
   );
@@ -386,7 +386,7 @@ function SignUpForm() {
         data: { full_name: v.fullName },
       },
     });
-    if (error) { setFormErr(error.message); return; }
+    if (error) { setFormErr(friendlyAuthError(error.message)); return; }
     // Supabase retorna session=null quando email confirmation está habilitado.
     // Quando session != null, o usuário já está logado (confirmação desativada)
     // e o onAuthStateChange do root cuida do redirecionamento.
@@ -424,15 +424,16 @@ function SignUpForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
       <Field icon={<User className="size-4" />} error={errors.fullName?.message}>
-        <input placeholder="Full name" autoComplete="name" className={inputCls} {...register("fullName")} />
+        <input placeholder="Nome completo" aria-label="Nome completo" autoComplete="name" className={inputCls} {...register("fullName")} />
       </Field>
       <Field icon={<Mail className="size-4" />} error={errors.email?.message}>
-        <input type="email" placeholder="Email" autoComplete="email" className={inputCls} {...register("email")} />
+        <input type="email" placeholder="Email" aria-label="Email" autoComplete="email" className={inputCls} {...register("email")} />
       </Field>
       <Field icon={<Lock className="size-4" />} error={errors.password?.message}>
         <input
           type={showPw ? "text" : "password"}
-          placeholder="Password"
+          placeholder="Senha"
+          aria-label="Senha"
           autoComplete="new-password"
           className={inputCls}
           {...register("password")}
@@ -456,7 +457,8 @@ function SignUpForm() {
       <Field icon={<Lock className="size-4" />} error={errors.confirm?.message}>
         <input
           type={showPw ? "text" : "password"}
-          placeholder="Confirm password"
+          placeholder="Confirmar senha"
+          aria-label="Confirmar senha"
           autoComplete="new-password"
           className={inputCls}
           {...register("confirm")}
@@ -466,21 +468,21 @@ function SignUpForm() {
       <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer pt-1">
         <input type="checkbox" {...register("terms")} className="mt-0.5 size-4 rounded border-border bg-secondary accent-[var(--brand-blue)]" />
         <span>
-          I agree to the{" "}
+          Eu concordo com os{" "}
           <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-cyan)] hover:underline">
-            Terms of Service
+            Termos de Serviço
           </a>{" "}
-          and{" "}
+          e a{" "}
           <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--brand-cyan)] hover:underline">
-            Privacy Policy
+            Política de Privacidade
           </a>
         </span>
       </label>
       {errors.terms && <p className="text-xs text-destructive">{errors.terms.message as string}</p>}
 
-      {formErr && <p className="text-xs text-destructive">{formErr}</p>}
+      {formErr && <p role="alert" aria-live="polite" className="text-xs text-destructive">{formErr}</p>}
 
-      <PrimaryButton loading={isSubmitting} type="submit">Create account</PrimaryButton>
+      <PrimaryButton loading={isSubmitting} type="submit">Criar conta</PrimaryButton>
 
       <Divider />
       <GoogleButton
@@ -488,7 +490,7 @@ function SignUpForm() {
         onClick={async () => {
           setGoogleLoading(true);
           const r = await signInWithGoogle();
-          if (r.error) { setFormErr(r.error.message ?? "Google sign-in failed"); setGoogleLoading(false); }
+          if (r.error) { setFormErr(friendlyAuthError(r.error.message)); setGoogleLoading(false); }
         }}
       />
     </form>
@@ -508,23 +510,23 @@ function ForgotForm({ onBack, onSent }: { onBack: () => void; onSent: (email: st
     const { error } = await supabase.auth.resetPasswordForEmail(v.email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
-    if (error) { setFormErr(error.message); return; }
+    if (error) { setFormErr(friendlyAuthError(error.message)); return; }
     onSent(v.email);
   };
 
   return (
     <div>
       <button onClick={onBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
-        <ArrowLeft className="size-4" /> Back
+        <ArrowLeft className="size-4" /> Voltar
       </button>
-      <h2 className="text-lg font-medium text-foreground">Reset your password</h2>
-      <p className="text-sm text-muted-foreground mb-5">We'll send a reset link to your email.</p>
+      <h2 className="text-lg font-medium text-foreground">Redefinir sua senha</h2>
+      <p className="text-sm text-muted-foreground mb-5">Enviaremos um link de redefinição para seu email.</p>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
         <Field icon={<Mail className="size-4" />} error={errors.email?.message}>
-          <input type="email" placeholder="Email" className={inputCls} {...register("email")} />
+          <input type="email" placeholder="Email" aria-label="Email" className={inputCls} {...register("email")} />
         </Field>
-        {formErr && <p className="text-xs text-destructive">{formErr}</p>}
-        <PrimaryButton loading={isSubmitting} type="submit">Send reset link</PrimaryButton>
+        {formErr && <p role="alert" aria-live="polite" className="text-xs text-destructive">{formErr}</p>}
+        <PrimaryButton loading={isSubmitting} type="submit">Enviar link</PrimaryButton>
       </form>
     </div>
   );
@@ -536,11 +538,11 @@ function ForgotSent({ email, onBack }: { email: string; onBack: () => void }) {
       <div className="mx-auto size-14 rounded-full flex items-center justify-center mb-4" style={{ background: "color-mix(in oklab, var(--success) 20%, transparent)" }}>
         <Check className="size-7" style={{ color: "var(--success)" }} />
       </div>
-      <h2 className="text-lg font-medium text-foreground">Check your inbox</h2>
-      <p className="text-sm text-muted-foreground mt-1">We sent a reset link to</p>
+      <h2 className="text-lg font-medium text-foreground">Verifique sua caixa de entrada</h2>
+      <p className="text-sm text-muted-foreground mt-1">Enviamos um link de redefinição para</p>
       <p className="text-sm text-foreground font-medium mt-0.5">{email}</p>
       <button onClick={onBack} className="mt-6 text-sm text-[var(--brand-cyan)] hover:underline">
-        Back to sign in
+        Voltar para o login
       </button>
     </div>
   );
