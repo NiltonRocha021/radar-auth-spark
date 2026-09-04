@@ -262,7 +262,6 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
   const [showPw, setShowPw] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const {
     register,
     handleSubmit,
@@ -272,40 +271,9 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
   const onSubmit = async (v: z.infer<typeof signInSchema>) => {
     setFormErr(null);
     const { error } = await supabase.auth.signInWithPassword({ email: v.email, password: v.password });
-    if (error) setFormErr(error.message);
+    if (error) setFormErr(friendlyAuthError(error.message));
   };
 
-  async function signInDemo() {
-    setFormErr(null);
-    // Throttle client-side: no máximo 1 tentativa demo a cada 60s por aba.
-    // Não substitui o rate limit server-side, apenas reduz ruído acidental.
-    const THROTTLE_MS = 60_000;
-    const STORAGE_KEY = "demo_last_attempt";
-    try {
-      const last = Number(sessionStorage.getItem(STORAGE_KEY) ?? 0);
-      const elapsed = Date.now() - last;
-      if (last && elapsed < THROTTLE_MS) {
-        const remaining = Math.ceil((THROTTLE_MS - elapsed) / 1000);
-        setFormErr(`Aguarde ${remaining} segundos antes de tentar novamente.`);
-        return;
-      }
-      sessionStorage.setItem(STORAGE_KEY, String(Date.now()));
-    } catch {
-      // sessionStorage indisponível (modo privado raro) — segue sem throttle local.
-    }
-    setDemoLoading(true);
-    try {
-      const res = await fetch("/api/auth/demo-session", { method: "POST" });
-      if (!res.ok) throw new Error(`Demo session failed (${res.status})`);
-      const { access_token, refresh_token } = await res.json();
-      const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-      if (error) throw error;
-    } catch (err) {
-      setFormErr(err instanceof Error ? err.message : "Demo sign-in failed");
-    } finally {
-      setDemoLoading(false);
-    }
-  }
 
 
   return (
