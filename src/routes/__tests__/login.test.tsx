@@ -140,16 +140,28 @@ describe("Tela de login", () => {
     expect(signUp).not.toHaveBeenCalled();
   });
 
-  it("acusa senhas divergentes e termos não aceitos no cadastro", async () => {
+  it("exige aceite dos termos no cadastro", async () => {
+    render(<LoginPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Criar conta" }));
+    typeIn("Nome completo", "Nilton Rocha");
+    typeIn("Email", "novo@test.com");
+    typeIn("Senha", "SenhaForte#2026");
+    typeIn("Confirmar senha", "SenhaForte#2026");
+    fireEvent.submit(screen.getByLabelText("Senha").closest("form")!);
+    await waitFor(() => expect(screen.getByText("Aceite os termos para continuar")).toBeTruthy());
+    expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it("acusa senhas divergentes no cadastro", async () => {
     render(<LoginPage />);
     fireEvent.click(screen.getByRole("button", { name: "Criar conta" }));
     typeIn("Nome completo", "Nilton Rocha");
     typeIn("Email", "novo@test.com");
     typeIn("Senha", "SenhaForte#2026");
     typeIn("Confirmar senha", "OutraSenha#2026");
+    fireEvent.click(screen.getByRole("checkbox"));
     fireEvent.submit(screen.getByLabelText("Senha").closest("form")!);
     await waitFor(() => expect(screen.getByText("As senhas não conferem")).toBeTruthy());
-    expect(screen.getByText("Aceite os termos para continuar")).toBeTruthy();
     expect(signUp).not.toHaveBeenCalled();
   });
 
