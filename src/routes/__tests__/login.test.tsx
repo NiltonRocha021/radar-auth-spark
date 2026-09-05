@@ -58,9 +58,11 @@ describe("Tela de login", () => {
 
   it("renderiza as abas e o formulário de entrada", () => {
     render(<LoginPage />);
-    expect(screen.getByRole("button", { name: "Entrar" })).toBeTruthy();
+    // "Entrar" aparece na aba e no botão de submit.
+    expect(screen.getAllByRole("button", { name: "Entrar" }).length).toBe(2);
     expect(screen.getByRole("button", { name: "Criar conta" })).toBeTruthy();
     expect(screen.getByLabelText("Email")).toBeTruthy();
+    expect(screen.getByLabelText("Senha")).toBeTruthy();
   });
 
   it("valida campos vazios sem chamar o serviço de autenticação", async () => {
