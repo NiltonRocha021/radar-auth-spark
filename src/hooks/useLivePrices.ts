@@ -9,6 +9,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { create } from "zustand";
 import { getMarketSnapshot } from "@/lib/market.functions";
+import { acquireBinanceStream, type StreamStatus } from "@/lib/binance-stream";
+
 
 // ─── Tipos públicos ──────────────────────────────────────────────────────────
 
