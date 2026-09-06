@@ -108,6 +108,9 @@ export function TopBar() {
   // independente de o último poll ter falhado (fallback stream/Binance ativo).
   const hasPrices = Object.keys(prices).length >= 5;
   const isLive = !loading && hasPrices;
+  // Stream de tickers da Binance conectado = cotações tick a tick.
+  const isStreaming = streamStatus === "open" && hasPrices;
+
 
   // Só mostra badge de erro quando não há nenhum dado disponível para exibir.
   const showError = !!error && !hasPrices;
