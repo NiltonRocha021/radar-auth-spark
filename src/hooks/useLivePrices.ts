@@ -114,12 +114,15 @@ export function useLivePrices(): UseLivePricesReturn {
 
       for (const [sym, p] of Object.entries(snap.prices)) {
         const streamPrice = usePriceStore.getState().prices[sym];
-        map[sym] = {
-          ...p,
-          price: streamPrice && streamPrice.lastUpdated > now ? streamPrice.price : p.price,
-          lastUpdated: now,
-        };
+        // O tick do WebSocket da Binance é sempre mais recente que o snapshot
+        // de 30s — só é descartado quando ficou obsoleto (sem tick recente).
+        const streamFresh =
+          !!streamPrice && now.getTime() - streamPrice.lastUpdated.getTime() < STREAM_FRESH_MS;
+        map[sym] = streamFresh
+          ? { ...p, ...streamPrice, marketCap: p.marketCap, name: p.name }
+          : { ...p, lastUpdated: now };
       }
+
 
       if (Object.keys(map).length > 0) {
         setPrices(
