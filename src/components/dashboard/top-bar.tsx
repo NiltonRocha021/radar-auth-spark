@@ -75,7 +75,7 @@ export function TopBar() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const { prices, global, fearGreed, loading, error, lastUpdate } = useLivePrices();
+  const { prices, global, fearGreed, loading, error, lastUpdate, streamStatus } = useLivePrices();
 
   /* UTC clock */
   const [utcTime, setUtcTime] = useState("");
@@ -108,6 +108,9 @@ export function TopBar() {
   // independente de o último poll ter falhado (fallback stream/Binance ativo).
   const hasPrices = Object.keys(prices).length >= 5;
   const isLive = !loading && hasPrices;
+  // Stream de tickers da Binance conectado = cotações tick a tick.
+  const isStreaming = streamStatus === "open" && hasPrices;
+
 
   // Só mostra badge de erro quando não há nenhum dado disponível para exibir.
   const showError = !!error && !hasPrices;
@@ -139,9 +142,13 @@ export function TopBar() {
       <div data-tour="top-bar-prices" className="hidden xl:flex items-center gap-4 mx-auto text-[13px] tabular-nums">
         {/* Market status */}
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
+
           <span className={`size-1.5 rounded-full animate-pulse ${isLive ? "bg-[#1D9E75]" : "bg-[#EF9F27]"}`} />
-          <span className="text-foreground">{loading ? "Syncing…" : "Markets Open"}</span>
+          <span className="text-foreground">
+            {loading ? "Syncing…" : isStreaming ? "Markets Open · Live" : "Markets Open"}
+          </span>
         </span>
+
 
         {/* BTC */}
         {loading ? (
