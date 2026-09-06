@@ -168,5 +168,21 @@ export function useLivePrices(): UseLivePricesReturn {
     };
   }, [fetchAll]);
 
-  return { prices, global, fearGreed, loading, error, lastUpdate, refresh: fetchAll };
+  // Stream tick a tick da Binance (WebSocket público, só no browser).
+  useEffect(() => {
+    const release = acquireBinanceStream(setStreamStatus);
+    return release;
+  }, []);
+
+  return {
+    prices,
+    global,
+    fearGreed,
+    loading,
+    error,
+    lastUpdate,
+    streamStatus,
+    refresh: fetchAll,
+  };
 }
+
