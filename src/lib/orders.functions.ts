@@ -237,3 +237,138 @@ export const listOrders = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return (rows ?? []).map((r) => toDto(r as OrderRow));
   });
+
+// ---------- getOrdersAnalytics --------------------------------------------
+// Custos por ordem (taxa de corretagem estimada) + ROI acumulado, separados
+// por modo (DEMO x LIVE) para comparação direta do retorno real vs simulado.
+// Taxa padrão Binance spot taker = 0,1% por perna (entrada e saída).
+
+const FEE_RATE = 0.001;
+
+export interface ModeAnalyticsDTO {
+  mode: "DEMO" | "LIVE";
+  orders: number;
+  openOrders: number;
+  closedOrders: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  volume: number;
+  grossPnl: number;
+  fees: number;
+  netPnl: number;
+  /** ROI acumulado (%) = netPnl / capital alocado. */
+  roiPct: number;
+  avgFeePerOrder: number;
+  avgNetPnlPerOrder: number;
+}
+
+export interface OrderCostDTO {
+  id: string;
+  mode: "DEMO" | "LIVE";
+  symbol: string;
+  side: "BUY" | "SELL";
+  status: "OPEN" | "CLOSED" | "CANCELLED";
+  notional: number;
+  fee: number;
+  grossPnl: number | null;
+  netPnl: number | null;
+  netPnlPct: number | null;
+  openedAt: string;
+  closedAt: string | null;
+}
+
+export interface OrdersAnalyticsDTO {
+  feeRate: number;
+  demo: ModeAnalyticsDTO;
+  live: ModeAnalyticsDTO;
+  recent: OrderCostDTO[];
+}
+
+function emptyMode(mode: "DEMO" | "LIVE"): ModeAnalyticsDTO {
+  return {
+    mode,
+    orders: 0,
+    openOrders: 0,
+    closedOrders: 0,
+    wins: 0,
+    losses: 0,
+    winRate: 0,
+    volume: 0,
+    grossPnl: 0,
+    fees: 0,
+    netPnl: 0,
+    roiPct: 0,
+    avgFeePerOrder: 0,
+    avgNetPnlPerOrder: 0,
+  };
+}
+
+export const getOrdersAnalytics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d?: { limit?: number }) =>
+    z.object({ limit: z.number().int().min(1).max(500).optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<OrdersAnalyticsDTO> => {
+    const { data: rows, error } = await context.supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", context.userId)
+      .order("opened_at", { ascending: false })
+      .limit(data.limit ?? 300);
+    if (error) throw new Error(error.message);
+
+    const acc = { DEMO: emptyMode("DEMO"), LIVE: emptyMode("LIVE") };
+    const recent: OrderCostDTO[] = [];
+
+    for (const raw of (rows ?? []) as OrderRow[]) {
+      const mode: "DEMO" | "LIVE" = raw.mode === "LIVE" ? "LIVE" : "DEMO";
+      const qty = Number(raw.quantity) || 0;
+      const entry = Number(raw.entry_price) || 0;
+      const exit = raw.exit_price != null ? Number(raw.exit_price) : null;
+      const notional = qty * entry;
+      const closed = raw.status === "CLOSED";
+      const fee = notional * FEE_RATE + (closed && exit != null ? qty * exit * FEE_RATE : 0);
+      const gross = raw.pnl != null ? Number(raw.pnl) : null;
+      const net = gross != null ? gross - fee : null;
+
+      const m = acc[mode];
+      m.orders += 1;
+      m.volume += notional;
+      m.fees += fee;
+      if (raw.status === "OPEN") m.openOrders += 1;
+      if (closed) {
+        m.closedOrders += 1;
+        m.grossPnl += gross ?? 0;
+        m.netPnl += net ?? 0;
+        if ((net ?? 0) >= 0) m.wins += 1;
+        else m.losses += 1;
+      }
+
+      if (recent.length < 50) {
+        recent.push({
+          id: raw.id,
+          mode,
+          symbol: raw.symbol,
+          side: raw.side,
+          status: raw.status,
+          notional,
+          fee,
+          grossPnl: gross,
+          netPnl: net,
+          netPnlPct: net != null && notional > 0 ? (net / notional) * 100 : null,
+          openedAt: raw.opened_at,
+          closedAt: raw.closed_at,
+        });
+      }
+    }
+
+    for (const m of [acc.DEMO, acc.LIVE]) {
+      m.winRate = m.closedOrders > 0 ? (m.wins / m.closedOrders) * 100 : 0;
+      m.roiPct = m.volume > 0 ? (m.netPnl / m.volume) * 100 : 0;
+      m.avgFeePerOrder = m.orders > 0 ? m.fees / m.orders : 0;
+      m.avgNetPnlPerOrder = m.closedOrders > 0 ? m.netPnl / m.closedOrders : 0;
+    }
+
+    return { feeRate: FEE_RATE, demo: acc.DEMO, live: acc.LIVE, recent };
+  });
