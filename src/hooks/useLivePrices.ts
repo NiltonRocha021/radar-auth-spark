@@ -94,10 +94,15 @@ interface UseLivePricesReturn {
   loading: boolean;
   error: string | null;
   lastUpdate: Date | null;
+  /** Estado do stream de tickers da Binance (tempo real). */
+  streamStatus: StreamStatus;
   refresh: () => void;
 }
 
 const REFRESH_INTERVAL = 30_000;
+
+// Janela em que um tick do stream é considerado mais confiável que o snapshot.
+const STREAM_FRESH_MS = 20_000;
 
 // Número mínimo de símbolos no store para considerar "dados válidos disponíveis".
 const MIN_PRICES_FOR_LIVE = 5;
@@ -106,7 +111,9 @@ export function useLivePrices(): UseLivePricesReturn {
   const { prices, global, fearGreed, lastUpdate, setPrices } = usePriceStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [streamStatus, setStreamStatus] = useState<StreamStatus>("closed");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
 
   const fetchAll = useCallback(async () => {
     try {
