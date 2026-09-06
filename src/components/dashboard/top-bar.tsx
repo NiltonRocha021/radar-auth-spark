@@ -142,7 +142,7 @@ export function TopBar() {
       <div data-tour="top-bar-prices" className="hidden xl:flex items-center gap-4 mx-auto text-[13px] tabular-nums">
         {/* Market status */}
         <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
-        <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary border border-border">
+
           <span className={`size-1.5 rounded-full animate-pulse ${isLive ? "bg-[#1D9E75]" : "bg-[#EF9F27]"}`} />
           <span className="text-foreground">
             {loading ? "Syncing…" : isStreaming ? "Markets Open · Live" : "Markets Open"}
