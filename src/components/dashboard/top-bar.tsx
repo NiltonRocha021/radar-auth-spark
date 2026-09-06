@@ -75,7 +75,7 @@ export function TopBar() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const { prices, global, fearGreed, loading, error, lastUpdate } = useLivePrices();
+  const { prices, global, fearGreed, loading, error, lastUpdate, streamStatus } = useLivePrices();
 
   /* UTC clock */
   const [utcTime, setUtcTime] = useState("");
