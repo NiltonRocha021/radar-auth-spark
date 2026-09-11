@@ -35,6 +35,7 @@ import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedSentimentRouteImport } from './routes/_authenticated/sentiment'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticated/signals'
+import { Route as AuthenticatedTradesRouteImport } from './routes/_authenticated/trades'
 import { Route as AuthenticatedBot4xOnboardingRouteImport } from './routes/_authenticated/bot4x.onboarding'
 import { Route as AuthenticatedCalibratorHistoryRouteImport } from './routes/_authenticated/calibrator.history'
 import { Route as ApiCopilotChatRouteImport } from './routes/api/copilot/chat'
@@ -178,6 +179,11 @@ const AuthenticatedSignalsRoute = AuthenticatedSignalsRouteImport.update({
   path: '/signals',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedTradesRoute = AuthenticatedTradesRouteImport.update({
+  id: '/trades',
+  path: '/trades',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedBot4xOnboardingRoute =
   AuthenticatedBot4xOnboardingRouteImport.update({
     id: '/onboarding',
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/sentiment': typeof AuthenticatedSentimentRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/signals': typeof AuthenticatedSignalsRoute
+  '/trades': typeof AuthenticatedTradesRoute
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
   '/api/copilot/chat': typeof ApiCopilotChatRoute
@@ -278,6 +285,7 @@ export interface FileRoutesByTo {
   '/sentiment': typeof AuthenticatedSentimentRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/signals': typeof AuthenticatedSignalsRoute
+  '/trades': typeof AuthenticatedTradesRoute
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
   '/api/copilot/chat': typeof ApiCopilotChatRoute
@@ -314,6 +322,7 @@ export interface FileRoutesById {
   '/_authenticated/sentiment': typeof AuthenticatedSentimentRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/signals': typeof AuthenticatedSignalsRoute
+  '/_authenticated/trades': typeof AuthenticatedTradesRoute
   '/_authenticated/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/_authenticated/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
   '/api/copilot/chat': typeof ApiCopilotChatRoute
@@ -350,6 +359,7 @@ export interface FileRouteTypes {
     | '/sentiment'
     | '/settings'
     | '/signals'
+    | '/trades'
     | '/bot4x/onboarding'
     | '/calibrator/history'
     | '/api/copilot/chat'
@@ -384,6 +394,7 @@ export interface FileRouteTypes {
     | '/sentiment'
     | '/settings'
     | '/signals'
+    | '/trades'
     | '/bot4x/onboarding'
     | '/calibrator/history'
     | '/api/copilot/chat'
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sentiment'
     | '/_authenticated/settings'
     | '/_authenticated/signals'
+    | '/_authenticated/trades'
     | '/_authenticated/bot4x/onboarding'
     | '/_authenticated/calibrator/history'
     | '/api/copilot/chat'
@@ -625,6 +637,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSignalsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/trades': {
+      id: '/_authenticated/trades'
+      path: '/trades'
+      fullPath: '/trades'
+      preLoaderRoute: typeof AuthenticatedTradesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/bot4x/onboarding': {
       id: '/_authenticated/bot4x/onboarding'
       path: '/onboarding'
@@ -739,6 +758,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSentimentRoute: typeof AuthenticatedSentimentRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSignalsRoute: typeof AuthenticatedSignalsRoute
+  AuthenticatedTradesRoute: typeof AuthenticatedTradesRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -762,6 +782,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSentimentRoute: AuthenticatedSentimentRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSignalsRoute: AuthenticatedSignalsRoute,
+  AuthenticatedTradesRoute: AuthenticatedTradesRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
