@@ -1,4 +1,4 @@
-import { LayoutDashboard, Activity, Radar, Bell, Brain, Settings, Cpu, User, Sparkles, Tag, Code2, Users, Store, LogOut, Bot, FlaskConical, History, Layers, Stethoscope, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Activity, Radar, Bell, Brain, Settings, Cpu, User, Sparkles, Tag, Code2, Users, Store, LogOut, Bot, FlaskConical, History, Layers, Stethoscope, ShieldCheck, Receipt } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { BrandLogo } from "@/components/brand-logo";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +7,7 @@ const items = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" as const },
   { icon: Activity, label: "Signals", to: "/signals" as const },
   { icon: Bot, label: "Bot4x", to: "/bot4x" as const },
+  { icon: Receipt, label: "Trades reais", to: "/trades" as const },
   { icon: Brain, label: "DNA Trader", to: "/dna-trader" as const },
   { icon: History, label: "DNA Correções", to: "/dna-corrections" as const },
   { icon: Layers, label: "DNA Pares", to: "/dna-pairs" as const },
