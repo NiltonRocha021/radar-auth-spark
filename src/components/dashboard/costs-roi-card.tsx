@@ -5,7 +5,7 @@ import { Link } from "@tanstack/react-router";
 import { getOrdersAnalytics, type ModeAnalyticsDTO } from "@/lib/orders.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AsyncState } from "@/components/common/async-state";
+import { AsyncState, EmptyState } from "@/components/common/async-state";
 
 const money = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
@@ -66,7 +66,12 @@ export function CostsRoiCard() {
           isLoading={isLoading}
           error={error as Error | null}
           isEmpty={!!data && data.demo.orders === 0 && data.live.orders === 0}
-          emptyMessage="Nenhuma ordem registrada ainda. Assim que o bot operar, os custos e o ROI aparecem aqui."
+          empty={
+            <EmptyState
+              title="Nenhuma ordem registrada"
+              message="Assim que o bot executar ordens, os custos e o ROI acumulado aparecem aqui."
+            />
+          }
           onRetry={() => refetch()}
         >
           {data && (
