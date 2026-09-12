@@ -21,6 +21,8 @@ function ModeColumn({ m, label, accent }: { m: ModeAnalyticsDTO; label: string; 
         <Badge variant="outline" className="text-[10px]">{m.orders} ordens</Badge>
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px] tabular-nums">
+        <Row label="Saldo atual (realizado)" value={<span className={tone}>{money(m.balance)}</span>} />
+        <Row label="Exposição em aberto" value={money(m.openExposure)} />
         <Row label="ROI acumulado" value={<span className={tone}>{pct(m.roiPct)}</span>} />
         <Row label="Resultado líquido" value={<span className={tone}>{money(m.netPnl)}</span>} />
         <Row label="Resultado bruto" value={money(m.grossPnl)} />
