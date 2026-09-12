@@ -30,6 +30,7 @@ import { Route as AuthenticatedLiveTradingRouteImport } from './routes/_authenti
 import { Route as AuthenticatedManipulationRouteImport } from './routes/_authenticated/manipulation'
 import { Route as AuthenticatedMarketplaceRouteImport } from './routes/_authenticated/marketplace'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedPairsRouteImport } from './routes/_authenticated/pairs'
 import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSentimentRouteImport } from './routes/_authenticated/sentiment'
@@ -154,6 +155,11 @@ const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedPairsRoute = AuthenticatedPairsRouteImport.update({
+  id: '/pairs',
+  path: '/pairs',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedPricingRoute = AuthenticatedPricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
@@ -245,6 +251,7 @@ export interface FileRoutesByFullPath {
   '/manipulation': typeof AuthenticatedManipulationRoute
   '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/pairs': typeof AuthenticatedPairsRoute
   '/pricing': typeof AuthenticatedPricingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/sentiment': typeof AuthenticatedSentimentRoute
@@ -280,6 +287,7 @@ export interface FileRoutesByTo {
   '/manipulation': typeof AuthenticatedManipulationRoute
   '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/pairs': typeof AuthenticatedPairsRoute
   '/pricing': typeof AuthenticatedPricingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/sentiment': typeof AuthenticatedSentimentRoute
@@ -317,6 +325,7 @@ export interface FileRoutesById {
   '/_authenticated/manipulation': typeof AuthenticatedManipulationRoute
   '/_authenticated/marketplace': typeof AuthenticatedMarketplaceRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/pairs': typeof AuthenticatedPairsRoute
   '/_authenticated/pricing': typeof AuthenticatedPricingRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/sentiment': typeof AuthenticatedSentimentRoute
@@ -354,6 +363,7 @@ export interface FileRouteTypes {
     | '/manipulation'
     | '/marketplace'
     | '/onboarding'
+    | '/pairs'
     | '/pricing'
     | '/profile'
     | '/sentiment'
@@ -389,6 +399,7 @@ export interface FileRouteTypes {
     | '/manipulation'
     | '/marketplace'
     | '/onboarding'
+    | '/pairs'
     | '/pricing'
     | '/profile'
     | '/sentiment'
@@ -425,6 +436,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manipulation'
     | '/_authenticated/marketplace'
     | '/_authenticated/onboarding'
+    | '/_authenticated/pairs'
     | '/_authenticated/pricing'
     | '/_authenticated/profile'
     | '/_authenticated/sentiment'
@@ -602,6 +614,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/pairs': {
+      id: '/_authenticated/pairs'
+      path: '/pairs'
+      fullPath: '/pairs'
+      preLoaderRoute: typeof AuthenticatedPairsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/pricing': {
       id: '/_authenticated/pricing'
       path: '/pricing'
@@ -753,6 +772,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedManipulationRoute: typeof AuthenticatedManipulationRoute
   AuthenticatedMarketplaceRoute: typeof AuthenticatedMarketplaceRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedPairsRoute: typeof AuthenticatedPairsRoute
   AuthenticatedPricingRoute: typeof AuthenticatedPricingRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSentimentRoute: typeof AuthenticatedSentimentRoute
@@ -777,6 +797,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedManipulationRoute: AuthenticatedManipulationRoute,
   AuthenticatedMarketplaceRoute: AuthenticatedMarketplaceRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedPairsRoute: AuthenticatedPairsRoute,
   AuthenticatedPricingRoute: AuthenticatedPricingRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSentimentRoute: AuthenticatedSentimentRoute,
