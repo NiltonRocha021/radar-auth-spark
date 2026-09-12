@@ -261,6 +261,10 @@ export interface ModeAnalyticsDTO {
   roiPct: number;
   avgFeePerOrder: number;
   avgNetPnlPerOrder: number;
+  /** Exposição em aberto (notional das ordens abertas). */
+  openExposure: number;
+  /** Saldo atual = PnL líquido realizado acumulado a partir dos trades reais. */
+  balance: number;
 }
 
 export interface OrderCostDTO {
@@ -301,6 +305,8 @@ function emptyMode(mode: "DEMO" | "LIVE"): ModeAnalyticsDTO {
     roiPct: 0,
     avgFeePerOrder: 0,
     avgNetPnlPerOrder: 0,
+    openExposure: 0,
+    balance: 0,
   };
 }
 
@@ -336,7 +342,10 @@ export const getOrdersAnalytics = createServerFn({ method: "GET" })
       m.orders += 1;
       m.volume += notional;
       m.fees += fee;
-      if (raw.status === "OPEN") m.openOrders += 1;
+      if (raw.status === "OPEN") {
+        m.openOrders += 1;
+        m.openExposure += notional;
+      }
       if (closed) {
         m.closedOrders += 1;
         m.grossPnl += gross ?? 0;
@@ -368,6 +377,7 @@ export const getOrdersAnalytics = createServerFn({ method: "GET" })
       m.roiPct = m.volume > 0 ? (m.netPnl / m.volume) * 100 : 0;
       m.avgFeePerOrder = m.orders > 0 ? m.fees / m.orders : 0;
       m.avgNetPnlPerOrder = m.closedOrders > 0 ? m.netPnl / m.closedOrders : 0;
+      m.balance = m.netPnl;
     }
 
     return { feeRate: FEE_RATE, demo: acc.DEMO, live: acc.LIVE, recent };
