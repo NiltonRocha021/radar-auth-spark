@@ -372,3 +372,151 @@ export const getOrdersAnalytics = createServerFn({ method: "GET" })
 
     return { feeRate: FEE_RATE, demo: acc.DEMO, live: acc.LIVE, recent };
   });
+
+// ---------- getPairAnalytics ----------------------------------------------
+// Desempenho por par (símbolo): ordens, taxa de sucesso, custos, PnL líquido e
+// curva de patrimônio acumulada, para a tela de "Trades por par" ligada ao
+// polling do bot LIVE.
+
+export interface PairStatsDTO {
+  symbol: string;
+  orders: number;
+  openOrders: number;
+  closedOrders: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  volume: number;
+  fees: number;
+  grossPnl: number;
+  netPnl: number;
+  roiPct: number;
+  lastOrderAt: string;
+}
+
+export interface EquityPointDTO {
+  t: string;
+  /** PnL líquido acumulado até esta ordem encerrada. */
+  cum: number;
+  /** PnL líquido da ordem. */
+  pnl: number;
+  symbol: string;
+}
+
+export interface PairAnalyticsDTO {
+  feeRate: number;
+  mode: "DEMO" | "LIVE" | "ALL";
+  pairs: PairStatsDTO[];
+  /** Curva por par (ordem cronológica) — apenas ordens encerradas. */
+  equityBySymbol: Record<string, EquityPointDTO[]>;
+  totals: { orders: number; closedOrders: number; winRate: number; netPnl: number; fees: number };
+}
+
+export const getPairAnalytics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d?: { mode?: "DEMO" | "LIVE"; limit?: number }) =>
+    z
+      .object({ mode: z.enum(MODES).optional(), limit: z.number().int().min(1).max(1000).optional() })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<PairAnalyticsDTO> => {
+    let q = context.supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", context.userId)
+      .order("opened_at", { ascending: true })
+      .limit(data.limit ?? 500);
+    if (data.mode) q = q.eq("mode", data.mode);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const stats = new Map<string, PairStatsDTO>();
+    const equity: Record<string, EquityPointDTO[]> = {};
+    const cum = new Map<string, number>();
+
+    for (const raw of (rows ?? []) as OrderRow[]) {
+      const symbol = raw.symbol;
+      let s = stats.get(symbol);
+      if (!s) {
+        s = {
+          symbol,
+          orders: 0,
+          openOrders: 0,
+          closedOrders: 0,
+          wins: 0,
+          losses: 0,
+          winRate: 0,
+          volume: 0,
+          fees: 0,
+          grossPnl: 0,
+          netPnl: 0,
+          roiPct: 0,
+          lastOrderAt: raw.opened_at,
+        };
+        stats.set(symbol, s);
+        equity[symbol] = [];
+      }
+
+      const qty = Number(raw.quantity) || 0;
+      const entry = Number(raw.entry_price) || 0;
+      const exit = raw.exit_price != null ? Number(raw.exit_price) : null;
+      const notional = qty * entry;
+      const closed = raw.status === "CLOSED";
+      const fee = notional * FEE_RATE + (closed && exit != null ? qty * exit * FEE_RATE : 0);
+      const gross = raw.pnl != null ? Number(raw.pnl) : 0;
+      const net = closed ? gross - fee : 0;
+
+      s.orders += 1;
+      s.volume += notional;
+      s.fees += fee;
+      if (raw.opened_at > s.lastOrderAt) s.lastOrderAt = raw.opened_at;
+      if (raw.status === "OPEN") s.openOrders += 1;
+      if (closed) {
+        s.closedOrders += 1;
+        s.grossPnl += gross;
+        s.netPnl += net;
+        if (net >= 0) s.wins += 1;
+        else s.losses += 1;
+        const running = (cum.get(symbol) ?? 0) + net;
+        cum.set(symbol, running);
+        equity[symbol]!.push({
+          t: raw.closed_at ?? raw.opened_at,
+          cum: running,
+          pnl: net,
+          symbol,
+        });
+      }
+    }
+
+    const pairs = Array.from(stats.values()).map((s) => ({
+      ...s,
+      winRate: s.closedOrders > 0 ? (s.wins / s.closedOrders) * 100 : 0,
+      roiPct: s.volume > 0 ? (s.netPnl / s.volume) * 100 : 0,
+    }));
+    pairs.sort((a, b) => b.orders - a.orders);
+
+    const totals = pairs.reduce(
+      (t, p) => ({
+        orders: t.orders + p.orders,
+        closedOrders: t.closedOrders + p.closedOrders,
+        wins: t.wins + p.wins,
+        netPnl: t.netPnl + p.netPnl,
+        fees: t.fees + p.fees,
+      }),
+      { orders: 0, closedOrders: 0, wins: 0, netPnl: 0, fees: 0 },
+    );
+
+    return {
+      feeRate: FEE_RATE,
+      mode: data.mode ?? "ALL",
+      pairs,
+      equityBySymbol: equity,
+      totals: {
+        orders: totals.orders,
+        closedOrders: totals.closedOrders,
+        winRate: totals.closedOrders > 0 ? (totals.wins / totals.closedOrders) * 100 : 0,
+        netPnl: totals.netPnl,
+        fees: totals.fees,
+      },
+    };
+  });
