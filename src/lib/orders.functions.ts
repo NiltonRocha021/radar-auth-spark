@@ -419,7 +419,19 @@ export interface PairAnalyticsDTO {
   pairs: PairStatsDTO[];
   /** Curva por par (ordem cronológica) — apenas ordens encerradas. */
   equityBySymbol: Record<string, EquityPointDTO[]>;
-  totals: { orders: number; closedOrders: number; winRate: number; netPnl: number; fees: number };
+  totals: {
+    orders: number;
+    closedOrders: number;
+    winRate: number;
+    netPnl: number;
+    fees: number;
+    /** Volume operado (notional de entrada acumulado). */
+    volume: number;
+    /** ROI acumulado (%) = netPnl / volume. */
+    roiPct: number;
+    /** Saldo realizado acumulado (PnL líquido). */
+    balance: number;
+  };
 }
 
 export const getPairAnalytics = createServerFn({ method: "GET" })
@@ -512,8 +524,9 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
         wins: t.wins + p.wins,
         netPnl: t.netPnl + p.netPnl,
         fees: t.fees + p.fees,
+        volume: t.volume + p.volume,
       }),
-      { orders: 0, closedOrders: 0, wins: 0, netPnl: 0, fees: 0 },
+      { orders: 0, closedOrders: 0, wins: 0, netPnl: 0, fees: 0, volume: 0 },
     );
 
     return {
@@ -527,6 +540,172 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
         winRate: totals.closedOrders > 0 ? (totals.wins / totals.closedOrders) * 100 : 0,
         netPnl: totals.netPnl,
         fees: totals.fees,
+        volume: totals.volume,
+        roiPct: totals.volume > 0 ? (totals.netPnl / totals.volume) * 100 : 0,
+        balance: totals.netPnl,
       },
+    };
+  });
+
+// ---------- getRiskByPair --------------------------------------------------
+// Risco por par a partir das ordens abertas: posição, margem alocada (notional),
+// perda máxima até o stop e participação no capital exposto. Também avalia o
+// saldo realizado para disparar alerta quando entra em zona de perda.
+
+export interface PairRiskDTO {
+  symbol: string;
+  openOrders: number;
+  quantity: number;
+  avgEntry: number;
+  /** Margem alocada = notional das posições abertas. */
+  margin: number;
+  /** Perda máxima estimada até o stop (positivo = perda). */
+  riskAmount: number;
+  /** Risco em % do capital exposto total. */
+  riskPct: number;
+  /** Participação da margem no total exposto (%). */
+  exposurePct: number;
+  hasStop: boolean;
+}
+
+export interface RiskByPairDTO {
+  mode: "DEMO" | "LIVE";
+  /** Saldo realizado (PnL líquido acumulado). */
+  balance: number;
+  /** Pico do saldo realizado. */
+  peakBalance: number;
+  /** Queda do pico (positivo = perda desde o topo). */
+  drawdown: number;
+  drawdownPct: number;
+  totalMargin: number;
+  totalRisk: number;
+  /** Risco total em % da margem alocada. */
+  totalRiskPct: number;
+  alertLevel: "none" | "warning" | "danger";
+  alerts: string[];
+  pairs: PairRiskDTO[];
+}
+
+export const getRiskByPair = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d?: { mode?: "DEMO" | "LIVE" }) =>
+    z.object({ mode: z.enum(MODES).optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<RiskByPairDTO> => {
+    const mode: "DEMO" | "LIVE" = data.mode ?? "LIVE";
+    const { data: rows, error } = await context.supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", context.userId)
+      .eq("mode", mode)
+      .order("opened_at", { ascending: true })
+      .limit(500);
+    if (error) throw new Error(error.message);
+
+    const acc = new Map<string, PairRiskDTO & { notionalSum: number }>();
+    let balance = 0;
+    let peak = 0;
+
+    for (const raw of (rows ?? []) as OrderRow[]) {
+      const qty = Number(raw.quantity) || 0;
+      const entry = Number(raw.entry_price) || 0;
+      const exit = raw.exit_price != null ? Number(raw.exit_price) : null;
+      const notional = qty * entry;
+
+      if (raw.status === "CLOSED") {
+        const fee = notional * FEE_RATE + (exit != null ? qty * exit * FEE_RATE : 0);
+        balance += (raw.pnl != null ? Number(raw.pnl) : 0) - fee;
+        if (balance > peak) peak = balance;
+        continue;
+      }
+      if (raw.status !== "OPEN") continue;
+
+      let p = acc.get(raw.symbol);
+      if (!p) {
+        p = {
+          symbol: raw.symbol,
+          openOrders: 0,
+          quantity: 0,
+          avgEntry: 0,
+          margin: 0,
+          riskAmount: 0,
+          riskPct: 0,
+          exposurePct: 0,
+          hasStop: true,
+          notionalSum: 0,
+        };
+        acc.set(raw.symbol, p);
+      }
+      p.openOrders += 1;
+      p.quantity += qty;
+      p.margin += notional;
+      p.notionalSum += notional;
+
+      const stop = raw.stop_loss != null ? Number(raw.stop_loss) : null;
+      if (stop != null && stop > 0) {
+        const perUnit = raw.side === "BUY" ? entry - stop : stop - entry;
+        p.riskAmount += Math.max(perUnit, 0) * qty;
+      } else {
+        p.hasStop = false;
+        // Sem stop definido: assume risco de 100% da margem alocada.
+        p.riskAmount += notional;
+      }
+    }
+
+    const pairs = Array.from(acc.values()).map((p) => ({
+      symbol: p.symbol,
+      openOrders: p.openOrders,
+      quantity: p.quantity,
+      avgEntry: p.quantity > 0 ? p.notionalSum / p.quantity : 0,
+      margin: p.margin,
+      riskAmount: p.riskAmount,
+      riskPct: p.margin > 0 ? (p.riskAmount / p.margin) * 100 : 0,
+      exposurePct: 0,
+      hasStop: p.hasStop,
+    }));
+
+    const totalMargin = pairs.reduce((t, p) => t + p.margin, 0);
+    const totalRisk = pairs.reduce((t, p) => t + p.riskAmount, 0);
+    for (const p of pairs) p.exposurePct = totalMargin > 0 ? (p.margin / totalMargin) * 100 : 0;
+    pairs.sort((a, b) => b.riskAmount - a.riskAmount);
+
+    const drawdown = Math.max(peak - balance, 0);
+    const drawdownPct = peak > 0 ? (drawdown / peak) * 100 : 0;
+
+    const alerts: string[] = [];
+    let level: RiskByPairDTO["alertLevel"] = "none";
+    if (balance < 0) {
+      level = "danger";
+      alerts.push(`Saldo real em zona de perda: ${balance.toFixed(2)} USD acumulados.`);
+    }
+    if (peak > 0 && drawdownPct >= 20) {
+      level = "danger";
+      alerts.push(`Queda de ${drawdownPct.toFixed(1)}% desde o melhor saldo.`);
+    } else if (peak > 0 && drawdownPct >= 10) {
+      if (level !== "danger") level = "warning";
+      alerts.push(`Queda de ${drawdownPct.toFixed(1)}% desde o melhor saldo.`);
+    }
+    const noStop = pairs.filter((p) => !p.hasStop);
+    if (noStop.length > 0) {
+      if (level !== "danger") level = "warning";
+      alerts.push(`Posições sem stop definido: ${noStop.map((p) => p.symbol).join(", ")}.`);
+    }
+    if (totalMargin > 0 && totalRisk / totalMargin >= 0.5) {
+      if (level !== "danger") level = "warning";
+      alerts.push("Risco até o stop acima de 50% da margem alocada.");
+    }
+
+    return {
+      mode,
+      balance,
+      peakBalance: peak,
+      drawdown,
+      drawdownPct,
+      totalMargin,
+      totalRisk,
+      totalRiskPct: totalMargin > 0 ? (totalRisk / totalMargin) * 100 : 0,
+      alertLevel: level,
+      alerts,
+      pairs,
     };
   });
