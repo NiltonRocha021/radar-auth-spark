@@ -419,7 +419,19 @@ export interface PairAnalyticsDTO {
   pairs: PairStatsDTO[];
   /** Curva por par (ordem cronológica) — apenas ordens encerradas. */
   equityBySymbol: Record<string, EquityPointDTO[]>;
-  totals: { orders: number; closedOrders: number; winRate: number; netPnl: number; fees: number };
+  totals: {
+    orders: number;
+    closedOrders: number;
+    winRate: number;
+    netPnl: number;
+    fees: number;
+    /** Volume operado (notional de entrada acumulado). */
+    volume: number;
+    /** ROI acumulado (%) = netPnl / volume. */
+    roiPct: number;
+    /** Saldo realizado acumulado (PnL líquido). */
+    balance: number;
+  };
 }
 
 export const getPairAnalytics = createServerFn({ method: "GET" })
