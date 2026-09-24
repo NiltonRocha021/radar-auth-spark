@@ -24,11 +24,19 @@ import { IntegrationWidgets } from "@/components/dashboard/integration-widgets";
 import { PollingAlertBanner } from "@/components/diagnostics/polling-alert-banner";
 import { PollingMetricsPanel } from "@/components/diagnostics/polling-metrics-panel";
 import { CostsRoiCard } from "@/components/dashboard/costs-roi-card";
+import { LiveRiskPanel } from "@/components/dashboard/live-risk-panel";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
-    meta: [{ title: "Dashboard — AISignalRadar" }],
+    meta: [
+      { title: "Dashboard — AISignalRadar" },
+      { name: "description", content: "Acompanhe sinais, ordens, risco por par e ROI acumulado do bot." },
+      { property: "og:title", content: "Dashboard — AISignalRadar" },
+      { property: "og:description", content: "Sinais, ordens, risco por par e ROI acumulado em tempo quase real." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
   }),
   component: Dashboard,
 });
@@ -69,6 +77,7 @@ function Dashboard() {
           <MetricCards />
 
           <CostsRoiCard />
+          <LiveRiskPanel />
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-3"><SignalsTable /></div>
