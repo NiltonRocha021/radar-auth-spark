@@ -5,5 +5,6 @@
 - [x] Status LIVE/DEMO por usuário na administração
 - [x] Validar dashboard e administração no navegador
 - [x] Confirmar o perfil Magnata existente, sem criar duplicata
-- [ ] Verificar segurança e publicar
-- [ ] Abrir formulário seguro para credenciais Binance de produção
+- [x] Verificar segurança e solicitar publicação
+- [x] Salvar credenciais Binance de produção pelo formulário seguro
+- [ ] Liberar LIVE após ativar 2FA e a Binance confirmar conectividade (bloqueado por resposta 202 vazia)
