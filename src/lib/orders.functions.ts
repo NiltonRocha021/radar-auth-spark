@@ -419,6 +419,8 @@ export interface PairAnalyticsDTO {
   pairs: PairStatsDTO[];
   /** Curva por par (ordem cronológica) — apenas ordens encerradas. */
   equityBySymbol: Record<string, EquityPointDTO[]>;
+  /** Saldo LIVE/DEMO acumulado em ordem cronológica, incluindo custos de entrada. */
+  equityCurve: EquityPointDTO[];
   totals: {
     orders: number;
     closedOrders: number;
@@ -455,6 +457,8 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
     const stats = new Map<string, PairStatsDTO>();
     const equity: Record<string, EquityPointDTO[]> = {};
     const cum = new Map<string, number>();
+    const equityCurve: EquityPointDTO[] = [];
+    let totalRunning = 0;
 
     for (const raw of (rows ?? []) as OrderRow[]) {
       const symbol = raw.symbol;
@@ -487,6 +491,7 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
       const fee = notional * FEE_RATE + (closed && exit != null ? qty * exit * FEE_RATE : 0);
       const gross = raw.pnl != null ? Number(raw.pnl) : 0;
       const net = closed ? gross - fee : 0;
+      const orderNet = closed ? gross - fee : -fee;
 
       s.orders += 1;
       s.volume += notional;
@@ -508,6 +513,14 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
           symbol,
         });
       }
+
+      totalRunning += orderNet;
+      equityCurve.push({
+        t: raw.closed_at ?? raw.opened_at,
+        cum: totalRunning,
+        pnl: orderNet,
+        symbol,
+      });
     }
 
     const pairs = Array.from(stats.values()).map((s) => ({
@@ -534,6 +547,7 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
       mode: data.mode ?? "ALL",
       pairs,
       equityBySymbol: equity,
+      equityCurve,
       totals: {
         orders: totals.orders,
         closedOrders: totals.closedOrders,

@@ -14,7 +14,14 @@ import { ShieldAlert, UserPlus } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  head: () => ({ meta: [{ title: "Admin — AISignalRadar" }] }),
+  head: () => ({ meta: [
+    { title: "Administração — AISignalRadar" },
+    { name: "description", content: "Gerencie perfis, planos, permissões e o status do bot por usuário." },
+    { property: "og:title", content: "Administração — AISignalRadar" },
+    { property: "og:description", content: "Gestão segura de usuários, permissões e status do bot." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   validateSearch: (s: Record<string, unknown>) => ({ userId: typeof s.userId === "string" ? s.userId : undefined }),
   errorComponent: ({ error }) => (
     <div className="p-8 max-w-xl mx-auto">
@@ -76,7 +83,12 @@ function AdminPage() {
               >
                 <div className="font-medium truncate">{u.full_name || u.username || u.email}</div>
                 <div className="text-xs text-muted-foreground truncate">{u.email}</div>
-                <Badge variant="outline" className="mt-1 text-[10px]">{u.plan_tier ?? "free"}</Badge>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-[10px]">{u.plan_tier ?? "free"}</Badge>
+                  <Badge variant={u.botStatus === "LIVE" ? "default" : "secondary"} className="text-[10px]">
+                    Bot {u.botStatus}
+                  </Badge>
+                </div>
               </button>
             ))}
             {data && data.users.length === 0 && (
@@ -141,6 +153,7 @@ function UserDetail({ userId }: { userId: string }) {
           <CardTitle className="text-base flex items-center gap-2">
             {p.email as string}
             {data.roles.map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
+            <Badge variant={data.botStatus === "LIVE" ? "default" : "outline"}>Bot {data.botStatus}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-4">
