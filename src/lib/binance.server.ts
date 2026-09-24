@@ -67,9 +67,17 @@ async function signedRequest<T>(
   });
   const text = await res.text();
   if (!res.ok) {
-    throw new Error(`Binance ${res.status}: ${text.slice(0, 300)}`);
+    const detail = text.trim() || res.statusText || "resposta vazia";
+    throw new Error(`Binance ${res.status}: ${detail.slice(0, 300)}`);
   }
-  return JSON.parse(text) as T;
+  if (!text.trim()) {
+    throw new Error(`Binance ${res.status}: resposta vazia inesperada`);
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    throw new Error(`Binance ${res.status}: resposta inválida`);
+  }
 }
 
 type BinanceOrderResponse = {
