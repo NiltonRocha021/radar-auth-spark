@@ -28,8 +28,9 @@ export const adminListUsers = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const limit = data.limit ?? 50;
-    let q = context.supabase
+    let q = supabaseAdmin
       .from("profiles")
       .select("id,email,username,full_name,plan_tier,country,created_at,updated_at")
       .order("created_at", { ascending: false })
@@ -40,7 +41,27 @@ export const adminListUsers = createServerFn({ method: "GET" })
     }
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return { users: rows ?? [] };
+    const userIds = (rows ?? []).map((row) => row.id);
+    if (userIds.length === 0) return { users: [] };
+
+    const [{ data: configs }, { data: states }] = await Promise.all([
+      supabaseAdmin.from("bot4x_configs").select("user_id,active,api_key_set").in("user_id", userIds),
+      supabaseAdmin.from("bot_system_state").select("user_id,state").in("user_id", userIds),
+    ]);
+    const configByUser = new Map((configs ?? []).map((row) => [row.user_id, row]));
+    const stateByUser = new Map((states ?? []).map((row) => [row.user_id, row.state]));
+
+    return {
+      users: (rows ?? []).map((row) => {
+        const config = configByUser.get(row.id);
+        const botActive = config?.active === true && stateByUser.get(row.id) === "ACTIVE";
+        return {
+          ...row,
+          botStatus: botActive && config.api_key_set === true ? "LIVE" as const : "DEMO" as const,
+          botActive,
+        };
+      }),
+    };
   });
 
 export const adminGetUser = createServerFn({ method: "GET" })
@@ -48,7 +69,14 @@ export const adminGetUser = createServerFn({ method: "GET" })
   .inputValidator((d: { userId: string }) => z.object({ userId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const [{ data: profile, error: pErr }, { data: roles }, { data: audit }] = await Promise.all([
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [
+      { data: profile, error: pErr },
+      { data: roles },
+      { data: audit },
+      { data: config },
+      { data: botState },
+    ] = await Promise.all([
       context.supabase.from("profiles").select("*").eq("id", data.userId).maybeSingle(),
       context.supabase.from("user_roles").select("role").eq("user_id", data.userId),
       context.supabase
@@ -57,10 +85,19 @@ export const adminGetUser = createServerFn({ method: "GET" })
         .eq("target_user_id", data.userId)
         .order("created_at", { ascending: false })
         .limit(50),
+      supabaseAdmin.from("bot4x_configs").select("active,api_key_set").eq("user_id", data.userId).maybeSingle(),
+      supabaseAdmin.from("bot_system_state").select("state").eq("user_id", data.userId).maybeSingle(),
     ]);
     if (pErr) throw new Error(pErr.message);
     if (!profile) throw new Error("Usuário não encontrado");
-    return { profile, roles: (roles ?? []).map((r: { role: string }) => r.role), audit: audit ?? [] };
+    const botActive = config?.active === true && botState?.state === "ACTIVE";
+    return {
+      profile,
+      roles: (roles ?? []).map((r: { role: string }) => r.role),
+      audit: audit ?? [],
+      botStatus: botActive && config?.api_key_set === true ? "LIVE" as const : "DEMO" as const,
+      botActive,
+    };
   });
 
 export const adminUpdateUser = createServerFn({ method: "POST" })
