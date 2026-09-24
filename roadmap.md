@@ -7,4 +7,5 @@
 - [x] Confirmar o perfil Magnata existente, sem criar duplicata
 - [x] Verificar segurança e solicitar publicação
 - [x] Salvar credenciais Binance de produção pelo formulário seguro
+- [x] Ativar gestão real de chaves de API com emissão, rotação, revogação e monitoramento
 - [ ] Liberar LIVE após ativar 2FA e a Binance confirmar conectividade (bloqueado por resposta 202 vazia)
