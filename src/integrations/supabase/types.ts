@@ -196,6 +196,57 @@ export type Database = {
         }
         Relationships: []
       }
+      api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          key_suffix: string
+          last_used_at: string | null
+          name: string
+          requests_today: number
+          revoked_at: string | null
+          rotated_at: string | null
+          status: string
+          updated_at: string
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          key_suffix: string
+          last_used_at?: string | null
+          name: string
+          requests_today?: number
+          revoked_at?: string | null
+          rotated_at?: string | null
+          status?: string
+          updated_at?: string
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          key_suffix?: string
+          last_used_at?: string | null
+          name?: string
+          requests_today?: number
+          revoked_at?: string | null
+          rotated_at?: string | null
+          status?: string
+          updated_at?: string
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_cop_decisions: {
         Row: {
           context: Json
