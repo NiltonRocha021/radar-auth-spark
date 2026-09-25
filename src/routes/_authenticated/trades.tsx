@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AsyncState, EmptyState } from "@/components/common/async-state";
 import { CostsRoiCard } from "@/components/dashboard/costs-roi-card";
+import { PairPerformanceCard } from "@/components/trades/pair-performance-card";
 
 export const Route = createFileRoute("/_authenticated/trades")({
   head: () => ({
@@ -87,6 +88,7 @@ function TradesPage() {
           </div>
 
           <CostsRoiCard />
+          <PairPerformanceCard />
 
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
