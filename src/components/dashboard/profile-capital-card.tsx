@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
@@ -24,12 +23,11 @@ export function ProfileCapitalCard() {
   const validationsFn = useServerFn(listMyBinanceOrderValidations);
   const queryClient = useQueryClient();
   const [symbol, setSymbol] = useState("BTCUSDT");
-  const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [quoteAmount, setQuoteAmount] = useState(10);
   const snapshot = useQuery({ queryKey: ["profile-capital"], queryFn: () => snapshotFn(), refetchInterval: 5_000 });
   const validations = useQuery({ queryKey: ["binance-order-validations"], queryFn: () => validationsFn(), refetchInterval: 15_000 });
   const validation = useMutation({
-    mutationFn: () => validateFn({ data: { symbol, side, quoteAmount } }),
+    mutationFn: () => validateFn({ data: { symbol, side: "BUY", quoteAmount } }),
     onSuccess: async () => {
       toast.success("Ordem de teste validada sem movimentar fundos");
       await queryClient.invalidateQueries({ queryKey: ["binance-order-validations"] });
@@ -74,8 +72,7 @@ export function ProfileCapitalCard() {
         <div className="border-t border-border pt-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-32 flex-1 space-y-1.5"><Label htmlFor="test-symbol">Par</Label><Input id="test-symbol" value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20))} /></div>
-            <div className="w-28 space-y-1.5"><Label>Lado</Label><Select value={side} onValueChange={(value) => setSide(value as "BUY" | "SELL")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BUY">Compra</SelectItem><SelectItem value="SELL">Venda</SelectItem></SelectContent></Select></div>
-            <div className="w-36 space-y-1.5"><Label htmlFor="test-amount">{side === "BUY" ? "Valor em USDT" : "Quantidade do ativo"}</Label><Input id="test-amount" type="number" min={5} max={1000} value={quoteAmount} onChange={(event) => setQuoteAmount(Number(event.target.value))} /></div>
+            <div className="w-36 space-y-1.5"><Label htmlFor="test-amount">Valor em USDT</Label><Input id="test-amount" type="number" min={5} max={1000} value={quoteAmount} onChange={(event) => setQuoteAmount(Number(event.target.value))} /></div>
             <Button variant="outline" disabled={data?.mode !== "LIVE" || validation.isPending || symbol.length < 5 || quoteAmount < 5} onClick={() => validation.mutate()}>
               {validation.isPending ? <RefreshCw className="animate-spin" /> : <FlaskConical />} Validar ordem
             </Button>
