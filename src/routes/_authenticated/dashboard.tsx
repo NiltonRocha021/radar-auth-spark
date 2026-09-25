@@ -25,6 +25,7 @@ import { PollingAlertBanner } from "@/components/diagnostics/polling-alert-banne
 import { PollingMetricsPanel } from "@/components/diagnostics/polling-metrics-panel";
 import { CostsRoiCard } from "@/components/dashboard/costs-roi-card";
 import { LiveRiskPanel } from "@/components/dashboard/live-risk-panel";
+import { PairPerformanceCard } from "@/components/trades/pair-performance-card";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -78,6 +79,7 @@ function Dashboard() {
 
           <CostsRoiCard />
           <LiveRiskPanel />
+          <PairPerformanceCard />
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-3"><SignalsTable /></div>

@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { getPairAnalytics, getRiskByPair } from "@/lib/orders.functions";
+import { getBotConfig } from "@/lib/bot.functions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,16 +45,19 @@ function playRiskTone() {
 export function LiveRiskPanel() {
   const riskFn = useServerFn(getRiskByPair);
   const analyticsFn = useServerFn(getPairAnalytics);
+  const configFn = useServerFn(getBotConfig);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const lastAlertKey = useRef("");
+  const configQuery = useQuery({ queryKey: ["bot-config"], queryFn: () => configFn(), refetchInterval: 15_000 });
+  const mode = configQuery.data?.executionMode ?? "DEMO";
   const riskQuery = useQuery({
-    queryKey: ["orders", "risk", "LIVE"],
-    queryFn: () => riskFn({ data: { mode: "LIVE" } }),
+    queryKey: ["orders", "risk", mode],
+    queryFn: () => riskFn({ data: { mode } }),
     refetchInterval: 15_000,
   });
   const analyticsQuery = useQuery({
-    queryKey: ["orders", "pairs", "LIVE"],
-    queryFn: () => analyticsFn({ data: { mode: "LIVE", limit: 1000 } }),
+    queryKey: ["orders", "pairs", mode],
+    queryFn: () => analyticsFn({ data: { mode, limit: 1000 } }),
     refetchInterval: 15_000,
   });
 
@@ -90,7 +94,7 @@ export function LiveRiskPanel() {
       {financialAlert && risk && (
         <Alert variant="destructive" className="bg-destructive/10 pr-14 motion-safe:animate-pulse">
           <AlertTriangle aria-hidden />
-          <AlertTitle>Alerta financeiro LIVE</AlertTitle>
+          <AlertTitle>Alerta financeiro {mode}</AlertTitle>
           <AlertDescription>
             {risk.balance < 0 && <p>Saldo realizado em zona de perda: {money(risk.balance)}.</p>}
             {risk.drawdown > 0 && (
@@ -123,7 +127,7 @@ export function LiveRiskPanel() {
         <Card className="xl:col-span-3">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
             <div>
-              <CardTitle id="live-risk-title" className="text-base">Risco por par · LIVE</CardTitle>
+               <CardTitle id="live-risk-title" className="text-base">Risco por par · {mode}</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">Posições abertas, margem e perda estimada até o stop.</p>
             </div>
             {risk && (
@@ -138,7 +142,7 @@ export function LiveRiskPanel() {
               error={riskQuery.error}
               isEmpty={!!risk && risk.pairs.length === 0}
               onRetry={() => riskQuery.refetch()}
-              empty={<EmptyState title="Nenhuma posição LIVE aberta" message="O risco por par aparecerá assim que o bot abrir uma posição real." />}
+               empty={<EmptyState title={`Nenhuma posição ${mode} aberta`} message="O risco por par aparecerá assim que o bot abrir uma posição." />}
             >
               {risk && risk.pairs.length > 0 && (
                 <div className="space-y-4">
@@ -181,7 +185,7 @@ export function LiveRiskPanel() {
 
         <Card className="xl:col-span-2">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Saldo e ROI por ordem · LIVE</CardTitle>
+             <CardTitle className="text-base">Saldo e ROI por ordem · {mode}</CardTitle>
             {analyticsQuery.data && (
               <p className="text-xs text-muted-foreground">
                 {money(analyticsQuery.data.totals.balance)} · ROI {analyticsQuery.data.totals.roiPct >= 0 ? "+" : ""}{analyticsQuery.data.totals.roiPct.toFixed(2)}% · custos {money(analyticsQuery.data.totals.fees)}
@@ -194,10 +198,10 @@ export function LiveRiskPanel() {
               error={analyticsQuery.error}
               isEmpty={!!analyticsQuery.data && chartData.length === 0}
               onRetry={() => analyticsQuery.refetch()}
-              empty={<EmptyState title="Sem histórico LIVE" message="Cada nova ordem real adicionará um ponto ao gráfico." />}
+               empty={<EmptyState title={`Sem histórico ${mode}`} message="Cada nova ordem encerrada adicionará um ponto ao gráfico." />}
             >
               {chartData.length > 0 && (
-                <div className="h-64" aria-label="Gráfico do saldo acumulado por ordem LIVE">
+                 <div className="h-64" aria-label={`Gráfico do saldo acumulado por ordem ${mode}`}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
@@ -219,7 +223,7 @@ export function LiveRiskPanel() {
 
       {risk && !financialAlert && risk.alertLevel === "none" && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <ShieldCheck className="size-4 text-success" aria-hidden /> Saldo LIVE sem perda e sem queda do melhor resultado.
+           <ShieldCheck className="size-4 text-success" aria-hidden /> Saldo {mode} sem perda e sem queda do melhor resultado.
         </div>
       )}
     </section>

@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { adminListUsers, adminGetUser, adminUpdateUser, adminCreateUser, adminSetRole } from "@/lib/admin.functions";
+import { adminListUsers, adminGetUser, adminUpdateUser, adminCreateUser, adminSetRole, adminSetExecutionMode } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,8 +85,8 @@ function AdminPage() {
                 <div className="text-xs text-muted-foreground truncate">{u.email}</div>
                 <div className="mt-1 flex items-center gap-1.5">
                   <Badge variant="outline" className="text-[10px]">{u.plan_tier ?? "free"}</Badge>
-                  <Badge variant={u.botStatus === "LIVE" ? "default" : "secondary"} className="text-[10px]">
-                    Bot {u.botStatus}
+                   <Badge variant={u.executionMode === "LIVE" ? "default" : "secondary"} className="text-[10px]">
+                     Modo {u.executionMode}
                   </Badge>
                 </div>
               </button>
@@ -114,6 +114,7 @@ function EmptyDetail() {
 function UserDetail({ userId }: { userId: string }) {
   const getFn = useServerFn(adminGetUser);
   const updateFn = useServerFn(adminUpdateUser);
+  const setModeFn = useServerFn(adminSetExecutionMode);
   const qc = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
@@ -129,6 +130,14 @@ function UserDetail({ userId }: { userId: string }) {
       toast.success(`Salvo (${r.changed} campo(s) alterado(s))`);
       setForm({});
       qc.invalidateQueries({ queryKey: ["admin"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const modeMutation = useMutation({
+    mutationFn: (mode: "DEMO" | "LIVE") => setModeFn({ data: { userId, mode } }),
+    onSuccess: async (result) => {
+      toast.success(`Modo ${result.mode} salvo para este perfil`);
+      await qc.invalidateQueries({ queryKey: ["admin"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -183,6 +192,20 @@ function UserDetail({ userId }: { userId: string }) {
       </Card>
 
       <RolesCard userId={userId} roles={data.roles} />
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Modo de execução do perfil</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant={data.executionMode === "DEMO" ? "default" : "outline"} onClick={() => modeMutation.mutate("DEMO")} disabled={modeMutation.isPending}>DEMO</Button>
+            <Button variant={data.executionMode === "LIVE" ? "destructive" : "outline"} onClick={() => modeMutation.mutate("LIVE")} disabled={modeMutation.isPending || !data.credentialsValid}>REAL</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {data.credentialsValid ? "Credenciais Binance válidas neste perfil." : "REAL bloqueado: o usuário ainda não validou suas credenciais Binance."}
+            {" · "}Estado do bot: {data.botStatus}.
+          </p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Auditoria (últimas 50)</CardTitle></CardHeader>

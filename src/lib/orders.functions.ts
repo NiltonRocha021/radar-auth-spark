@@ -1,8 +1,5 @@
-// Server functions da Fase 3 — Orders (DEMO agora, LIVE reservado p/ Fase 4).
-// Porta OrderController do Nest (place/close/list) sem executar contra exchange
-// real. O contrato inclui `mode` desde já (default 'DEMO') para que a Fase 4
-// só precise emitir orders com mode='LIVE' via mesmo pipeline, sem migration
-// de rename/merge de tabela.
+// Ordens DEMO/LIVE com modo decidido exclusivamente pela configuração persistida
+// do usuário. O cliente não pode promover uma ordem para LIVE pelo payload.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -73,7 +70,7 @@ function toDto(r: OrderRow): OrderDTO {
 // ---------- placeOrder (DEMO | LIVE) ---------------------------------------
 // Fase 4: mode='LIVE' executa de fato contra a Binance dentro do Worker
 // (src/lib/binance.server.ts, import dinâmico p/ não vazar ao bundle client).
-// Guardas para LIVE: 2FA verificado + credenciais Binance configuradas.
+// Guardas para LIVE: 2FA verificado + credenciais Binance válidas do usuário.
 
 export const placeDemoOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -88,7 +85,6 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
         stopLoss: z.number().positive().optional(),
         takeProfit: z.number().positive().optional(),
         signalId: z.string().uuid().optional(),
-        mode: z.enum(MODES).default("DEMO"),
       })
       .parse(d),
   )
@@ -96,7 +92,15 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     let entryPrice = data.entryPrice;
     let quantity = data.quantity;
 
-    if (data.mode === "LIVE") {
+    const { data: config, error: configError } = await context.supabase
+      .from("bot4x_configs")
+      .select("execution_mode")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (configError) throw new Error("Não foi possível confirmar o modo de execução.");
+    const executionMode: "DEMO" | "LIVE" = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
+
+    if (executionMode === "LIVE") {
       const { data: tfa } = await context.supabase
         .from("user_two_factor")
         .select("enabled")
@@ -106,10 +110,10 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
         throw new Error("Ative o 2FA antes de operar em modo LIVE.");
       }
 
-      const { placeBinanceOrder, isLiveTradingConfigured } = await import("./binance.server");
-      if (!isLiveTradingConfigured()) {
-        throw new Error("Execução LIVE indisponível: credenciais da Binance não configuradas.");
-      }
+      const [{ placeBinanceOrder }, { getBinanceCredentials }] = await Promise.all([
+        import("./binance.server"), import("./binance-credentials.server"),
+      ]);
+      const credentials = await getBinanceCredentials(context.userId);
 
       const fill = await placeBinanceOrder({
         symbol: data.symbol,
@@ -117,7 +121,7 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
         orderType: data.orderType,
         quantity: data.quantity,
         price: data.orderType === "LIMIT" ? data.entryPrice : undefined,
-      });
+      }, credentials);
       if (fill.avgPrice > 0) entryPrice = fill.avgPrice;
       if (fill.executedQty > 0) quantity = fill.executedQty;
     }
@@ -126,7 +130,7 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
       .from("orders")
       .insert({
         user_id: context.userId,
-        mode: data.mode,
+        mode: executionMode,
         symbol: data.symbol,
         side: data.side,
         order_type: data.orderType,
@@ -143,7 +147,7 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     return toDto(row as OrderRow);
   });
 
-/** Alias explícito para a Fase 4 — mesmo pipeline, aceita mode='LIVE'. */
+/** Alias público do pipeline único; o modo é sempre resolvido no servidor. */
 export const placeOrder = placeDemoOrder;
 
 // ---------- closeOrder (DEMO | LIVE) ---------------------------------------
@@ -172,13 +176,16 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
     let exit = data.exitPrice;
 
     if (row.mode === "LIVE") {
-      const { closeBinancePosition, fetchBinancePrice } = await import("./binance.server");
+      const [{ closeBinancePosition, fetchBinancePrice }, { getBinanceCredentials }] = await Promise.all([
+        import("./binance.server"), import("./binance-credentials.server"),
+      ]);
+      const credentials = await getBinanceCredentials(context.userId);
       const fill = await closeBinancePosition({
         symbol: row.symbol,
         side: row.side,
         quantity: Number(row.quantity),
-      });
-      exit = fill.avgPrice > 0 ? fill.avgPrice : ((await fetchBinancePrice(row.symbol)) ?? exit);
+      }, credentials);
+      exit = fill.avgPrice > 0 ? fill.avgPrice : ((await fetchBinancePrice(row.symbol, credentials.baseUrl)) ?? exit);
     }
 
     if (exit == null) {
@@ -606,7 +613,15 @@ export const getRiskByPair = createServerFn({ method: "GET" })
     z.object({ mode: z.enum(MODES).optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }): Promise<RiskByPairDTO> => {
-    const mode: "DEMO" | "LIVE" = data.mode ?? "LIVE";
+    let mode = data.mode;
+    if (!mode) {
+      const { data: config } = await context.supabase
+        .from("bot4x_configs")
+        .select("execution_mode")
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      mode = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
+    }
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select("*")

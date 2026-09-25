@@ -2,11 +2,7 @@
 // Server-only: assina requisições com HMAC-SHA256 via Web Crypto (compatível
 // com o runtime Cloudflare Workers — não usa `crypto` do Node nem SDK Node-only).
 //
-// Env necessárias (secrets do projeto):
-//   BINANCE_API_KEY, BINANCE_API_SECRET
-//   BINANCE_BASE_URL (opcional; default = testnet)
-
-const DEFAULT_BASE_URL = "https://testnet.binance.vision";
+import type { BinanceCredentials } from "./binance-credentials.server";
 
 export interface BinanceFill {
   orderId: string;
@@ -15,23 +11,6 @@ export interface BinanceFill {
   executedQty: number;
   avgPrice: number;
   status: string;
-}
-
-function readCreds() {
-  const apiKey = process.env["BINANCE_API_KEY"];
-  const apiSecret = process.env["BINANCE_API_SECRET"];
-  const baseUrl = process.env["BINANCE_BASE_URL"] || DEFAULT_BASE_URL;
-  if (!apiKey || !apiSecret) {
-    throw new Error(
-      "Execução LIVE indisponível: configure BINANCE_API_KEY e BINANCE_API_SECRET.",
-    );
-  }
-  return { apiKey, apiSecret, baseUrl };
-}
-
-/** Indica se o modo LIVE está habilitado no ambiente atual. */
-export function isLiveTradingConfigured(): boolean {
-  return Boolean(process.env["BINANCE_API_KEY"] && process.env["BINANCE_API_SECRET"]);
 }
 
 async function sign(query: string, secret: string): Promise<string> {
@@ -49,11 +28,12 @@ async function sign(query: string, secret: string): Promise<string> {
 }
 
 async function signedRequest<T>(
+  credentials: BinanceCredentials,
   path: string,
   method: "GET" | "POST" | "DELETE",
   params: Record<string, string | number>,
 ): Promise<T> {
-  const { apiKey, apiSecret, baseUrl } = readCreds();
+  const { apiKey, apiSecret, baseUrl } = credentials;
   const query = new URLSearchParams({
     ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
     timestamp: String(Date.now()),
@@ -117,7 +97,7 @@ export async function placeBinanceOrder(input: {
   orderType: "MARKET" | "LIMIT";
   quantity: number;
   price?: number;
-}): Promise<BinanceFill> {
+}, credentials: BinanceCredentials): Promise<BinanceFill> {
   const params: Record<string, string | number> = {
     symbol: input.symbol,
     side: input.side,
@@ -129,7 +109,7 @@ export async function placeBinanceOrder(input: {
     params["price"] = input.price;
     params["timeInForce"] = "GTC";
   }
-  const res = await signedRequest<BinanceOrderResponse>("/api/v3/order", "POST", params);
+  const res = await signedRequest<BinanceOrderResponse>(credentials, "/api/v3/order", "POST", params);
   return toFill(res);
 }
 
@@ -138,18 +118,17 @@ export async function closeBinancePosition(input: {
   symbol: string;
   side: "BUY" | "SELL";
   quantity: number;
-}): Promise<BinanceFill> {
+}, credentials: BinanceCredentials): Promise<BinanceFill> {
   return placeBinanceOrder({
     symbol: input.symbol,
     side: input.side === "BUY" ? "SELL" : "BUY",
     orderType: "MARKET",
     quantity: input.quantity,
-  });
+  }, credentials);
 }
 
 /** Preço público de referência (sem assinatura). */
-export async function fetchBinancePrice(symbol: string): Promise<number | null> {
-  const baseUrl = process.env["BINANCE_BASE_URL"] || DEFAULT_BASE_URL;
+export async function fetchBinancePrice(symbol: string, baseUrl = "https://api.binance.com"): Promise<number | null> {
   try {
     const res = await fetch(`${baseUrl}/api/v3/ticker/price?symbol=${encodeURIComponent(symbol)}`);
     if (!res.ok) return null;
@@ -162,7 +141,7 @@ export async function fetchBinancePrice(symbol: string): Promise<number | null> 
 }
 
 /** Conta autenticada — usado para validar credenciais/permissões. */
-export async function fetchBinanceAccount(): Promise<{ canTrade: boolean }> {
-  const res = await signedRequest<{ canTrade?: boolean }>("/api/v3/account", "GET", {});
+export async function fetchBinanceAccount(credentials: BinanceCredentials): Promise<{ canTrade: boolean }> {
+  const res = await signedRequest<{ canTrade?: boolean }>(credentials, "/api/v3/account", "GET", {});
   return { canTrade: Boolean(res.canTrade) };
 }

@@ -1,11 +1,9 @@
 # Roadmap
 
-- [ ] Persistir modo DEMO/REAL por usuário com troca e salvamento
-- [ ] Criar tela de perfis para administrar modo por usuário
-- [ ] Conectar modo persistido ao bot e ao envio DEMO/LIVE
-- [ ] Remover os estados “Em breve” restantes
-- [ ] Confirmar painel de risco, alertas de perda e gráfico por par no dashboard
-- [ ] Confirmar estado LIVE correto na administração
-- [ ] Adicionar testes de integração para seleção e execução por modo
-- [ ] Validar a conexão Binance sem enviar ordens reais
-- [ ] Publicar o domínio após validação
+- [x] Persistir modo DEMO/LIVE por usuário e conectar bot/ordens.
+- [x] Isolar e criptografar credenciais Binance por perfil, com salvar, rotacionar, validar e revogar.
+- [x] Adicionar controle DEMO/REAL na administração com auditoria.
+- [x] Ligar risco, ROI, alertas e gráfico por par ao modo salvo.
+- [x] Remover os rótulos “Em breve”.
+- [ ] Validar sessão, conexão Binance sem ordem, desktop/celular e publicar.
+- [ ] Manter ativação da primeira ordem real como ação explícita do titular.

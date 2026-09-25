@@ -221,9 +221,9 @@ function LiveTradingPage() {
                     icon={KeyRound}
                     title="Credenciais da corretora"
                     description={
-                      s.credentialsConfigured
-                        ? `Chave configurada no servidor (${s.apiKeyMasked}). O segredo nunca é exposto ao navegador.`
-                        : "BINANCE_API_KEY e BINANCE_API_SECRET não estão configurados no servidor."
+                       s.credentialsConfigured
+                         ? `Chave exclusiva deste perfil (${s.apiKeyMasked}). O segredo nunca é exposto ao navegador.`
+                         : "Cadastre e valide as credenciais deste perfil em Configurações › API Keys."
                     }
                     state={s.credentialsConfigured ? "ok" : "fail"}
                   />
