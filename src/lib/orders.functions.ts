@@ -191,10 +191,9 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
       if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
         throw new Error("Confirme explicitamente o encerramento REAL antes do envio à Binance.");
       }
-      const [{ closeBinancePosition, fetchBinancePrice }, { getBinanceCredentials }, { assertTradingRiskAllowed }] = await Promise.all([
-        import("./binance.server"), import("./binance-credentials.server"), import("./risk.functions"),
+      const [{ closeBinancePosition, fetchBinancePrice }, { getBinanceCredentials }] = await Promise.all([
+        import("./binance.server"), import("./binance-credentials.server"),
       ]);
-      await assertTradingRiskAllowed(context.supabase, context.userId);
       const credentials = await getBinanceCredentials(context.userId);
       const fill = await closeBinancePosition({
         symbol: row.symbol,
