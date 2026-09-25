@@ -19,14 +19,8 @@ import { pollWithRetry } from "./polling-metrics";
 import { loadConfig, saveConfig } from "./bot4x-config-db";
 import type { CalibProfile as CalibProfileType } from "./bot4x-data";
 
-// ─── FEATURE FLAG ─────────────────────────────────────────────────────────────
-// Quando false, TODA a execução cai em DEMO (simulação client-side com Math.random).
-// A UI deve refletir isso via getEffectiveMode(), nunca o `mode` cru do store.
-export const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
-
-// Fonte de verdade única do modo efetivo. UI e lógica de init() devem usar isto.
 export function getEffectiveMode(persistedMode: ExecMode): ExecMode {
-  return REAL_MODE_ENABLED ? persistedMode : "DEMO";
+  return persistedMode;
 }
 
 // ─── RISK MODEL CONSTANTS ─────────────────────────────────────────────────────
@@ -237,6 +231,7 @@ export const useBot4xStore = create<State>()(
             .then((cfg) => {
               if (!cfg) return;
               set({
+                mode: cfg.executionMode,
                 profile: cfg.profile as CalibProfileType,
                 leverage: cfg.leverage,
                 slPct: cfg.slPct,
@@ -261,7 +256,7 @@ export const useBot4xStore = create<State>()(
         const mode = s.mode;
 
         // ── DEMO MODE ────────────────────────────────────────────────────────
-        if (mode === "DEMO" || !REAL_MODE_ENABLED) {
+        if (mode === "DEMO") {
           // Guard explícito: setInterval pode retornar 0 em alguns runtimes,
           // então não basta `if (s._ticker)`.
           if (s._ticker !== undefined && s._ticker !== null) return;
@@ -464,7 +459,12 @@ export const useBot4xStore = create<State>()(
       },
 
       // ─── SETTERS ──────────────────────────────────────────────────────────
-      setMode: (mode) => set({ mode }),
+      setMode: (mode) => {
+        get().cleanup();
+        set({ mode, realInited: false, status: "IDLE", errorMsg: null });
+        const uid = get().userId;
+        if (uid) void saveConfig(uid, { executionMode: mode });
+      },
       setTotalCapital: (n) => {
         const v = Math.max(0, n);
         set({ totalCapital: v });

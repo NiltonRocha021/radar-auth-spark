@@ -3,6 +3,7 @@
 // da Binance no ambiente do Worker e conectividade/permissões da API key.
 // Nunca retorna a chave/segredo — apenas flags e metadados seguros.
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface LiveTradingStatusDTO {
@@ -30,16 +31,11 @@ export const getLiveTradingStatus = createServerFn({ method: "GET" })
       .eq("user_id", context.userId)
       .maybeSingle();
 
-    const apiKey = process.env["BINANCE_API_KEY"];
-    const apiSecret = process.env["BINANCE_API_SECRET"];
-    const baseUrl = process.env["BINANCE_BASE_URL"] || "https://testnet.binance.vision";
-    const credentialsConfigured = Boolean(apiKey && apiSecret);
-
-    const environment: LiveTradingStatusDTO["environment"] = /testnet/i.test(baseUrl)
-      ? "testnet"
-      : /binance\.(com|us)/i.test(baseUrl)
-        ? "production"
-        : "unknown";
+    const { getBinanceCredentialMetadata } = await import("./binance-credentials.server");
+    const metadata = await getBinanceCredentialMetadata(context.userId);
+    const credentialsConfigured = metadata?.status === "valid";
+    const environment: LiveTradingStatusDTO["environment"] = metadata?.environment === "production" ? "production" : metadata?.environment === "testnet" ? "testnet" : "unknown";
+    const baseUrl = environment === "production" ? "https://api.binance.com" : environment === "testnet" ? "https://testnet.binance.vision" : "—";
 
     let connectivity: LiveTradingStatusDTO["connectivity"] = "skipped";
     let connectivityError: string | null = null;
@@ -47,8 +43,10 @@ export const getLiveTradingStatus = createServerFn({ method: "GET" })
 
     if (credentialsConfigured) {
       try {
-        const { fetchBinanceAccount } = await import("./binance.server");
-        const account = await fetchBinanceAccount();
+        const [{ fetchBinanceAccount }, { getBinanceCredentials }] = await Promise.all([
+          import("./binance.server"), import("./binance-credentials.server"),
+        ]);
+        const account = await fetchBinanceAccount(await getBinanceCredentials(context.userId));
         connectivity = "ok";
         canTrade = account.canTrade;
       } catch (err) {
@@ -62,7 +60,7 @@ export const getLiveTradingStatus = createServerFn({ method: "GET" })
       twoFactorEnabled,
       twoFactorEnabledAt: (tfa?.enabled_at as string | null) ?? null,
       credentialsConfigured,
-      apiKeyMasked: apiKey ? `••••${apiKey.slice(-4)}` : null,
+      apiKeyMasked: metadata ? `••••${metadata.key_suffix}` : null,
       environment,
       baseUrl,
       connectivity,
@@ -70,4 +68,34 @@ export const getLiveTradingStatus = createServerFn({ method: "GET" })
       canTrade,
       ready: twoFactorEnabled && credentialsConfigured && connectivity === "ok" && canTrade !== false,
     };
+  });
+
+export const saveMyBinanceCredentials = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({
+    apiKey: z.string().trim().min(8).max(256),
+    apiSecret: z.string().trim().min(8).max(256),
+    environment: z.enum(["testnet", "production"]),
+  }).parse(input))
+  .handler(async ({ data, context }) => {
+    const credentials = {
+      apiKey: data.apiKey,
+      apiSecret: data.apiSecret,
+      environment: data.environment,
+      baseUrl: data.environment === "production" ? "https://api.binance.com" : "https://testnet.binance.vision",
+    } as const;
+    const { fetchBinanceAccount } = await import("./binance.server");
+    const account = await fetchBinanceAccount(credentials);
+    if (!account.canTrade) throw new Error("A chave foi reconhecida, mas não possui permissão para operar.");
+    const { storeBinanceCredentials } = await import("./binance-credentials.server");
+    await storeBinanceCredentials(context.userId, data.apiKey, data.apiSecret, data.environment);
+    return { ok: true, apiKeyMasked: `••••${data.apiKey.slice(-4)}`, environment: data.environment };
+  });
+
+export const revokeMyBinanceCredentials = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { revokeBinanceCredentials } = await import("./binance-credentials.server");
+    await revokeBinanceCredentials(context.userId);
+    return { ok: true };
   });

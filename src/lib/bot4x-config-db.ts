@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logger } from "./logger";
 
 export interface Bot4xConfigRow {
+  executionMode: "DEMO" | "REAL";
   userId: string;
   active: boolean;
   profile: string;
@@ -92,6 +93,7 @@ export async function loadConfig(userId: string): Promise<Bot4xConfigRow | null>
   }
 
   return {
+    executionMode: data.execution_mode === "LIVE" ? "REAL" : "DEMO",
     userId: data.user_id,
     active: data.active,
     profile: data.profile,
@@ -120,6 +122,7 @@ export async function saveConfig(userId: string, config: Partial<Bot4xConfigRow>
     user_id: userId,
     updated_at: new Date().toISOString(),
     ...(config.active !== undefined && { active: config.active }),
+    ...(config.executionMode !== undefined && { execution_mode: config.executionMode === "REAL" ? "LIVE" : "DEMO" }),
     ...(config.profile !== undefined && { profile: config.profile }),
     ...(config.leverage !== undefined && { leverage: config.leverage }),
     ...(config.activeCapital !== undefined && { active_capital: config.activeCapital }),
