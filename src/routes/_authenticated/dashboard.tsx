@@ -12,7 +12,7 @@ import { BtcDominance } from "@/components/dashboard/btc-dominance";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { AnnouncementBanner } from "@/components/dashboard/announcement-banner";
-import { IntegrationWidgets } from "@/components/dashboard/integration-widgets";
+import { Bot4xSummaryWidget } from "@/components/dashboard/integration-widgets";
 import { PollingAlertBanner } from "@/components/diagnostics/polling-alert-banner";
 import { PollingMetricsPanel } from "@/components/diagnostics/polling-metrics-panel";
 import { CostsRoiCard } from "@/components/dashboard/costs-roi-card";
@@ -69,7 +69,7 @@ function Dashboard() {
       <div className="flex">
         <LeftSidebar />
         <main className="flex-1 min-w-0 p-5 space-y-5">
-          <IntegrationWidgets />
+          <div className="max-w-sm"><Bot4xSummaryWidget /></div>
           <MetricCards />
 
           <CostsRoiCard />

@@ -87,6 +87,7 @@ export const getSignalsList = createServerFn({ method: "GET" })
         "id,pair,side,score,ai_score,entry_price,stop_loss,take_profit1,take_profit2,timeframe,status,channel_zone,rsi,liquidity_grab,ai_reasoning,confirmations,invalidations,expires_at,created_at,updated_at",
       )
       .eq("status", data.status)
+      .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(20);
     if (error) {
