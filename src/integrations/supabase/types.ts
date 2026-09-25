@@ -247,6 +247,60 @@ export type Database = {
         }
         Relationships: []
       }
+      binance_credentials: {
+        Row: {
+          api_key_ciphertext: string
+          api_key_iv: string
+          api_secret_ciphertext: string
+          api_secret_iv: string
+          created_at: string
+          environment: string
+          id: string
+          key_suffix: string
+          last_validated_at: string | null
+          last_validation_error: string | null
+          revoked_at: string | null
+          rotated_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key_ciphertext: string
+          api_key_iv: string
+          api_secret_ciphertext: string
+          api_secret_iv: string
+          created_at?: string
+          environment?: string
+          id?: string
+          key_suffix: string
+          last_validated_at?: string | null
+          last_validation_error?: string | null
+          revoked_at?: string | null
+          rotated_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key_ciphertext?: string
+          api_key_iv?: string
+          api_secret_ciphertext?: string
+          api_secret_iv?: string
+          created_at?: string
+          environment?: string
+          id?: string
+          key_suffix?: string
+          last_validated_at?: string | null
+          last_validation_error?: string | null
+          revoked_at?: string | null
+          rotated_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bot_cop_decisions: {
         Row: {
           context: Json
@@ -320,6 +374,7 @@ export type Database = {
           daily_pnl: number | null
           emergency_triggered_at: string | null
           exchange: string | null
+          execution_mode: string
           fomo_limit: number | null
           id: string
           leverage: number | null
@@ -348,6 +403,7 @@ export type Database = {
           daily_pnl?: number | null
           emergency_triggered_at?: string | null
           exchange?: string | null
+          execution_mode?: string
           fomo_limit?: number | null
           id?: string
           leverage?: number | null
@@ -376,6 +432,7 @@ export type Database = {
           daily_pnl?: number | null
           emergency_triggered_at?: string | null
           exchange?: string | null
+          execution_mode?: string
           fomo_limit?: number | null
           id?: string
           leverage?: number | null
