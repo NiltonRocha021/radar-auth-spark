@@ -151,9 +151,13 @@ export const placeOrder = placeDemoOrder;
 
 export const closeDemoOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { orderId: string; exitPrice?: number }) =>
+  .inputValidator((d: { orderId: string; exitPrice?: number; liveConfirmation?: "CONFIRMAR ORDEM REAL" }) =>
     z
-      .object({ orderId: z.string().uuid(), exitPrice: z.number().positive().optional() })
+      .object({
+        orderId: z.string().uuid(),
+        exitPrice: z.number().positive().optional(),
+        liveConfirmation: z.literal("CONFIRMAR ORDEM REAL").optional(),
+      })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<OrderDTO> => {
@@ -171,6 +175,9 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
     let exit = data.exitPrice;
 
     if (row.mode === "LIVE") {
+      if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
+        throw new Error("Confirme explicitamente o encerramento REAL antes do envio à Binance.");
+      }
       const [{ closeBinancePosition, fetchBinancePrice }, { getBinanceCredentials }] = await Promise.all([
         import("./binance.server"), import("./binance-credentials.server"),
       ]);
