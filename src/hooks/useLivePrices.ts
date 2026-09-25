@@ -51,7 +51,8 @@ interface PriceStoreState {
   global: GlobalMetrics | null;
   fearGreed: FearGreed | null;
   lastUpdate: Date | null;
-  setPrices: (prices: Record<string, CoinPrice>, global: GlobalMetrics | null, fearGreed: FearGreed | null) => void;
+  stale: boolean;
+  setPrices: (prices: Record<string, CoinPrice>, global: GlobalMetrics | null, fearGreed: FearGreed | null, dataAsOf: Date, stale: boolean) => void;
   setLivePrice: (symbol: string, update: PartialPriceUpdate) => void;
 }
 
@@ -60,8 +61,9 @@ export const usePriceStore = create<PriceStoreState>((set) => ({
   global: null,
   fearGreed: null,
   lastUpdate: null,
+  stale: false,
 
-  setPrices: (prices, global, fearGreed) => set({ prices, global, fearGreed, lastUpdate: new Date() }),
+  setPrices: (prices, global, fearGreed, dataAsOf, stale) => set({ prices, global, fearGreed, lastUpdate: dataAsOf, stale }),
 
   setLivePrice: (symbol, update) =>
     set((state) => {
@@ -81,6 +83,7 @@ export const usePriceStore = create<PriceStoreState>((set) => ({
       return {
         prices: { ...state.prices, [symbol]: { ...base, ...update } },
         lastUpdate: update.lastUpdated,
+        stale: false,
       };
     }),
 }));
@@ -96,6 +99,7 @@ interface UseLivePricesReturn {
   lastUpdate: Date | null;
   /** Estado do stream de tickers da Binance (tempo real). */
   streamStatus: StreamStatus;
+  stale: boolean;
   refresh: () => void;
 }
 
@@ -108,7 +112,7 @@ const STREAM_FRESH_MS = 20_000;
 const MIN_PRICES_FOR_LIVE = 5;
 
 export function useLivePrices(): UseLivePricesReturn {
-  const { prices, global, fearGreed, lastUpdate, setPrices } = usePriceStore();
+  const { prices, global, fearGreed, lastUpdate, stale, setPrices } = usePriceStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [streamStatus, setStreamStatus] = useState<StreamStatus>("closed");
@@ -145,6 +149,8 @@ export function useLivePrices(): UseLivePricesReturn {
               }
             : null,
           snap.fearGreed,
+          new Date(snap.dataAsOf),
+          snap.stale,
         );
       }
 
@@ -191,6 +197,7 @@ export function useLivePrices(): UseLivePricesReturn {
     error,
     lastUpdate,
     streamStatus,
+    stale,
     refresh: fetchAll,
   };
 }

@@ -145,7 +145,12 @@ export const useSignalsStore = create<State>((set, get) => ({
         return;
       }
 
-      const mapped: Signal[] = backendSignals.map((s) => ({
+      const mapped: Signal[] = backendSignals.map((s) => {
+        const createdAt = s.createdAt ? Date.parse(s.createdAt) : Number.NaN;
+        const ageMin = Number.isFinite(createdAt) ? Math.max(0, Math.floor((Date.now() - createdAt) / 60_000)) : 0;
+        const stopDistance = Math.abs(s.entry - (s.sl ?? s.entry));
+        const targetDistance = Math.abs((s.tp ?? s.entry) - s.entry);
+        return ({
         id: s.id,
         asset: s.symbol,
         assetClass: "Crypto" as AssetClass,
@@ -156,20 +161,19 @@ export const useSignalsStore = create<State>((set, get) => ({
         entry: s.entry,
         stop: s.sl ?? s.entry * 0.995,
         target: s.tp ?? s.entry * 1.01,
-        rr: s.tp
-          ? Number(((s.tp - s.entry) / (s.entry - (s.sl ?? s.entry * 0.995))).toFixed(1))
-          : 2.0,
-        riskPct: 0.5,
+        rr: stopDistance > 0 ? Number((targetDistance / stopDistance).toFixed(1)) : 0,
+        riskPct: s.entry > 0 ? Number(((stopDistance / s.entry) * 100).toFixed(2)) : 0,
         volDelta: 0,
         confirms: { rsi: true, macd: false, volume: true, structure: true, vwap: false },
         dnaMatch: 70,
         manipRisk: "low",
         setup: "Breakout",
         session: "NY",
-        ageMin: 0,
+        ageMin,
         status: (s.state === "active" ? "active" : "expired") as Signal["status"],
         isMock: false,
-      }));
+      });
+      });
 
       // Em dev mantemos mocks atrás dos sinais reais para visualização;
       // em produção os mocks são descartados para evitar decisões baseadas

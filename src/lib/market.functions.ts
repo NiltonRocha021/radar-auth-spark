@@ -84,6 +84,10 @@ export interface MarketSnapshotDTO {
   global: GlobalMetricsDTO | null;
   fearGreed: FearGreedDTO | null;
   fetchedAt: number;
+  /** Horário em que os preços foram efetivamente obtidos da fonte. */
+  dataAsOf: number;
+  /** Indica que a resposta reutilizou o último snapshot conhecido. */
+  stale: boolean;
   /** true quando todos os preços vieram do fallback Binance (CoinGecko indisponível). */
   usingFallback?: boolean;
 }
@@ -229,6 +233,8 @@ async function loadPricesAndGlobal(): Promise<{
   prices: Record<string, CoinPriceDTO>;
   global: GlobalMetricsDTO | null;
   usingFallback: boolean;
+  dataAsOf: number;
+  stale: boolean;
 }> {
   const headers = coinGeckoHeaders();
 
@@ -333,6 +339,8 @@ async function loadPricesAndGlobal(): Promise<{
       prices: { ...lastGoodSnapshot.prices },
       global: global ?? lastGoodSnapshot.global,
       usingFallback: true,
+      dataAsOf: lastGoodSnapshot.at,
+      stale: true,
     };
   }
 
@@ -341,7 +349,7 @@ async function loadPricesAndGlobal(): Promise<{
     lastGoodSnapshot = { prices, global, at: Date.now() };
   }
 
-  return { prices, global, usingFallback };
+  return { prices, global, usingFallback, dataAsOf: Date.now(), stale: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -382,6 +390,8 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(async
     global: pricesAndGlobal.global,
     fearGreed,
     fetchedAt: Date.now(),
+    dataAsOf: pricesAndGlobal.dataAsOf,
+    stale: pricesAndGlobal.stale,
     usingFallback: pricesAndGlobal.usingFallback,
   };
 });

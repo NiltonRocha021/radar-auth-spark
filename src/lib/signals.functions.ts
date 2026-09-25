@@ -91,7 +91,7 @@ export const getSignalsList = createServerFn({ method: "GET" })
       .limit(20);
     if (error) {
       console.warn("[signals.functions] getSignalsList error:", error.message);
-      return [];
+      throw new Error("Não foi possível consultar os sinais agora.");
     }
     return parseRows(signalRowSchema, rows, "signals.getSignalsList").map(toListItem);
   });
@@ -120,7 +120,7 @@ export const getSignalById = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) {
       console.warn("[signals.functions] getSignalById error:", error.message);
-      return null;
+      throw new Error("Não foi possível consultar o sinal agora.");
     }
     const s = parseRow(signalRowSchema, row, "signals.getSignalById");
     if (!s) return null;
