@@ -1,5 +1,11 @@
 # Roadmap
 
+- [ ] Auditar e corrigir leitura real de mercado, sinais, operações, risco e alertas.
+- [ ] Eliminar dados simulados ou rótulos enganosos nos fluxos identificados como reais.
+- [ ] Validar atualização, reconexão, expiração e estados de erro dos dados operacionais.
+- [ ] Revisar segurança, saúde da base e permissões dos fluxos reais.
+- [ ] Validar sessão autenticada e telas críticas em desktop e celular.
+
 - [x] Persistir modo DEMO/LIVE por usuário e conectar bot/ordens.
 - [x] Isolar e criptografar credenciais Binance por perfil, com salvar, rotacionar, validar e revogar.
 - [x] Adicionar controle DEMO/REAL na administração com auditoria.
