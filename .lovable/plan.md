@@ -1,47 +1,29 @@
-# Perfis DEMO/REAL e execução isolada por usuário
+# Dashboard por perfil e conta Binance
 
 ## Resultado
-- Transformar o modo de operação em uma configuração persistida por usuário, visível no bot, dashboard, trades e administração.
-- Permitir que administradores selecionem DEMO ou REAL na tela de perfis e salvem a alteração com auditoria.
-- Manter cada conta Binance isolada: cada usuário cadastra e valida suas próprias credenciais em uma área segura.
+
+- Mostrar no dashboard do perfil conectado um comparativo DEMO versus REAL com histórico, ganhos, perdas, taxa de sucesso, ROI e gráfico acumulado.
+- Mostrar risco, margem, alerta de perda, volume em carteira, capital disponível e capital comprometido em ordens, sempre conforme o modo salvo do perfil.
+- Atualizar os painéis automaticamente após uma troca de modo, sem misturar dados DEMO e REAL.
+- Exibir os mesmos registros e estados na tela de Trades.
+
+## Segurança da operação REAL
+
+- Manter as credenciais Binance criptografadas e isoladas por perfil; nenhuma chave ou segredo será enviado ao navegador ou exibido em logs.
+- Validar conta, saldos e permissões com uma consulta assinada somente no servidor.
+- Implementar “ordem de teste” usando a validação oficial da Binance, que verifica assinatura, filtros e permissões sem executar ou movimentar fundos.
+- Não enviar uma ordem financeira real em nome do usuário. A primeira ordem efetiva continuará exigindo confirmação explícita do titular na interface.
 
 ## Implementação
-1. **Configuração e segurança**
-   - Adicionar `execution_mode` (`DEMO`/`LIVE`) à configuração do Bot4x, com DEMO como padrão.
-   - Criar armazenamento privado de credenciais Binance por usuário, sem acesso direto pelo navegador e sem devolver o segredo após salvar.
-   - Criptografar as credenciais no servidor com uma chave exclusiva do projeto.
-   - Registrar ambiente (testnet/produção), sufixo mascarado, estado da validação e última verificação.
 
-2. **Tela de perfis e configurações**
-   - Na administração, adicionar botões DEMO/REAL por perfil e um botão Salvar.
-   - Exibir o modo configurado separadamente do estado ligado/desligado do bot.
-   - Em Configurações, adicionar conexão Binance por usuário: chave, segredo, ambiente, testar, salvar, substituir e remover.
-   - Bloquear a gravação de REAL quando as credenciais daquele usuário não estiverem válidas ou o pré-voo estiver incompleto.
+- Ampliar a integração Binance Spot para retornar saldos de carteira e capital disponível, além de consultar ordens abertas e validar ordens de teste.
+- Criar funções autenticadas que resolvem o modo salvo no servidor e retornam um resumo financeiro seguro do perfil.
+- Consolidar os dados DEMO/REAL existentes em um painel comparativo e ligar os cartões de risco e desempenho ao mesmo modo persistido.
+- Adicionar estados de carregamento, vazio e erro, atualização periódica e invalidação imediata após mudança de modo.
+- Registrar a validação da ordem de teste sem representá-la como execução financeira real.
 
-3. **Bot e ordens**
-   - Remover o bloqueio global “Em breve” e carregar o modo persistido ao entrar.
-   - Fazer o seletor do Bot4x salvar o modo no servidor e reiniciar corretamente o fluxo ao trocar.
-   - Toda abertura de ordem consultará o modo persistido no servidor, sem aceitar que o navegador force LIVE.
-   - DEMO usará o mesmo pipeline de ordens e cotações de mercado, sem enviar à Binance; LIVE usará somente as credenciais do usuário autenticado.
-   - Registrar identificador e resposta segura da Binance nos metadados da ordem para conciliação, sem guardar segredos.
+## Validação
 
-4. **Dashboard, alertas e administração**
-   - Fazer risco, ROI, alertas visuais/sonoros e gráfico por par seguirem o modo escolhido pelo usuário.
-   - Manter comparação DEMO/LIVE nas telas de trades, com o modo atual destacado.
-   - Corrigir o estado LIVE da administração para refletir `modo LIVE + bot ativo + credenciais válidas`.
-   - Remover os rótulos “Em breve” restantes; recursos externos sem integração disponível serão removidos da interface em vez de simulados.
-
-5. **Validação e publicação**
-   - Cobrir persistência por usuário, autorização administrativa, bloqueio seguro de LIVE, roteamento DEMO/LIVE e linhas inválidas.
-   - Verificar desktop e celular, erros em tela, painel de risco, gráfico por par, administração e trades.
-   - Entrar com a sessão autorizada e testar autenticação/conectividade da Binance sem enviar uma ordem financeira real.
-   - Publicar no domínio configurado após build, testes e verificação visual sem erros.
-
-## Limite de segurança
-Não será criada, ativada, fechada ou alterada uma ordem financeira real em nome do usuário. A entrega validará credenciais e conectividade; a primeira ordem LIVE continuará exigindo uma ação explícita do titular dentro do produto.
-
-## Detalhes técnicos
-- Migrações com RLS e GRANTs explícitos; credenciais acessíveis apenas por funções autenticadas e operações privilegiadas verificadas.
-- AES-GCM via Web Crypto para criptografia em repouso; chave mantida no cofre do projeto.
-- Funções internas com autenticação; validação Zod; polling de 15 segundos preservado.
-- Auditoria administrativa para toda mudança de modo.
+- Cobrir cálculos, isolamento por usuário, alternância DEMO/REAL e respostas inválidas com testes.
+- Validar o fluxo autenticado e a apresentação em desktop e celular.
+- Confirmar que nenhuma credencial aparece no navegador, respostas ou mensagens de erro.

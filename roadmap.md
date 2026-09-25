@@ -7,3 +7,8 @@
 - [x] Remover os rótulos “Em breve”.
 - [ ] Validar sessão, conexão Binance sem ordem, desktop/celular e publicar.
 - [ ] Manter ativação da primeira ordem real como ação explícita do titular.
+- [ ] Adicionar comparativo DEMO/REAL por perfil com ganhos, perdas e taxa de sucesso no dashboard.
+- [ ] Exibir carteira, capital disponível e capital em ordens para o modo salvo do perfil.
+- [ ] Atualizar risco, margem e alerta de perda quando o modo do perfil mudar.
+- [ ] Validar ordem Binance sem execução financeira e refletir a confirmação no dashboard e em Trades.
+- [ ] Validar conta autenticada sem expor credenciais; credenciais reais continuam sendo salvas pelo titular no formulário seguro.
