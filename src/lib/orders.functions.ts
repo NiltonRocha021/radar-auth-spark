@@ -1,8 +1,5 @@
-// Server functions da Fase 3 — Orders (DEMO agora, LIVE reservado p/ Fase 4).
-// Porta OrderController do Nest (place/close/list) sem executar contra exchange
-// real. O contrato inclui `mode` desde já (default 'DEMO') para que a Fase 4
-// só precise emitir orders com mode='LIVE' via mesmo pipeline, sem migration
-// de rename/merge de tabela.
+// Ordens DEMO/LIVE com modo decidido exclusivamente pela configuração persistida
+// do usuário. O cliente não pode promover uma ordem para LIVE pelo payload.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -73,7 +70,7 @@ function toDto(r: OrderRow): OrderDTO {
 // ---------- placeOrder (DEMO | LIVE) ---------------------------------------
 // Fase 4: mode='LIVE' executa de fato contra a Binance dentro do Worker
 // (src/lib/binance.server.ts, import dinâmico p/ não vazar ao bundle client).
-// Guardas para LIVE: 2FA verificado + credenciais Binance configuradas.
+// Guardas para LIVE: 2FA verificado + credenciais Binance válidas do usuário.
 
 export const placeDemoOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -150,7 +147,7 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     return toDto(row as OrderRow);
   });
 
-/** Alias explícito para a Fase 4 — mesmo pipeline, aceita mode='LIVE'. */
+/** Alias público do pipeline único; o modo é sempre resolvido no servidor. */
 export const placeOrder = placeDemoOrder;
 
 // ---------- closeOrder (DEMO | LIVE) ---------------------------------------

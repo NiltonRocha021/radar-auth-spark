@@ -1,6 +1,6 @@
 // Fase 4 — Status de prontidão para execução LIVE.
 // Server fn de leitura que agrega: 2FA verificado, presença das credenciais
-// da Binance no ambiente do Worker e conectividade/permissões da API key.
+// da Binance isoladas por usuário e conectividade/permissões da API key.
 // Nunca retorna a chave/segredo — apenas flags e metadados seguros.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
