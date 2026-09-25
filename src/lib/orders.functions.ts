@@ -85,6 +85,7 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
         stopLoss: z.number().positive().optional(),
         takeProfit: z.number().positive().optional(),
         signalId: z.string().uuid().optional(),
+        liveConfirmation: z.literal("CONFIRMAR ORDEM REAL").optional(),
       })
       .parse(d),
   )
@@ -101,6 +102,9 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     const executionMode: "DEMO" | "LIVE" = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
 
     if (executionMode === "LIVE") {
+      if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
+        throw new Error("Confirme explicitamente a ordem REAL antes do envio à Binance.");
+      }
       const [{ placeBinanceOrder }, { getBinanceCredentials }] = await Promise.all([
         import("./binance.server"), import("./binance-credentials.server"),
       ]);

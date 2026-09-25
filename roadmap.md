@@ -6,7 +6,7 @@
 - [x] Ligar risco, ROI, alertas e gráfico por par ao modo salvo.
 - [x] Remover os rótulos “Em breve”.
 - [ ] Validar sessão, conexão Binance sem ordem, desktop/celular e publicar.
-- [ ] Manter ativação da primeira ordem real como ação explícita do titular.
+- [x] Exigir confirmação explícita do titular antes de cada envio de ordem real.
 - [x] Adicionar comparativo DEMO/REAL por perfil com ganhos, perdas e taxa de sucesso no dashboard.
 - [x] Exibir carteira, capital disponível e capital em ordens para o modo salvo do perfil.
 - [x] Atualizar risco, margem e alerta de perda quando o modo do perfil mudar.
