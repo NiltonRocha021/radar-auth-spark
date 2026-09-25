@@ -105,9 +105,22 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
       if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
         throw new Error("Confirme explicitamente a ordem REAL antes do envio à Binance.");
       }
-      const [{ placeBinanceOrder }, { getBinanceCredentials }] = await Promise.all([
-        import("./binance.server"), import("./binance-credentials.server"),
+      if (data.side === "BUY" && data.stopLoss != null && data.stopLoss >= data.entryPrice) {
+        throw new Error("Em uma compra, o stop deve ficar abaixo do preço de entrada.");
+      }
+      if (data.side === "BUY" && data.takeProfit != null && data.takeProfit <= data.entryPrice) {
+        throw new Error("Em uma compra, o alvo deve ficar acima do preço de entrada.");
+      }
+      if (data.side === "SELL" && data.stopLoss != null && data.stopLoss <= data.entryPrice) {
+        throw new Error("Em uma venda, o stop deve ficar acima do preço de entrada.");
+      }
+      if (data.side === "SELL" && data.takeProfit != null && data.takeProfit >= data.entryPrice) {
+        throw new Error("Em uma venda, o alvo deve ficar abaixo do preço de entrada.");
+      }
+      const [{ placeBinanceOrder }, { getBinanceCredentials }, { assertTradingRiskAllowed }] = await Promise.all([
+        import("./binance.server"), import("./binance-credentials.server"), import("./risk.functions"),
       ]);
+      await assertTradingRiskAllowed(context.supabase, context.userId);
       const credentials = await getBinanceCredentials(context.userId);
 
       const fill = await placeBinanceOrder({

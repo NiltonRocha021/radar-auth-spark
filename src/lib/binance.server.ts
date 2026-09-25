@@ -54,13 +54,14 @@ async function signedRequest<T>(
   const query = new URLSearchParams({
     ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
     timestamp: String(Date.now()),
-    recvWindow: "5000",
+    recvWindow: "10000",
   }).toString();
   const signature = await sign(query, apiSecret);
 
   const res = await fetch(`${baseUrl}${path}?${query}&signature=${signature}`, {
     method,
     headers: { "X-MBX-APIKEY": apiKey },
+    signal: AbortSignal.timeout(12_000),
   });
   const text = await res.text();
   if (!res.ok) {
@@ -137,11 +138,13 @@ export async function validateBinanceOrder(input: {
   side: "BUY" | "SELL";
   quoteAmount: number;
 }, credentials: BinanceCredentials): Promise<void> {
+  const price = input.side === "SELL" ? await fetchBinancePrice(input.symbol, credentials.baseUrl) : null;
+  if (input.side === "SELL" && !price) throw new Error("Não foi possível obter o preço atual para validar a venda.");
   await signedRequest<Record<string, never>>(credentials, "/api/v3/order/test", "POST", {
     symbol: input.symbol,
     side: input.side,
     type: "MARKET",
-    ...(input.side === "BUY" ? { quoteOrderQty: input.quoteAmount } : { quantity: input.quoteAmount }),
+    ...(input.side === "BUY" ? { quoteOrderQty: input.quoteAmount } : { quantity: input.quoteAmount / price! }),
   }, true);
 }
 

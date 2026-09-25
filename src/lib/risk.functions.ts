@@ -127,6 +127,13 @@ function classify(snapshot: {
   return { level: "LOW", message: "Sistema operando normalmente." };
 }
 
+/** Guarda server-side compartilhada pelos caminhos que podem movimentar fundos. */
+export async function assertTradingRiskAllowed(supabase: unknown, userId: string): Promise<void> {
+  const snapshot = await loadSnapshot(supabase as never, userId);
+  const { level, message } = classify(snapshot);
+  if (level === "CRITICAL") throw new Error(message);
+}
+
 export const getRiskStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<RiskStatusDTO> => {
