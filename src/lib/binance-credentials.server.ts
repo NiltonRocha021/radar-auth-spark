@@ -25,6 +25,10 @@ function base64ToBytes(value: string): Uint8Array {
   return Uint8Array.from(binary, (char) => char.charCodeAt(0));
 }
 
+function asArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+}
+
 async function encryptionKey(): Promise<CryptoKey> {
   const secret = process.env["BINANCE_CREDENTIALS_ENCRYPTION_KEY"];
   if (!secret) throw new Error("Cofre de credenciais indisponível.");
@@ -44,9 +48,9 @@ async function encrypt(value: string): Promise<{ ciphertext: string; iv: string 
 
 async function decrypt(ciphertext: string, iv: string): Promise<string> {
   const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: base64ToBytes(iv) },
+    { name: "AES-GCM", iv: asArrayBuffer(base64ToBytes(iv)) },
     await encryptionKey(),
-    base64ToBytes(ciphertext),
+    asArrayBuffer(base64ToBytes(ciphertext)),
   );
   return new TextDecoder().decode(decrypted);
 }
