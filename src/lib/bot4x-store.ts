@@ -462,8 +462,14 @@ export const useBot4xStore = create<State>()(
       setMode: (mode) => {
         get().cleanup();
         set({ mode, realInited: false, status: "IDLE", errorMsg: null });
-        const uid = get().userId;
-        if (uid) void saveConfig(uid, { executionMode: mode });
+        if (get().userId) {
+          void import("./bot.functions")
+            .then(({ updateBotConfig }) => updateBotConfig({ data: { executionMode: mode === "REAL" ? "LIVE" : "DEMO" } }))
+            .then(() => get().init())
+            .catch((error) => {
+              set({ mode: mode === "REAL" ? "DEMO" : "REAL", errorMsg: error instanceof Error ? error.message : "Não foi possível salvar o modo." });
+            });
+        }
       },
       setTotalCapital: (n) => {
         const v = Math.max(0, n);

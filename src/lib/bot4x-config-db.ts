@@ -122,7 +122,6 @@ export async function saveConfig(userId: string, config: Partial<Bot4xConfigRow>
     user_id: userId,
     updated_at: new Date().toISOString(),
     ...(config.active !== undefined && { active: config.active }),
-    ...(config.executionMode !== undefined && { execution_mode: config.executionMode === "REAL" ? "LIVE" : "DEMO" }),
     ...(config.profile !== undefined && { profile: config.profile }),
     ...(config.leverage !== undefined && { leverage: config.leverage }),
     ...(config.activeCapital !== undefined && { active_capital: config.activeCapital }),
