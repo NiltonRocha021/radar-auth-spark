@@ -10,11 +10,6 @@ import { SignalsTable } from "@/components/dashboard/signals-table";
 import { FearGreedGauge } from "@/components/dashboard/fear-greed-gauge";
 import { AssetHeatmap } from "@/components/dashboard/asset-heatmap";
 import { BtcDominance } from "@/components/dashboard/btc-dominance";
-import { DnaPanel } from "@/components/dashboard/dna-panel";
-import { AlertsFeed } from "@/components/dashboard/alerts-feed";
-import { Sentiment } from "@/components/dashboard/sentiment";
-import { PerformanceChart } from "@/components/dashboard/performance-chart";
-import { MarketCalendar } from "@/components/dashboard/market-calendar";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { LiveToasts } from "@/components/dashboard/live-toasts";
 import { SignalDrawer } from "@/components/dashboard/signal-drawer";
@@ -27,6 +22,7 @@ import { CostsRoiCard } from "@/components/dashboard/costs-roi-card";
 import { LiveRiskPanel } from "@/components/dashboard/live-risk-panel";
 import { PairPerformanceCard } from "@/components/trades/pair-performance-card";
 import { ProfileCapitalCard } from "@/components/dashboard/profile-capital-card";
+import { useSignalsStore } from "@/lib/signals-store";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -48,6 +44,8 @@ function Dashboard() {
   const navigate = useNavigate();
   const init = useDashboardStore((s) => s.init);
   const cleanup = useDashboardStore((s) => s.cleanup);
+  const initSignals = useSignalsStore((s) => s.init);
+  const cleanupSignals = useSignalsStore((s) => s.cleanup);
 
   useEffect(() => {
     if (ready && !userId) navigate({ to: "/login" });
@@ -56,8 +54,9 @@ function Dashboard() {
   useEffect(() => {
     if (!ready || !userId) return;
     init();
-    return () => cleanup();
-  }, [ready, userId, init, cleanup]);
+    initSignals();
+    return () => { cleanup(); cleanupSignals(); };
+  }, [ready, userId, init, cleanup, initSignals, cleanupSignals]);
 
   if (!ready || !userId) {
     return (
@@ -93,19 +92,7 @@ function Dashboard() {
             <div className="lg:col-span-2"><BtcDominance /></div>
           </div>
 
-          <DnaPanel />
-
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-            <div className="lg:col-span-3"><AlertsFeed /></div>
-            <div className="lg:col-span-2"><Sentiment /></div>
-          </div>
-
-          <PerformanceChart />
-
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-            <div className="lg:col-span-3"><MarketCalendar /></div>
-            <div className="lg:col-span-2"><QuickActions /></div>
-          </div>
+          <QuickActions />
 
           <PollingMetricsPanel />
         </main>
