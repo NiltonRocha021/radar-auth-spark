@@ -301,6 +301,54 @@ export type Database = {
         }
         Relationships: []
       }
+      binance_order_validations: {
+        Row: {
+          created_at: string
+          environment: string
+          id: string
+          message: string | null
+          mode: string
+          order_type: string
+          price: number | null
+          quantity: number
+          side: string
+          status: string
+          symbol: string
+          user_id: string
+          validated_at: string
+        }
+        Insert: {
+          created_at?: string
+          environment: string
+          id?: string
+          message?: string | null
+          mode?: string
+          order_type: string
+          price?: number | null
+          quantity: number
+          side: string
+          status: string
+          symbol: string
+          user_id: string
+          validated_at?: string
+        }
+        Update: {
+          created_at?: string
+          environment?: string
+          id?: string
+          message?: string | null
+          mode?: string
+          order_type?: string
+          price?: number | null
+          quantity?: number
+          side?: string
+          status?: string
+          symbol?: string
+          user_id?: string
+          validated_at?: string
+        }
+        Relationships: []
+      }
       bot_cop_decisions: {
         Row: {
           context: Json
