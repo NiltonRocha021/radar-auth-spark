@@ -75,7 +75,7 @@ export function ProfileCapitalCard() {
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-32 flex-1 space-y-1.5"><Label htmlFor="test-symbol">Par</Label><Input id="test-symbol" value={symbol} onChange={(event) => setSymbol(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20))} /></div>
             <div className="w-28 space-y-1.5"><Label>Lado</Label><Select value={side} onValueChange={(value) => setSide(value as "BUY" | "SELL")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="BUY">Compra</SelectItem><SelectItem value="SELL">Venda</SelectItem></SelectContent></Select></div>
-            <div className="w-36 space-y-1.5"><Label htmlFor="test-amount">Valor em USDT</Label><Input id="test-amount" type="number" min={5} max={1000} value={quoteAmount} onChange={(event) => setQuoteAmount(Number(event.target.value))} /></div>
+            <div className="w-36 space-y-1.5"><Label htmlFor="test-amount">{side === "BUY" ? "Valor em USDT" : "Quantidade do ativo"}</Label><Input id="test-amount" type="number" min={5} max={1000} value={quoteAmount} onChange={(event) => setQuoteAmount(Number(event.target.value))} /></div>
             <Button variant="outline" disabled={data?.mode !== "LIVE" || validation.isPending || symbol.length < 5 || quoteAmount < 5} onClick={() => validation.mutate()}>
               {validation.isPending ? <RefreshCw className="animate-spin" /> : <FlaskConical />} Validar ordem
             </Button>

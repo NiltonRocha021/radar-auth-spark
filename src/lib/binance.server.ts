@@ -48,6 +48,7 @@ async function signedRequest<T>(
   path: string,
   method: "GET" | "POST" | "DELETE",
   params: Record<string, string | number>,
+  allowEmpty = false,
 ): Promise<T> {
   const { apiKey, apiSecret, baseUrl } = credentials;
   const query = new URLSearchParams({
@@ -67,6 +68,7 @@ async function signedRequest<T>(
     throw new Error(`Binance ${res.status}: ${detail.slice(0, 300)}`);
   }
   if (!text.trim()) {
+    if (allowEmpty) return {} as T;
     throw new Error(`Binance ${res.status}: resposta vazia inesperada`);
   }
   try {
@@ -139,8 +141,8 @@ export async function validateBinanceOrder(input: {
     symbol: input.symbol,
     side: input.side,
     type: "MARKET",
-    quoteOrderQty: input.quoteAmount,
-  });
+    ...(input.side === "BUY" ? { quoteOrderQty: input.quoteAmount } : { quantity: input.quoteAmount }),
+  }, true);
 }
 
 /** Fecha uma posição enviando a ordem MARKET oposta. */
@@ -197,16 +199,18 @@ export async function fetchBinanceAccount(credentials: BinanceCredentials): Prom
     if (["USDT", "USDC", "FDUSD", "BUSD"].includes(asset)) return 1;
     return (await fetchBinancePrice(`${asset}USDT`, credentials.baseUrl)) ?? 0;
   }));
-  const balances = rawBalances
-    .map((balance, index) => ({
+  const valuedBalances = rawBalances.map((balance, index) => ({
       ...balance,
+      availableValueUsdt: balance.free * (prices[index] ?? 0),
       valueUsdt: (balance.free + balance.locked) * (prices[index] ?? 0),
-    }))
+    }));
+  const availableValueUsdt = valuedBalances.reduce((sum, balance) => sum + balance.availableValueUsdt, 0);
+  const balances = valuedBalances
     .filter((balance) => balance.valueUsdt > 0)
-    .sort((a, b) => b.valueUsdt - a.valueUsdt);
+    .sort((a, b) => b.valueUsdt - a.valueUsdt)
+    .map(({ asset, free, locked, valueUsdt }) => ({ asset, free, locked, valueUsdt }));
 
   const walletValueUsdt = balances.reduce((sum, balance) => sum + balance.valueUsdt, 0);
-  const availableValueUsdt = balances.reduce((sum, balance, index) => sum + balance.free * (prices[index] ?? 0), 0);
   const lockedValueUsdt = Math.max(walletValueUsdt - availableValueUsdt, 0);
   const openOrderValueUsdt = (openOrders ?? []).reduce((sum, order) => {
     const remaining = Math.max(Number(order.origQty ?? 0) - Number(order.executedQty ?? 0), 0);
