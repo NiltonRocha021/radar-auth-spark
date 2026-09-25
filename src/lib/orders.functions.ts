@@ -70,7 +70,7 @@ function toDto(r: OrderRow): OrderDTO {
 // ---------- placeOrder (DEMO | LIVE) ---------------------------------------
 // Fase 4: mode='LIVE' executa de fato contra a Binance dentro do Worker
 // (src/lib/binance.server.ts, import dinâmico p/ não vazar ao bundle client).
-// Guardas para LIVE: 2FA verificado + credenciais Binance válidas do usuário.
+// Guardas para LIVE: modo persistido + credenciais Binance válidas do usuário.
 
 export const placeDemoOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -85,6 +85,7 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
         stopLoss: z.number().positive().optional(),
         takeProfit: z.number().positive().optional(),
         signalId: z.string().uuid().optional(),
+        liveConfirmation: z.literal("CONFIRMAR ORDEM REAL").optional(),
       })
       .parse(d),
   )
@@ -101,15 +102,9 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     const executionMode: "DEMO" | "LIVE" = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
 
     if (executionMode === "LIVE") {
-      const { data: tfa } = await context.supabase
-        .from("user_two_factor")
-        .select("enabled")
-        .eq("user_id", context.userId)
-        .maybeSingle();
-      if (!tfa?.enabled) {
-        throw new Error("Ative o 2FA antes de operar em modo LIVE.");
+      if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
+        throw new Error("Confirme explicitamente a ordem REAL antes do envio à Binance.");
       }
-
       const [{ placeBinanceOrder }, { getBinanceCredentials }] = await Promise.all([
         import("./binance.server"), import("./binance-credentials.server"),
       ]);
@@ -156,9 +151,13 @@ export const placeOrder = placeDemoOrder;
 
 export const closeDemoOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { orderId: string; exitPrice?: number }) =>
+  .inputValidator((d: { orderId: string; exitPrice?: number; liveConfirmation?: "CONFIRMAR ORDEM REAL" }) =>
     z
-      .object({ orderId: z.string().uuid(), exitPrice: z.number().positive().optional() })
+      .object({
+        orderId: z.string().uuid(),
+        exitPrice: z.number().positive().optional(),
+        liveConfirmation: z.literal("CONFIRMAR ORDEM REAL").optional(),
+      })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<OrderDTO> => {
@@ -176,6 +175,9 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
     let exit = data.exitPrice;
 
     if (row.mode === "LIVE") {
+      if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
+        throw new Error("Confirme explicitamente o encerramento REAL antes do envio à Binance.");
+      }
       const [{ closeBinancePosition, fetchBinancePrice }, { getBinanceCredentials }] = await Promise.all([
         import("./binance.server"), import("./binance-credentials.server"),
       ]);

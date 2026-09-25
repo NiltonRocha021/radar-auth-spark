@@ -12,7 +12,7 @@ export function PairPerformanceCard() {
   const configFn = useServerFn(getBotConfig);
   const analyticsFn = useServerFn(getPairAnalytics);
   const [selected, setSelected] = useState("");
-  const config = useQuery({ queryKey: ["bot-config"], queryFn: () => configFn() });
+  const config = useQuery({ queryKey: ["bot-config"], queryFn: () => configFn(), refetchInterval: 5_000 });
   const mode = config.data?.executionMode ?? "DEMO";
   const analytics = useQuery({ queryKey: ["orders", "pairs", mode], queryFn: () => analyticsFn({ data: { mode, limit: 1000 } }), refetchInterval: 15_000 });
   const symbol = selected || analytics.data?.pairs[0]?.symbol || "";
