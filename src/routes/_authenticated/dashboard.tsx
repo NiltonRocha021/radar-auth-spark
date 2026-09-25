@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useBackendAuth } from "@/hooks/useBackendAuth";
-import { useDashboardStore } from "@/lib/dashboard-store";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { MetricCards } from "@/components/dashboard/metric-cards";
@@ -11,8 +10,6 @@ import { FearGreedGauge } from "@/components/dashboard/fear-greed-gauge";
 import { AssetHeatmap } from "@/components/dashboard/asset-heatmap";
 import { BtcDominance } from "@/components/dashboard/btc-dominance";
 import { QuickActions } from "@/components/dashboard/quick-actions";
-import { LiveToasts } from "@/components/dashboard/live-toasts";
-import { SignalDrawer } from "@/components/dashboard/signal-drawer";
 import { CommandPalette } from "@/components/dashboard/command-palette";
 import { AnnouncementBanner } from "@/components/dashboard/announcement-banner";
 import { IntegrationWidgets } from "@/components/dashboard/integration-widgets";
@@ -23,6 +20,7 @@ import { LiveRiskPanel } from "@/components/dashboard/live-risk-panel";
 import { PairPerformanceCard } from "@/components/trades/pair-performance-card";
 import { ProfileCapitalCard } from "@/components/dashboard/profile-capital-card";
 import { useSignalsStore } from "@/lib/signals-store";
+import { SignalDetailDrawer } from "@/components/signals/signal-detail-drawer";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -42,8 +40,6 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 function Dashboard() {
   const { userId, ready } = useBackendAuth();
   const navigate = useNavigate();
-  const init = useDashboardStore((s) => s.init);
-  const cleanup = useDashboardStore((s) => s.cleanup);
   const initSignals = useSignalsStore((s) => s.init);
   const cleanupSignals = useSignalsStore((s) => s.cleanup);
 
@@ -53,10 +49,9 @@ function Dashboard() {
 
   useEffect(() => {
     if (!ready || !userId) return;
-    init();
     initSignals();
-    return () => { cleanup(); cleanupSignals(); };
-  }, [ready, userId, init, cleanup, initSignals, cleanupSignals]);
+    return () => cleanupSignals();
+  }, [ready, userId, initSignals, cleanupSignals]);
 
   if (!ready || !userId) {
     return (
@@ -98,8 +93,7 @@ function Dashboard() {
         </main>
       </div>
 
-      <LiveToasts />
-      <SignalDrawer />
+      <SignalDetailDrawer />
       <CommandPalette />
     </div>
   );

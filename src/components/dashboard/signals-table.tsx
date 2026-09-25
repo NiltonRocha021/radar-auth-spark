@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useSignalsStore } from "@/lib/signals-store";
 import { ScoreBadge } from "./score-badge";
 import { ChevronRight } from "lucide-react";
+import { formatAge } from "@/lib/signals-data";
 
 type Filter = "ALL" | "BUY" | "SELL" | "HIGH";
 
@@ -76,7 +77,7 @@ export function SignalsTable() {
                 <td className="py-3 px-2 text-right">{fmt(s.target)}</td>
                 <td className="py-3 px-2 text-right">{s.rr.toFixed(1)}</td>
                 <td className="py-3 px-2 text-muted-foreground">{s.tf}</td>
-                <td className="py-3 px-2 text-muted-foreground">{s.time}</td>
+                <td className="py-3 px-2 text-muted-foreground">{formatAge(s.ageMin)}</td>
                 <td className="py-3 px-4 text-right">
                   <button
                     onClick={() => openDetail(s.id)}
