@@ -26,6 +26,7 @@ import { PollingMetricsPanel } from "@/components/diagnostics/polling-metrics-pa
 import { CostsRoiCard } from "@/components/dashboard/costs-roi-card";
 import { LiveRiskPanel } from "@/components/dashboard/live-risk-panel";
 import { PairPerformanceCard } from "@/components/trades/pair-performance-card";
+import { ProfileCapitalCard } from "@/components/dashboard/profile-capital-card";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -78,6 +79,7 @@ function Dashboard() {
           <MetricCards />
 
           <CostsRoiCard />
+          <ProfileCapitalCard />
           <LiveRiskPanel />
           <PairPerformanceCard />
 

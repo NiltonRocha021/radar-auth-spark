@@ -15,6 +15,7 @@ import { AsyncState, EmptyState } from "@/components/common/async-state";
 import { CostsRoiCard } from "@/components/dashboard/costs-roi-card";
 import { PairPerformanceCard } from "@/components/trades/pair-performance-card";
 import { getBotConfig } from "@/lib/bot.functions";
+import { ProfileCapitalCard } from "@/components/dashboard/profile-capital-card";
 
 export const Route = createFileRoute("/_authenticated/trades")({
   head: () => ({
@@ -92,6 +93,7 @@ function TradesPage() {
           </div>
 
           <CostsRoiCard />
+          <ProfileCapitalCard />
           <PairPerformanceCard />
 
           <Card>

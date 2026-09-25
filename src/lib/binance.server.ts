@@ -13,6 +13,22 @@ export interface BinanceFill {
   status: string;
 }
 
+export interface BinanceBalance {
+  asset: string;
+  free: number;
+  locked: number;
+  valueUsdt: number;
+}
+
+export interface BinanceAccountSnapshot {
+  canTrade: boolean;
+  walletValueUsdt: number;
+  availableValueUsdt: number;
+  lockedValueUsdt: number;
+  openOrderValueUsdt: number;
+  balances: BinanceBalance[];
+}
+
 async function sign(query: string, secret: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -113,6 +129,20 @@ export async function placeBinanceOrder(input: {
   return toFill(res);
 }
 
+/** Valida assinatura, permissões e filtros sem criar uma ordem ou movimentar fundos. */
+export async function validateBinanceOrder(input: {
+  symbol: string;
+  side: "BUY" | "SELL";
+  quoteAmount: number;
+}, credentials: BinanceCredentials): Promise<void> {
+  await signedRequest<Record<string, never>>(credentials, "/api/v3/order/test", "POST", {
+    symbol: input.symbol,
+    side: input.side,
+    type: "MARKET",
+    quoteOrderQty: input.quoteAmount,
+  });
+}
+
 /** Fecha uma posição enviando a ordem MARKET oposta. */
 export async function closeBinancePosition(input: {
   symbol: string;
@@ -141,7 +171,54 @@ export async function fetchBinancePrice(symbol: string, baseUrl = "https://api.b
 }
 
 /** Conta autenticada — usado para validar credenciais/permissões. */
-export async function fetchBinanceAccount(credentials: BinanceCredentials): Promise<{ canTrade: boolean }> {
-  const res = await signedRequest<{ canTrade?: boolean }>(credentials, "/api/v3/account", "GET", {});
-  return { canTrade: Boolean(res.canTrade) };
+export async function fetchBinanceAccount(credentials: BinanceCredentials): Promise<BinanceAccountSnapshot> {
+  const [account, openOrders] = await Promise.all([
+    signedRequest<{
+      canTrade?: boolean;
+      balances?: Array<{ asset?: string; free?: string; locked?: string }>;
+    }>(credentials, "/api/v3/account", "GET", { omitZeroBalances: "true" }),
+    signedRequest<Array<{ symbol?: string; price?: string; origQty?: string; executedQty?: string }>>(
+      credentials,
+      "/api/v3/openOrders",
+      "GET",
+      {},
+    ),
+  ]);
+
+  const rawBalances = (account.balances ?? []).flatMap((row) => {
+    const asset = row.asset?.trim().toUpperCase();
+    const free = Number(row.free ?? 0);
+    const locked = Number(row.locked ?? 0);
+    return asset && Number.isFinite(free) && Number.isFinite(locked) && free + locked > 0
+      ? [{ asset, free, locked }]
+      : [];
+  });
+  const prices = await Promise.all(rawBalances.map(async ({ asset }) => {
+    if (["USDT", "USDC", "FDUSD", "BUSD"].includes(asset)) return 1;
+    return (await fetchBinancePrice(`${asset}USDT`, credentials.baseUrl)) ?? 0;
+  }));
+  const balances = rawBalances
+    .map((balance, index) => ({
+      ...balance,
+      valueUsdt: (balance.free + balance.locked) * (prices[index] ?? 0),
+    }))
+    .filter((balance) => balance.valueUsdt > 0)
+    .sort((a, b) => b.valueUsdt - a.valueUsdt);
+
+  const walletValueUsdt = balances.reduce((sum, balance) => sum + balance.valueUsdt, 0);
+  const availableValueUsdt = balances.reduce((sum, balance, index) => sum + balance.free * (prices[index] ?? 0), 0);
+  const lockedValueUsdt = Math.max(walletValueUsdt - availableValueUsdt, 0);
+  const openOrderValueUsdt = (openOrders ?? []).reduce((sum, order) => {
+    const remaining = Math.max(Number(order.origQty ?? 0) - Number(order.executedQty ?? 0), 0);
+    return sum + remaining * Number(order.price ?? 0);
+  }, 0);
+
+  return {
+    canTrade: Boolean(account.canTrade),
+    walletValueUsdt,
+    availableValueUsdt,
+    lockedValueUsdt,
+    openOrderValueUsdt,
+    balances: balances.slice(0, 12),
+  };
 }

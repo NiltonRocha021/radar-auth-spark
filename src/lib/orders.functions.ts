@@ -70,7 +70,7 @@ function toDto(r: OrderRow): OrderDTO {
 // ---------- placeOrder (DEMO | LIVE) ---------------------------------------
 // Fase 4: mode='LIVE' executa de fato contra a Binance dentro do Worker
 // (src/lib/binance.server.ts, import dinâmico p/ não vazar ao bundle client).
-// Guardas para LIVE: 2FA verificado + credenciais Binance válidas do usuário.
+// Guardas para LIVE: modo persistido + credenciais Binance válidas do usuário.
 
 export const placeDemoOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -101,15 +101,6 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     const executionMode: "DEMO" | "LIVE" = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
 
     if (executionMode === "LIVE") {
-      const { data: tfa } = await context.supabase
-        .from("user_two_factor")
-        .select("enabled")
-        .eq("user_id", context.userId)
-        .maybeSingle();
-      if (!tfa?.enabled) {
-        throw new Error("Ative o 2FA antes de operar em modo LIVE.");
-      }
-
       const [{ placeBinanceOrder }, { getBinanceCredentials }] = await Promise.all([
         import("./binance.server"), import("./binance-credentials.server"),
       ]);

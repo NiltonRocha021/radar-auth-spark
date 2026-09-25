@@ -12,7 +12,7 @@ const money = (n: number) =>
 const pct = (n: number) => `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 
 function ModeColumn({ m, label, accent }: { m: ModeAnalyticsDTO; label: string; accent: string }) {
-  const tone = m.netPnl >= 0 ? "text-[#1D9E75]" : "text-[#E24B4A]";
+  const tone = m.netPnl >= 0 ? "text-success" : "text-destructive";
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -30,6 +30,8 @@ function ModeColumn({ m, label, accent }: { m: ModeAnalyticsDTO; label: string; 
         <Row label="Custo médio/ordem" value={money(m.avgFeePerOrder)} />
         <Row label="Volume operado" value={money(m.volume)} />
         <Row label="Taxa de acerto" value={`${m.winRate.toFixed(1)}%`} />
+        <Row label="Ganhos" value={String(m.wins)} />
+        <Row label="Perdas" value={String(m.losses)} />
         <Row label="Abertas" value={String(m.openOrders)} />
       </div>
     </div>
@@ -58,7 +60,10 @@ export function CostsRoiCard() {
   return (
     <Card data-tour="costs-roi">
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Custos e ROI acumulado</CardTitle>
+        <div>
+          <CardTitle className="text-base">Histórico do perfil · DEMO x REAL</CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">Ganhos, perdas, taxa de sucesso e retorno acumulado do perfil conectado.</p>
+        </div>
         <Link to="/trades" className="text-xs text-muted-foreground hover:text-foreground">
           Ver trades reais →
         </Link>
@@ -79,12 +84,12 @@ export function CostsRoiCard() {
           {data && (
             <div className="space-y-4">
               <div className="grid md:grid-cols-2 gap-6">
-                <ModeColumn m={data.live} label="LIVE (real)" accent="bg-[#1D9E75]" />
-                <ModeColumn m={data.demo} label="DEMO (simulado)" accent="bg-[#EF9F27]" />
+                <ModeColumn m={data.live} label="REAL" accent="bg-success" />
+                <ModeColumn m={data.demo} label="DEMO" accent="bg-warning" />
               </div>
               <p className="text-[11px] text-muted-foreground">
                 Diferença de ROI real vs simulado:{" "}
-                <span className={diff >= 0 ? "text-[#1D9E75]" : "text-[#E24B4A]"}>{pct(diff)}</span>
+                 <span className={diff >= 0 ? "text-success" : "text-destructive"}>{pct(diff)}</span>
                 {" · "}taxa considerada por perna: {(data.feeRate * 100).toFixed(2)}%
               </p>
             </div>

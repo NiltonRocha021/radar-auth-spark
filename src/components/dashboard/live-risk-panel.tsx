@@ -48,17 +48,17 @@ export function LiveRiskPanel() {
   const configFn = useServerFn(getBotConfig);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const lastAlertKey = useRef("");
-  const configQuery = useQuery({ queryKey: ["bot-config"], queryFn: () => configFn(), refetchInterval: 15_000 });
+  const configQuery = useQuery({ queryKey: ["bot-config"], queryFn: () => configFn(), refetchInterval: 5_000 });
   const mode = configQuery.data?.executionMode ?? "DEMO";
   const riskQuery = useQuery({
     queryKey: ["orders", "risk", mode],
     queryFn: () => riskFn({ data: { mode } }),
-    refetchInterval: 15_000,
+    refetchInterval: 5_000,
   });
   const analyticsQuery = useQuery({
     queryKey: ["orders", "pairs", mode],
     queryFn: () => analyticsFn({ data: { mode, limit: 1000 } }),
-    refetchInterval: 15_000,
+    refetchInterval: 5_000,
   });
 
   const risk = riskQuery.data;
