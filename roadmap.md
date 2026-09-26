@@ -18,3 +18,5 @@
 - [x] Atualizar risco, margem e alerta de perda quando o modo do perfil mudar.
 - [x] Validar ordem Binance sem execução financeira e refletir a confirmação no dashboard e em Trades.
 - [ ] Validar conta autenticada sem expor credenciais; credenciais reais continuam sendo salvas pelo titular no formulário seguro.
+
+- [ ] Corrigir os achados confirmados da Auditoria Técnica — Rodada 2.
