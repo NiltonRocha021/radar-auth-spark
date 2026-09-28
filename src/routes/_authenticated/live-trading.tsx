@@ -20,6 +20,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
 import { getLiveTradingStatus } from "@/lib/live-trading.functions";
 import { setupTwoFactor, verifyTwoFactor } from "@/lib/auth.functions";
 
@@ -273,7 +274,13 @@ function LiveTradingPage() {
                 Escaneie o QR no seu app autenticador e digite o código de 6 dígitos.
               </p>
               <div className="flex justify-center">
-                <LocalQrCode value={setup.otpauthUri} />
+                <QRCodeSVG
+                  value={setup.otpauthUri}
+                  size={200}
+                  marginSize={2}
+                  title="QR code para configurar 2FA"
+                  className="rounded-md bg-background p-2"
+                />
               </div>
               <div className="text-xs text-center text-muted-foreground font-mono break-all">
                 {setup.secret}
