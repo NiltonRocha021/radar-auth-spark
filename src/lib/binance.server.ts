@@ -29,6 +29,9 @@ export interface BinanceAccountSnapshot {
   balances: BinanceBalance[];
 }
 
+const accountCache = new Map<string, { expiresAt: number; snapshot: BinanceAccountSnapshot }>();
+const ACCOUNT_CACHE_MS = 15_000;
+
 async function sign(query: string, secret: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
@@ -228,4 +231,16 @@ export async function fetchBinanceAccount(credentials: BinanceCredentials): Prom
     openOrderValueUsdt,
     balances: balances.slice(0, 12),
   };
+}
+
+export async function fetchBinanceAccountCached(
+  credentials: BinanceCredentials,
+  profileKey: string,
+): Promise<BinanceAccountSnapshot> {
+  const key = `${profileKey}:${credentials.environment}`;
+  const cached = accountCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.snapshot;
+  const snapshot = await fetchBinanceAccount(credentials);
+  accountCache.set(key, { expiresAt: Date.now() + ACCOUNT_CACHE_MS, snapshot });
+  return snapshot;
 }
