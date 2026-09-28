@@ -13,10 +13,10 @@ import * as Sentry from "@sentry/react";
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
-import { backendWs } from "@/adapters/backend/ws-client";
 import { initSentry } from "@/lib/sentry";
 import { logger } from "@/lib/logger";
 import { registerPWA } from "@/lib/pwa/register";
+import { resetPwaRuntime } from "@/lib/pwa/register";
 
 // Idempotente — múltiplas chamadas (HMR, SSR rehydrate) são no-op.
 initSentry();
@@ -60,6 +60,10 @@ class GlobalErrorBoundary extends Component<{ children: ReactNode }, EBState> {
       extra: { componentStack: info.componentStack },
     });
   }
+  private recover = async () => {
+    await resetPwaRuntime();
+    window.location.replace("/login?recovered=1");
+  };
   render() {
     if (this.state.error) {
       const rawMsg = this.state.error.message || "";
@@ -113,11 +117,11 @@ class GlobalErrorBoundary extends Component<{ children: ReactNode }, EBState> {
           <div style={{ maxWidth:"28rem", textAlign:"center", color:"#fff" }}>
             <h1 style={{ fontSize:"1.25rem", fontWeight:600 }}>Algo deu errado</h1>
             <p style={{ marginTop:"0.5rem", fontSize:"0.875rem", color:"#888" }}>{safeMsg}</p>
-            <button
-              onClick={() => { this.setState({ error: null }); window.location.href = "/"; }}
+              <button
+                onClick={() => { void this.recover(); }}
               style={{ marginTop:"1.5rem", padding:"0.5rem 1rem", background:"#7c3aed", color:"#fff", border:"none", borderRadius:"0.375rem", cursor:"pointer" }}
             >
-              Voltar ao início
+                Recarregar com segurança
             </button>
             {IS_DEV && (
               <details style={{ marginTop:"1rem", fontSize:"0.75rem", color:"#666", textAlign:"left" }}>
@@ -247,13 +251,6 @@ function RootComponent() {
   useEffect(() => {
     // PWA-01: o wrapper recusa dev/preview/iframe/?sw=off internamente.
     registerPWA();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        backendWs.resetAndReconnect();
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
   return (

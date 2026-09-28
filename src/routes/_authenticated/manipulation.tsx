@@ -13,6 +13,7 @@ import { HistoricalLog } from "@/components/manipulation/historical-log";
 import { ALERTS as MOCK_ALERTS } from "@/lib/manipulation-data";
 import { listManipulationAlerts } from "@/lib/manipulation.functions";
 import { mapManipulationAlert } from "@/lib/manipulation-map";
+import { AsyncState, EmptyState, LoadingState } from "@/components/common/async-state";
 
 export const Route = createFileRoute("/_authenticated/manipulation")({
   head: () => ({
@@ -27,14 +28,19 @@ export const Route = createFileRoute("/_authenticated/manipulation")({
 function ManipulationPage() {
   const [dismissed, setDismissed] = useState(false);
 
-  const { data: liveAlerts } = useQuery({
+  const alertsQuery = useQuery({
     queryKey: ["manipulation-alerts"],
     queryFn: async () => (await listManipulationAlerts({ data: {} })).map(mapManipulationAlert),
     staleTime: 30_000,
     refetchInterval: 60_000,
+    retry: 1,
   });
+  const liveAlerts = alertsQuery.data;
 
-  const alerts = liveAlerts?.length ? liveAlerts : MOCK_ALERTS;
+  // Em dev caímos nos mocks para visualização; em produção o estado vazio é
+  // explícito para não induzir decisão com dado fictício.
+  const fallback = import.meta.env.DEV ? MOCK_ALERTS : [];
+  const alerts = liveAlerts?.length ? liveAlerts : fallback;
   const activeAssets = Array.from(new Set(alerts.map((a) => a.asset)));
 
   return (
@@ -50,7 +56,7 @@ function ManipulationPage() {
             </p>
           </header>
 
-          {!dismissed && (
+          {!dismissed && alerts.length > 0 && (
             <AlertBanner count={alerts.length} assets={activeAssets} onDismiss={() => setDismissed(true)} />
           )}
 
@@ -58,7 +64,23 @@ function ManipulationPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-3">
-              <AlertsFeed alerts={alerts} />
+              <AsyncState
+                isLoading={alertsQuery.isLoading}
+                error={alertsQuery.isError ? alertsQuery.error : undefined}
+                isEmpty={!alerts.length}
+                onRetry={() => void alertsQuery.refetch()}
+                loading={<LoadingState rows={4} label="Carregando alertas de manipulação" />}
+                errorTitle="Não foi possível carregar os alertas"
+                errorMessage="A vigilância institucional está indisponível no momento. Tente novamente em instantes."
+                empty={
+                  <EmptyState
+                    title="Nenhuma manipulação detectada"
+                    message="Nenhum evento institucional suspeito foi identificado no período recente."
+                  />
+                }
+              >
+                <AlertsFeed alerts={alerts} />
+              </AsyncState>
             </div>
             <div className="lg:col-span-2">
               <SmartMoney />

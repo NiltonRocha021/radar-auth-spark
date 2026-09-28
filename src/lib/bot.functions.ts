@@ -10,6 +10,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface BotConfigDTO {
+  executionMode: "DEMO" | "LIVE";
   active: boolean;
   profile: string | null;
   rsiThresholdLow: number | null;
@@ -34,6 +35,7 @@ export interface BotConfigDTO {
 }
 
 type ConfigRow = {
+  execution_mode: string | null;
   active: boolean | null;
   profile: string | null;
   rsi_threshold_low: number | null;
@@ -74,7 +76,7 @@ export const getBotConfig = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("bot4x_configs")
       .select(
-        "active,profile,rsi_threshold_low,rsi_threshold_high,ai_score_min,fomo_limit,leverage,active_capital,total_capital,allocation_pct,sl_pct,tp_pct,daily_pnl,open_slots,total_trades_today,circuit_breaker,exchange,api_key_set,preferred_pairs,avoid_pairs,updated_at",
+        "active,profile,rsi_threshold_low,rsi_threshold_high,ai_score_min,fomo_limit,leverage,active_capital,total_capital,allocation_pct,sl_pct,tp_pct,daily_pnl,open_slots,total_trades_today,circuit_breaker,exchange,api_key_set,preferred_pairs,avoid_pairs,execution_mode,updated_at",
       )
       .eq("user_id", context.userId)
       .maybeSingle();
@@ -85,6 +87,7 @@ export const getBotConfig = createServerFn({ method: "GET" })
     if (!data) return null;
     const r = data as ConfigRow;
     return {
+      executionMode: r.execution_mode === "LIVE" ? "LIVE" : "DEMO",
       active: Boolean(r.active),
       profile: r.profile,
       rsiThresholdLow: r.rsi_threshold_low != null ? Number(r.rsi_threshold_low) : null,
@@ -133,6 +136,7 @@ const UpdateBotConfigSchema = z
     tpPct: z.number().min(0).max(100).optional(),
     exchange: z.enum(EXCHANGES).optional(),
     apiKeySet: z.boolean().optional(),
+    executionMode: z.enum(["DEMO", "LIVE"]).optional(),
     preferredPairs: z.array(z.string().trim().min(3).max(20)).max(50).optional(),
     avoidPairs: z.array(z.string().trim().min(3).max(20)).max(50).optional(),
   })
@@ -159,6 +163,7 @@ export const updateBotConfig = createServerFn({ method: "POST" })
       tpPct: "tp_pct",
       exchange: "exchange",
       apiKeySet: "api_key_set",
+      executionMode: "execution_mode",
       preferredPairs: "preferred_pairs",
       avoidPairs: "avoid_pairs",
     };
@@ -166,6 +171,13 @@ export const updateBotConfig = createServerFn({ method: "POST" })
       if (k in data) patch[col] = (data as Record<string, unknown>)[k];
     }
 
+    if (data.executionMode === "LIVE") {
+      const { assertLiveTradingAllowed } = await import("./live-safety.server");
+      await assertLiveTradingAllowed(context.userId);
+      const { getBinanceCredentialMetadata } = await import("./binance-credentials.server");
+      const credentials = await getBinanceCredentialMetadata(context.userId);
+      if (credentials?.status !== "valid") throw new Error("Valide suas credenciais Binance antes de selecionar REAL.");
+    }
     const { error } = await context.supabase
       .from("bot4x_configs")
       .upsert(patch as never, { onConflict: "user_id" });
@@ -240,7 +252,19 @@ export const startBot = createServerFn({ method: "POST" })
   .inputValidator((d?: { reason?: string }) =>
     z.object({ reason: z.string().trim().max(200).optional() }).parse(d ?? {}),
   )
-  .handler(({ data, context }) => setBotState(context, "ACTIVE", data.reason ?? null));
+  .handler(async ({ data, context }) => {
+    const { data: config, error } = await context.supabase
+      .from("bot4x_configs")
+      .select("execution_mode")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error("Não foi possível confirmar o modo do bot.");
+    if (config?.execution_mode === "LIVE") {
+      const { assertLiveTradingAllowed } = await import("./live-safety.server");
+      await assertLiveTradingAllowed(context.userId);
+    }
+    return setBotState(context, "ACTIVE", data.reason ?? null);
+  });
 
 export const stopBot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

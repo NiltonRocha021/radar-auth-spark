@@ -2,7 +2,8 @@ import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { createSelector } from "reselect";
 import { type Signal, type AssetClass } from "./signals-data";
-import { backendWs } from "@/adapters/backend/ws-client";
+import { pollWithRetry } from "./polling-metrics";
+
 
 
 export type ViewMode = "cards" | "table" | "radar";
@@ -42,6 +43,10 @@ type State = {
   toasts: SignalToast[];
   flashIds: string[];
   lastSyncAt: number | null;
+  /** Erro do último ciclo de sync (null quando o último ciclo teve sucesso). */
+  lastError: string | null;
+  /** true enquanto um ciclo de sync está em andamento. */
+  syncing: boolean;
   _intervalIds: Set<number>;
   _wsUnsub: (() => void) | null;
   syncFromBackend: () => Promise<void>;
@@ -119,16 +124,33 @@ export const useSignalsStore = create<State>((set, get) => ({
   closeDetail: () => set({ detailId: null }),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   lastSyncAt: null,
+  lastError: null,
+  syncing: false,
   syncFromBackend: async () => {
+    set({ syncing: true });
     try {
-      // Server fn cacheada (caches.default, TTL 10s por usuário) em vez de
-      // chamar direto signalAdapter no browser — reduz carga sobre o backend
-      // NestJS quando o usuário tem várias abas/refresh rápido.
-      const { getSignalsList } = await import("@/lib/signals.functions");
-      const backendSignals = await getSignalsList();
-      if (!backendSignals?.length) return;
+      // Server fn cacheada (caches.default, TTL 10s por usuário) — polling.
+      // Cada tentativa é medida (latência / taxa de falha) e falhas são
+      // repetidas com backoff exponencial + jitter antes de virar erro na UI.
+      const backendSignals = await pollWithRetry(
+        "signals",
+        async () => {
+          const { getSignalsList } = await import("@/lib/signals.functions");
+          return await getSignalsList();
+        },
+        { maxRetries: 3, extra: (rows: { id: string }[] | null) => ({ received: rows?.length ?? 0 }) },
+      );
+      if (!backendSignals?.length) {
+        set({ syncing: false, lastError: null, lastSyncAt: Date.now() });
+        return;
+      }
 
-      const mapped: Signal[] = backendSignals.map((s) => ({
+      const mapped: Signal[] = backendSignals.map((s) => {
+        const createdAt = s.createdAt ? Date.parse(s.createdAt) : Number.NaN;
+        const ageMin = Number.isFinite(createdAt) ? Math.max(0, Math.floor((Date.now() - createdAt) / 60_000)) : 0;
+        const stopDistance = Math.abs(s.entry - (s.sl ?? s.entry));
+        const targetDistance = Math.abs((s.tp ?? s.entry) - s.entry);
+        return ({
         id: s.id,
         asset: s.symbol,
         assetClass: "Crypto" as AssetClass,
@@ -139,34 +161,54 @@ export const useSignalsStore = create<State>((set, get) => ({
         entry: s.entry,
         stop: s.sl ?? s.entry * 0.995,
         target: s.tp ?? s.entry * 1.01,
-        rr: s.tp
-          ? Number(((s.tp - s.entry) / (s.entry - (s.sl ?? s.entry * 0.995))).toFixed(1))
-          : 2.0,
-        riskPct: 0.5,
+        rr: stopDistance > 0 ? Number((targetDistance / stopDistance).toFixed(1)) : 0,
+        riskPct: s.entry > 0 ? Number(((stopDistance / s.entry) * 100).toFixed(2)) : 0,
         volDelta: 0,
         confirms: { rsi: true, macd: false, volume: true, structure: true, vwap: false },
         dnaMatch: 70,
         manipRisk: "low",
         setup: "Breakout",
         session: "NY",
-        ageMin: 0,
+        ageMin,
         status: (s.state === "active" ? "active" : "expired") as Signal["status"],
         isMock: false,
-      }));
+      });
+      });
 
       // Em dev mantemos mocks atrás dos sinais reais para visualização;
       // em produção os mocks são descartados para evitar decisões baseadas
       // em dados fictícios.
-      set((st) => ({
-        signals: [
-          ...mapped,
-          ...(import.meta.env.DEV ? st.signals.filter((s) => s.isMock) : []),
-        ].slice(0, 60),
-        lastSyncAt: Date.now(),
-      }));
-    } catch {
-      // silencioso — mantém o que já estiver em memória
+      set((st) => {
+        const known = new Set(st.signals.map((s) => s.id));
+        const fresh = st.lastSyncAt ? mapped.filter((s) => !known.has(s.id)) : [];
+        return {
+          signals: [
+            ...mapped,
+            ...(import.meta.env.DEV ? st.signals.filter((s) => s.isMock) : []),
+          ].slice(0, 60),
+          toasts: fresh.length
+            ? [
+                ...fresh.slice(0, 3).map((signal) => ({ id: signal.id, signal, createdAt: Date.now() })),
+                ...st.toasts,
+              ].slice(0, 3)
+            : st.toasts,
+          flashIds: fresh.length ? fresh.map((s) => s.id) : st.flashIds,
+          lastSyncAt: Date.now(),
+          lastError: null,
+          syncing: false,
+        };
+      });
+    } catch (err) {
+      // Retries em backoff já se esgotaram: mantém o que estiver em memória,
+      // mas expõe o erro amigável para a UI.
+      set({
+        syncing: false,
+        lastError:
+          "Não foi possível atualizar os sinais após várias tentativas. Verifique sua conexão." +
+          (err instanceof Error && import.meta.env.DEV ? ` (${err.message})` : ""),
+      });
     }
+
   },
   init: () => {
     if (get()._intervalIds.size > 0 || get()._wsUnsub) return;
@@ -182,27 +224,16 @@ export const useSignalsStore = create<State>((set, get) => ({
     // Sync inicial
     get().syncFromBackend();
 
-    // Stream em tempo real via WebSocket: substitui o setInterval de 10s.
-    const unsub = backendWs.on("signal:new", (payload) => {
-      if (!get().live) return;
-      const signal = payload as Signal;
-      if (!signal?.id) return;
-      set((st) => ({
-        signals: [signal, ...st.signals.filter((x) => x.id !== signal.id)].slice(0, 60),
-        toasts: [{ id: signal.id, signal, createdAt: Date.now() }, ...st.toasts].slice(0, 3),
-      }));
-    });
-
-    // Fallback: re-sync a cada 60s se o WS não estiver autenticado/ativo.
+    // Sem WebSocket (backend NestJS removido): polling da server fn.
+    // 20s quando "live", pausado quando o usuário desliga o modo live.
     const syncInterval = window.setInterval(() => {
-      if (backendWs.isAuthenticatedOpen()) return; // WS está cuidando dos updates
-      get().syncFromBackend();
-    }, 60_000);
+      if (!get().live) return;
+      if (typeof document !== "undefined" && document.hidden) return;
+      void get().syncFromBackend();
+    }, 20_000);
 
-    set({
-      _intervalIds: new Set<number>([syncInterval]),
-      _wsUnsub: unsub,
-    });
+    set({ _intervalIds: new Set<number>([syncInterval]), _wsUnsub: null });
+
   },
   cleanup: () => {
     get()._intervalIds.forEach((id) => clearInterval(id));
