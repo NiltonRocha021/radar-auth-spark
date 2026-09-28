@@ -1,15 +1,11 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AlertTriangle, X, Shield, ShieldAlert, Zap, Lock } from "lucide-react";
+import { AlertTriangle, X, Shield, ShieldAlert, Zap } from "lucide-react";
 import { useBot4xStore, selectActiveCapital, selectSlotSize, MAX_SLOTS, RISK_PER_SLOT } from "@/lib/bot4x-store";
 import { leverageRisk, slTpFromLeverage, fmt } from "@/lib/bot4x-data";
 import { useLivePrices } from "@/hooks/useLivePrices";
 
 const IS_DEV = import.meta.env.DEV;
-
-// Feature flag — keep false until backend Fase 1 is live.
-// To enable: set VITE_BOT4X_REAL_ENABLED=true in .env and redeploy.
-const REAL_MODE_ENABLED = import.meta.env.VITE_BOT4X_REAL_ENABLED === "true";
 
 export function TabPainel() {
   return (
@@ -58,43 +54,30 @@ function ExecutionMode() {
         </button>
 
         <button
-          onClick={() => REAL_MODE_ENABLED && setConfirm(true)}
-          disabled={!REAL_MODE_ENABLED}
+          onClick={() => setConfirm(true)}
           className={`relative rounded-lg px-4 py-3 text-left transition-all ${
-            !REAL_MODE_ENABLED
-              ? "opacity-50 cursor-not-allowed border border-[#E24B4A33] bg-transparent"
-              : mode === "REAL"
+            mode === "REAL"
               ? "bg-[color-mix(in_oklab,#E24B4A_22%,transparent)] border border-[#E24B4A]"
               : "bg-transparent border border-[#E24B4A55] hover:border-[#E24B4A]"
           }`}
         >
           <div className="flex items-center gap-2">
-            {REAL_MODE_ENABLED
-              ? <ShieldAlert className="size-4 text-[#E24B4A]" />
-              : <Lock className="size-4 text-[#E24B4A66]" />
-            }
-            <span className={`text-[14px] font-semibold ${REAL_MODE_ENABLED ? "text-[#E24B4A]" : "text-[#E24B4A66]"}`}>
+            <ShieldAlert className="size-4 text-[#E24B4A]" />
+            <span className="text-[14px] font-semibold text-[#E24B4A]">
               REAL MODE
             </span>
-            {mode === "REAL" && REAL_MODE_ENABLED && (
+            {mode === "REAL" && (
               <span className="ml-auto text-[10px] font-bold text-[#E24B4A]">● ATIVO</span>
-            )}
-            {!REAL_MODE_ENABLED && (
-              <span className="ml-auto text-[9px] font-semibold text-[#E24B4A55] uppercase tracking-wide">
-                Em breve
-              </span>
             )}
           </div>
           <p className="text-[11px] text-muted-foreground mt-1">
-            {REAL_MODE_ENABLED
-              ? "Ordens reais na exchange. Requer confirmação."
-              : "Requer integração com exchange — disponível em breve."}
+            Ordens reais na exchange. Requer credenciais válidas e confirmação.
           </p>
         </button>
       </div>
 
       <AnimatePresence>
-        {confirm && REAL_MODE_ENABLED && (
+        {confirm && (
           <RealModeModal
             text={text}
             setText={setText}

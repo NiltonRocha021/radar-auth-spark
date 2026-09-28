@@ -30,17 +30,20 @@ import { Route as AuthenticatedLiveTradingRouteImport } from './routes/_authenti
 import { Route as AuthenticatedManipulationRouteImport } from './routes/_authenticated/manipulation'
 import { Route as AuthenticatedMarketplaceRouteImport } from './routes/_authenticated/marketplace'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedPairsRouteImport } from './routes/_authenticated/pairs'
 import { Route as AuthenticatedPricingRouteImport } from './routes/_authenticated/pricing'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedSentimentRouteImport } from './routes/_authenticated/sentiment'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSignalsRouteImport } from './routes/_authenticated/signals'
+import { Route as AuthenticatedTradesRouteImport } from './routes/_authenticated/trades'
 import { Route as AuthenticatedBot4xOnboardingRouteImport } from './routes/_authenticated/bot4x.onboarding'
 import { Route as AuthenticatedCalibratorHistoryRouteImport } from './routes/_authenticated/calibrator.history'
 import { Route as ApiCopilotChatRouteImport } from './routes/api/copilot/chat'
 import { Route as ApiCopilotTranscribeRouteImport } from './routes/api/copilot/transcribe'
 import { Route as AuthenticatedCalibratorHistoryIdRouteImport } from './routes/_authenticated/calibrator.history.$id'
 import { Route as ApiPublicAlertsDispatchRouteImport } from './routes/api/public/alerts/dispatch'
+import { Route as ApiPublicV1SignalsRouteImport } from './routes/api/public/v1/signals'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
 const IndexRoute = IndexRouteImport.update({
@@ -153,6 +156,11 @@ const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedPairsRoute = AuthenticatedPairsRouteImport.update({
+  id: '/pairs',
+  path: '/pairs',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedPricingRoute = AuthenticatedPricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
@@ -176,6 +184,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedSignalsRoute = AuthenticatedSignalsRouteImport.update({
   id: '/signals',
   path: '/signals',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTradesRoute = AuthenticatedTradesRouteImport.update({
+  id: '/trades',
+  path: '/trades',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedBot4xOnboardingRoute =
@@ -211,6 +224,11 @@ const ApiPublicAlertsDispatchRoute = ApiPublicAlertsDispatchRouteImport.update({
   path: '/api/public/alerts/dispatch',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicV1SignalsRoute = ApiPublicV1SignalsRouteImport.update({
+  id: '/api/public/v1/signals',
+  path: '/api/public/v1/signals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LovableEmailQueueProcessRoute =
   LovableEmailQueueProcessRouteImport.update({
     id: '/lovable/email/queue/process',
@@ -239,17 +257,20 @@ export interface FileRoutesByFullPath {
   '/manipulation': typeof AuthenticatedManipulationRoute
   '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/pairs': typeof AuthenticatedPairsRoute
   '/pricing': typeof AuthenticatedPricingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/sentiment': typeof AuthenticatedSentimentRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/signals': typeof AuthenticatedSignalsRoute
+  '/trades': typeof AuthenticatedTradesRoute
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
   '/api/copilot/chat': typeof ApiCopilotChatRoute
   '/api/copilot/transcribe': typeof ApiCopilotTranscribeRoute
   '/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
+  '/api/public/v1/signals': typeof ApiPublicV1SignalsRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
@@ -273,17 +294,20 @@ export interface FileRoutesByTo {
   '/manipulation': typeof AuthenticatedManipulationRoute
   '/marketplace': typeof AuthenticatedMarketplaceRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/pairs': typeof AuthenticatedPairsRoute
   '/pricing': typeof AuthenticatedPricingRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/sentiment': typeof AuthenticatedSentimentRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/signals': typeof AuthenticatedSignalsRoute
+  '/trades': typeof AuthenticatedTradesRoute
   '/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
   '/api/copilot/chat': typeof ApiCopilotChatRoute
   '/api/copilot/transcribe': typeof ApiCopilotTranscribeRoute
   '/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
+  '/api/public/v1/signals': typeof ApiPublicV1SignalsRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
@@ -309,17 +333,20 @@ export interface FileRoutesById {
   '/_authenticated/manipulation': typeof AuthenticatedManipulationRoute
   '/_authenticated/marketplace': typeof AuthenticatedMarketplaceRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/pairs': typeof AuthenticatedPairsRoute
   '/_authenticated/pricing': typeof AuthenticatedPricingRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/sentiment': typeof AuthenticatedSentimentRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/signals': typeof AuthenticatedSignalsRoute
+  '/_authenticated/trades': typeof AuthenticatedTradesRoute
   '/_authenticated/bot4x/onboarding': typeof AuthenticatedBot4xOnboardingRoute
   '/_authenticated/calibrator/history': typeof AuthenticatedCalibratorHistoryRouteWithChildren
   '/api/copilot/chat': typeof ApiCopilotChatRoute
   '/api/copilot/transcribe': typeof ApiCopilotTranscribeRoute
   '/_authenticated/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
+  '/api/public/v1/signals': typeof ApiPublicV1SignalsRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
@@ -345,17 +372,20 @@ export interface FileRouteTypes {
     | '/manipulation'
     | '/marketplace'
     | '/onboarding'
+    | '/pairs'
     | '/pricing'
     | '/profile'
     | '/sentiment'
     | '/settings'
     | '/signals'
+    | '/trades'
     | '/bot4x/onboarding'
     | '/calibrator/history'
     | '/api/copilot/chat'
     | '/api/copilot/transcribe'
     | '/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
+    | '/api/public/v1/signals'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -379,17 +409,20 @@ export interface FileRouteTypes {
     | '/manipulation'
     | '/marketplace'
     | '/onboarding'
+    | '/pairs'
     | '/pricing'
     | '/profile'
     | '/sentiment'
     | '/settings'
     | '/signals'
+    | '/trades'
     | '/bot4x/onboarding'
     | '/calibrator/history'
     | '/api/copilot/chat'
     | '/api/copilot/transcribe'
     | '/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
+    | '/api/public/v1/signals'
     | '/lovable/email/queue/process'
   id:
     | '__root__'
@@ -414,17 +447,20 @@ export interface FileRouteTypes {
     | '/_authenticated/manipulation'
     | '/_authenticated/marketplace'
     | '/_authenticated/onboarding'
+    | '/_authenticated/pairs'
     | '/_authenticated/pricing'
     | '/_authenticated/profile'
     | '/_authenticated/sentiment'
     | '/_authenticated/settings'
     | '/_authenticated/signals'
+    | '/_authenticated/trades'
     | '/_authenticated/bot4x/onboarding'
     | '/_authenticated/calibrator/history'
     | '/api/copilot/chat'
     | '/api/copilot/transcribe'
     | '/_authenticated/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
+    | '/api/public/v1/signals'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
@@ -438,6 +474,7 @@ export interface RootRouteChildren {
   ApiCopilotChatRoute: typeof ApiCopilotChatRoute
   ApiCopilotTranscribeRoute: typeof ApiCopilotTranscribeRoute
   ApiPublicAlertsDispatchRoute: typeof ApiPublicAlertsDispatchRoute
+  ApiPublicV1SignalsRoute: typeof ApiPublicV1SignalsRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
@@ -590,6 +627,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/pairs': {
+      id: '/_authenticated/pairs'
+      path: '/pairs'
+      fullPath: '/pairs'
+      preLoaderRoute: typeof AuthenticatedPairsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/pricing': {
       id: '/_authenticated/pricing'
       path: '/pricing'
@@ -623,6 +667,13 @@ declare module '@tanstack/react-router' {
       path: '/signals'
       fullPath: '/signals'
       preLoaderRoute: typeof AuthenticatedSignalsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/trades': {
+      id: '/_authenticated/trades'
+      path: '/trades'
+      fullPath: '/trades'
+      preLoaderRoute: typeof AuthenticatedTradesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/bot4x/onboarding': {
@@ -665,6 +716,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/alerts/dispatch'
       fullPath: '/api/public/alerts/dispatch'
       preLoaderRoute: typeof ApiPublicAlertsDispatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/v1/signals': {
+      id: '/api/public/v1/signals'
+      path: '/api/public/v1/signals'
+      fullPath: '/api/public/v1/signals'
+      preLoaderRoute: typeof ApiPublicV1SignalsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lovable/email/queue/process': {
@@ -734,11 +792,13 @@ interface AuthenticatedRouteChildren {
   AuthenticatedManipulationRoute: typeof AuthenticatedManipulationRoute
   AuthenticatedMarketplaceRoute: typeof AuthenticatedMarketplaceRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedPairsRoute: typeof AuthenticatedPairsRoute
   AuthenticatedPricingRoute: typeof AuthenticatedPricingRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedSentimentRoute: typeof AuthenticatedSentimentRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedSignalsRoute: typeof AuthenticatedSignalsRoute
+  AuthenticatedTradesRoute: typeof AuthenticatedTradesRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -757,11 +817,13 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedManipulationRoute: AuthenticatedManipulationRoute,
   AuthenticatedMarketplaceRoute: AuthenticatedMarketplaceRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedPairsRoute: AuthenticatedPairsRoute,
   AuthenticatedPricingRoute: AuthenticatedPricingRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedSentimentRoute: AuthenticatedSentimentRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedSignalsRoute: AuthenticatedSignalsRoute,
+  AuthenticatedTradesRoute: AuthenticatedTradesRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -778,6 +840,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCopilotChatRoute: ApiCopilotChatRoute,
   ApiCopilotTranscribeRoute: ApiCopilotTranscribeRoute,
   ApiPublicAlertsDispatchRoute: ApiPublicAlertsDispatchRoute,
+  ApiPublicV1SignalsRoute: ApiPublicV1SignalsRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
