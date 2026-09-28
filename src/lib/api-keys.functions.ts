@@ -81,7 +81,8 @@ export const createApiKey = createServerFn({ method: "POST" })
     if ((count ?? 0) >= 5) throw new Error("Você pode manter até 5 chaves ativas.");
 
     const generated = await createSecret();
-    const { data: row, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
       .from("api_keys")
       .insert({
         user_id: context.userId,
@@ -102,7 +103,8 @@ export const rotateApiKey = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<IssuedApiKeyDTO> => {
     const generated = await createSecret();
     const now = new Date().toISOString();
-    const { data: row, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
       .from("api_keys")
       .update({
         key_hash: generated.hash,
@@ -116,6 +118,7 @@ export const rotateApiKey = createServerFn({ method: "POST" })
         revoked_at: null,
       })
       .eq("id", data.id)
+      .eq("user_id", context.userId)
       .select("id,name,key_prefix,key_suffix,status,requests_today,usage_date,last_used_at,created_at,rotated_at,revoked_at")
       .maybeSingle();
     if (error || !row) throw new Error("Chave não encontrada ou sem permissão.");
@@ -127,10 +130,12 @@ export const revokeApiKey = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => keyIdSchema.parse(input))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const now = new Date().toISOString();
-    const { data: row, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
       .from("api_keys")
       .update({ status: "revoked", revoked_at: now })
       .eq("id", data.id)
+      .eq("user_id", context.userId)
       .eq("status", "active")
       .select("id")
       .maybeSingle();

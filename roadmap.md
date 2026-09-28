@@ -20,3 +20,7 @@
 - [ ] Validar conta autenticada sem expor credenciais; credenciais reais continuam sendo salvas pelo titular no formulário seguro.
 
 - [ ] Corrigir os achados confirmados da Auditoria Técnica — Rodada 2.
+  - [x] Fechar exposição de alertas de manipulação e escrita direta financeira.
+  - [ ] Exigir 2FA e interruptor global em todo fluxo REAL.
+  - [ ] Substituir controles simulados da tela Segurança.
+  - [ ] Validar testes, telas críticas e nova varredura de segurança.

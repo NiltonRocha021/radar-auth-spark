@@ -201,9 +201,9 @@ function LiveTradingPage() {
                               ? new Date(s.twoFactorEnabledAt).toLocaleString("pt-BR")
                               : "—"
                           }. Protege o acesso à plataforma, sem interferir na API da Binance.`
-                        : "Opcional para a conexão Binance; recomendado para proteger o acesso à plataforma."
+                        : "Obrigatório para selecionar o modo REAL e executar ou encerrar ordens reais."
                     }
-                    state={s.twoFactorEnabled ? "ok" : "warn"}
+                    state={s.twoFactorEnabled ? "ok" : "fail"}
                     action={
                       s.twoFactorEnabled ? null : (
                         <Button
@@ -273,13 +273,7 @@ function LiveTradingPage() {
                 Escaneie o QR no seu app autenticador e digite o código de 6 dígitos.
               </p>
               <div className="flex justify-center">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setup.otpauthUri)}`}
-                  alt="QR code para configurar 2FA"
-                  className="rounded-md bg-white p-2"
-                  width={200}
-                  height={200}
-                />
+                <LocalQrCode value={setup.otpauthUri} />
               </div>
               <div className="text-xs text-center text-muted-foreground font-mono break-all">
                 {setup.secret}

@@ -64,10 +64,10 @@ export const getLiveTradingStatus = createServerFn({ method: "GET" })
 
     if (credentialsConfigured) {
       try {
-        const [{ fetchBinanceAccount }, { getBinanceCredentials }] = await Promise.all([
+        const [{ fetchBinanceAccountCached }, { getBinanceCredentials }] = await Promise.all([
           import("./binance.server"), import("./binance-credentials.server"),
         ]);
-        const account = await fetchBinanceAccount(await getBinanceCredentials(context.userId));
+        const account = await fetchBinanceAccountCached(await getBinanceCredentials(context.userId), context.userId);
         connectivity = "ok";
         canTrade = account.canTrade;
       } catch (err) {
@@ -87,7 +87,7 @@ export const getLiveTradingStatus = createServerFn({ method: "GET" })
       connectivity,
       connectivityError,
       canTrade,
-      ready: credentialsConfigured && connectivity === "ok" && canTrade !== false,
+      ready: twoFactorEnabled && credentialsConfigured && connectivity === "ok" && canTrade === true,
     };
   });
 
@@ -104,10 +104,10 @@ export const getProfileFinancialSnapshot = createServerFn({ method: "GET" })
 
     if (mode === "LIVE") {
       try {
-        const [{ fetchBinanceAccount }, { getBinanceCredentials }] = await Promise.all([
+        const [{ fetchBinanceAccountCached }, { getBinanceCredentials }] = await Promise.all([
           import("./binance.server"), import("./binance-credentials.server"),
         ]);
-        const account = await fetchBinanceAccount(await getBinanceCredentials(context.userId));
+        const account = await fetchBinanceAccountCached(await getBinanceCredentials(context.userId), context.userId);
         return {
           mode,
           source: "binance",
@@ -161,6 +161,8 @@ export const validateMyBinanceOrder = createServerFn({ method: "POST" })
       .eq("user_id", context.userId)
       .maybeSingle();
     if (config?.execution_mode !== "LIVE") throw new Error("Salve o modo REAL antes de validar uma ordem.");
+    const { assertLiveTradingAllowed } = await import("./live-safety.server");
+    await assertLiveTradingAllowed(context.userId);
 
     const [{ validateBinanceOrder }, { getBinanceCredentials }] = await Promise.all([
       import("./binance.server"), import("./binance-credentials.server"),
@@ -172,7 +174,8 @@ export const validateMyBinanceOrder = createServerFn({ method: "POST" })
       throw new Error("A Binance recusou a validação. Confira saldo, permissões e limites do par.");
     }
     const now = new Date().toISOString();
-    const { data: row, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
       .from("binance_order_validations")
       .insert({
         user_id: context.userId,

@@ -358,6 +358,10 @@ export const adminSetExecutionMode = createServerFn({ method: "POST" })
     if (data.mode === "LIVE" && config?.api_key_set !== true) {
       throw new Error("Este perfil precisa validar as próprias credenciais Binance antes de usar REAL.");
     }
+    if (data.mode === "LIVE") {
+      const { assertLiveTradingAllowed } = await import("./live-safety.server");
+      await assertLiveTradingAllowed(data.userId);
+    }
     const previous = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
     const { error } = await supabaseAdmin
       .from("bot4x_configs")
