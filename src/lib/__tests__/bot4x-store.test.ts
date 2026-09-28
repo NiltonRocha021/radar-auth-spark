@@ -37,7 +37,7 @@ vi.mock("../bot4x-config-db", () => ({
   saveConfig: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { useBot4xStore, getEffectiveMode } from "../bot4x-store";
+import { useBot4xStore, getEffectiveMode, REAL_MODE_ENABLED } from "../bot4x-store";
 import { supabase } from "@/integrations/supabase/client";
 
 type MockedAuth = typeof supabase.auth & {
@@ -46,8 +46,10 @@ type MockedAuth = typeof supabase.auth & {
 const mockAuth = supabase.auth as MockedAuth;
 
 describe("getEffectiveMode", () => {
-  it("respeita o modo persistido", () => {
-    expect(getEffectiveMode("REAL")).toBe("REAL");
+  it("retorna DEMO quando REAL_MODE_ENABLED é false (default em testes)", () => {
+    // O ambiente de teste não define VITE_BOT4X_REAL_ENABLED=true.
+    expect(REAL_MODE_ENABLED).toBe(false);
+    expect(getEffectiveMode("REAL")).toBe("DEMO");
     expect(getEffectiveMode("DEMO")).toBe("DEMO");
   });
 });

@@ -13,9 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AsyncState, EmptyState } from "@/components/common/async-state";
 import { CostsRoiCard } from "@/components/dashboard/costs-roi-card";
-import { PairPerformanceCard } from "@/components/trades/pair-performance-card";
-import { getBotConfig } from "@/lib/bot.functions";
-import { ProfileCapitalCard } from "@/components/dashboard/profile-capital-card";
 
 export const Route = createFileRoute("/_authenticated/trades")({
   head: () => ({
@@ -46,16 +43,13 @@ function statusBadge(status: OrderDTO["status"]) {
 }
 
 function TradesPage() {
-  const [mode, setMode] = useState<ModeFilter | null>(null);
+  const [mode, setMode] = useState<ModeFilter>("LIVE");
   const fn = useServerFn(listOrders);
-  const configFn = useServerFn(getBotConfig);
   const qc = useQueryClient();
-  const config = useQuery({ queryKey: ["bot-config"], queryFn: () => configFn() });
-  const activeMode: ModeFilter = mode ?? config.data?.executionMode ?? "DEMO";
 
   const { data, isLoading, error, refetch, isFetching, dataUpdatedAt } = useQuery({
-    queryKey: ["orders", "list", activeMode],
-    queryFn: () => fn({ data: { mode: activeMode === "TODOS" ? undefined : activeMode, limit: 200 } }),
+    queryKey: ["orders", "list", mode],
+    queryFn: () => fn({ data: { mode: mode === "TODOS" ? undefined : mode, limit: 200 } }),
     refetchInterval: 15_000,
   });
 
@@ -74,7 +68,7 @@ function TradesPage() {
             </div>
             <div className="flex items-center gap-2">
               {MODES.map((m) => (
-                 <Button key={m} size="sm" variant={activeMode === m ? "default" : "outline"} onClick={() => setMode(m)}>
+                <Button key={m} size="sm" variant={mode === m ? "default" : "outline"} onClick={() => setMode(m)}>
                   {m}
                 </Button>
               ))}
@@ -93,8 +87,6 @@ function TradesPage() {
           </div>
 
           <CostsRoiCard />
-          <ProfileCapitalCard />
-          <PairPerformanceCard />
 
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">

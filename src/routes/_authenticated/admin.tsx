@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { adminListUsers, adminGetUser, adminUpdateUser, adminCreateUser, adminSetRole, adminSetExecutionMode } from "@/lib/admin.functions";
+import { adminListUsers, adminGetUser, adminUpdateUser, adminCreateUser, adminSetRole } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,14 +14,7 @@ import { ShieldAlert, UserPlus } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  head: () => ({ meta: [
-    { title: "Administração — AISignalRadar" },
-    { name: "description", content: "Gerencie perfis, planos, permissões e o status do bot por usuário." },
-    { property: "og:title", content: "Administração — AISignalRadar" },
-    { property: "og:description", content: "Gestão segura de usuários, permissões e status do bot." },
-    { property: "og:type", content: "website" },
-    { name: "twitter:card", content: "summary" },
-  ] }),
+  head: () => ({ meta: [{ title: "Admin — AISignalRadar" }] }),
   validateSearch: (s: Record<string, unknown>) => ({ userId: typeof s.userId === "string" ? s.userId : undefined }),
   errorComponent: ({ error }) => (
     <div className="p-8 max-w-xl mx-auto">
@@ -83,12 +76,7 @@ function AdminPage() {
               >
                 <div className="font-medium truncate">{u.full_name || u.username || u.email}</div>
                 <div className="text-xs text-muted-foreground truncate">{u.email}</div>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <Badge variant="outline" className="text-[10px]">{u.plan_tier ?? "free"}</Badge>
-                   <Badge variant={u.executionMode === "LIVE" ? "default" : "secondary"} className="text-[10px]">
-                     Modo {u.executionMode}
-                  </Badge>
-                </div>
+                <Badge variant="outline" className="mt-1 text-[10px]">{u.plan_tier ?? "free"}</Badge>
               </button>
             ))}
             {data && data.users.length === 0 && (
@@ -114,7 +102,6 @@ function EmptyDetail() {
 function UserDetail({ userId }: { userId: string }) {
   const getFn = useServerFn(adminGetUser);
   const updateFn = useServerFn(adminUpdateUser);
-  const setModeFn = useServerFn(adminSetExecutionMode);
   const qc = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
@@ -130,14 +117,6 @@ function UserDetail({ userId }: { userId: string }) {
       toast.success(`Salvo (${r.changed} campo(s) alterado(s))`);
       setForm({});
       qc.invalidateQueries({ queryKey: ["admin"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const modeMutation = useMutation({
-    mutationFn: (mode: "DEMO" | "LIVE") => setModeFn({ data: { userId, mode } }),
-    onSuccess: async (result) => {
-      toast.success(`Modo ${result.mode} salvo para este perfil`);
-      await qc.invalidateQueries({ queryKey: ["admin"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -162,7 +141,6 @@ function UserDetail({ userId }: { userId: string }) {
           <CardTitle className="text-base flex items-center gap-2">
             {p.email as string}
             {data.roles.map((r) => <Badge key={r} variant="secondary">{r}</Badge>)}
-            <Badge variant={data.botStatus === "LIVE" ? "default" : "outline"}>Bot {data.botStatus}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-4">
@@ -192,20 +170,6 @@ function UserDetail({ userId }: { userId: string }) {
       </Card>
 
       <RolesCard userId={userId} roles={data.roles} />
-
-      <Card>
-        <CardHeader><CardTitle className="text-base">Modo de execução do perfil</CardTitle></CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant={data.executionMode === "DEMO" ? "default" : "outline"} onClick={() => modeMutation.mutate("DEMO")} disabled={modeMutation.isPending}>DEMO</Button>
-            <Button variant={data.executionMode === "LIVE" ? "destructive" : "outline"} onClick={() => modeMutation.mutate("LIVE")} disabled={modeMutation.isPending || !data.credentialsValid}>REAL</Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {data.credentialsValid ? "Credenciais Binance válidas neste perfil." : "REAL bloqueado: o usuário ainda não validou suas credenciais Binance."}
-            {" · "}Estado do bot: {data.botStatus}.
-          </p>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-base">Auditoria (últimas 50)</CardTitle></CardHeader>

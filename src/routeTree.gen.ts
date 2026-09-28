@@ -43,7 +43,6 @@ import { Route as ApiCopilotChatRouteImport } from './routes/api/copilot/chat'
 import { Route as ApiCopilotTranscribeRouteImport } from './routes/api/copilot/transcribe'
 import { Route as AuthenticatedCalibratorHistoryIdRouteImport } from './routes/_authenticated/calibrator.history.$id'
 import { Route as ApiPublicAlertsDispatchRouteImport } from './routes/api/public/alerts/dispatch'
-import { Route as ApiPublicV1SignalsRouteImport } from './routes/api/public/v1/signals'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
 const IndexRoute = IndexRouteImport.update({
@@ -224,11 +223,6 @@ const ApiPublicAlertsDispatchRoute = ApiPublicAlertsDispatchRouteImport.update({
   path: '/api/public/alerts/dispatch',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicV1SignalsRoute = ApiPublicV1SignalsRouteImport.update({
-  id: '/api/public/v1/signals',
-  path: '/api/public/v1/signals',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const LovableEmailQueueProcessRoute =
   LovableEmailQueueProcessRouteImport.update({
     id: '/lovable/email/queue/process',
@@ -270,7 +264,6 @@ export interface FileRoutesByFullPath {
   '/api/copilot/transcribe': typeof ApiCopilotTranscribeRoute
   '/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
-  '/api/public/v1/signals': typeof ApiPublicV1SignalsRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
@@ -307,7 +300,6 @@ export interface FileRoutesByTo {
   '/api/copilot/transcribe': typeof ApiCopilotTranscribeRoute
   '/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
-  '/api/public/v1/signals': typeof ApiPublicV1SignalsRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
@@ -346,7 +338,6 @@ export interface FileRoutesById {
   '/api/copilot/transcribe': typeof ApiCopilotTranscribeRoute
   '/_authenticated/calibrator/history/$id': typeof AuthenticatedCalibratorHistoryIdRoute
   '/api/public/alerts/dispatch': typeof ApiPublicAlertsDispatchRoute
-  '/api/public/v1/signals': typeof ApiPublicV1SignalsRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
@@ -385,7 +376,6 @@ export interface FileRouteTypes {
     | '/api/copilot/transcribe'
     | '/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
-    | '/api/public/v1/signals'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -422,7 +412,6 @@ export interface FileRouteTypes {
     | '/api/copilot/transcribe'
     | '/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
-    | '/api/public/v1/signals'
     | '/lovable/email/queue/process'
   id:
     | '__root__'
@@ -460,7 +449,6 @@ export interface FileRouteTypes {
     | '/api/copilot/transcribe'
     | '/_authenticated/calibrator/history/$id'
     | '/api/public/alerts/dispatch'
-    | '/api/public/v1/signals'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
@@ -474,7 +462,6 @@ export interface RootRouteChildren {
   ApiCopilotChatRoute: typeof ApiCopilotChatRoute
   ApiCopilotTranscribeRoute: typeof ApiCopilotTranscribeRoute
   ApiPublicAlertsDispatchRoute: typeof ApiPublicAlertsDispatchRoute
-  ApiPublicV1SignalsRoute: typeof ApiPublicV1SignalsRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
@@ -718,13 +705,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAlertsDispatchRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/v1/signals': {
-      id: '/api/public/v1/signals'
-      path: '/api/public/v1/signals'
-      fullPath: '/api/public/v1/signals'
-      preLoaderRoute: typeof ApiPublicV1SignalsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/lovable/email/queue/process': {
       id: '/lovable/email/queue/process'
       path: '/lovable/email/queue/process'
@@ -840,7 +820,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCopilotChatRoute: ApiCopilotChatRoute,
   ApiCopilotTranscribeRoute: ApiCopilotTranscribeRoute,
   ApiPublicAlertsDispatchRoute: ApiPublicAlertsDispatchRoute,
-  ApiPublicV1SignalsRoute: ApiPublicV1SignalsRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport

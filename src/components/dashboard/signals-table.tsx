@@ -1,14 +1,13 @@
 import { useState } from "react";
-import { useSignalsStore } from "@/lib/signals-store";
+import { useDashboardStore } from "@/lib/dashboard-store";
 import { ScoreBadge } from "./score-badge";
 import { ChevronRight } from "lucide-react";
-import { formatAge } from "@/lib/signals-data";
 
 type Filter = "ALL" | "BUY" | "SELL" | "HIGH";
 
 export function SignalsTable() {
-  const signals = useSignalsStore((s) => s.signals.filter((signal) => !signal.isMock));
-  const openDetail = useSignalsStore((s) => s.openDetail);
+  const signals = useDashboardStore((s) => s.signals);
+  const setSelected = useDashboardStore((s) => s.setSelectedSignal);
   const [filter, setFilter] = useState<Filter>("ALL");
 
   const filtered = signals.filter((s) => {
@@ -24,7 +23,7 @@ export function SignalsTable() {
           <h3 className="text-[15px] font-medium text-foreground">Top signals right now</h3>
           <p className="text-[12px] text-muted-foreground">Live institutional-grade setups</p>
         </div>
-        <div className="flex items-center gap-1 p-1 rounded-full bg-secondary" aria-label="Filtrar sinais">
+        <div className="flex items-center gap-1 p-1 rounded-full bg-secondary">
           {(["ALL", "BUY", "SELL", "HIGH"] as Filter[]).map((f) => (
             <button
               key={f}
@@ -77,20 +76,17 @@ export function SignalsTable() {
                 <td className="py-3 px-2 text-right">{fmt(s.target)}</td>
                 <td className="py-3 px-2 text-right">{s.rr.toFixed(1)}</td>
                 <td className="py-3 px-2 text-muted-foreground">{s.tf}</td>
-                <td className="py-3 px-2 text-muted-foreground">{formatAge(s.ageMin)}</td>
+                <td className="py-3 px-2 text-muted-foreground">{s.time}</td>
                 <td className="py-3 px-4 text-right">
                   <button
-                    onClick={() => openDetail(s.id)}
+                    onClick={() => setSelected(s)}
                     className="inline-flex items-center gap-1 text-[12px] text-[var(--brand-cyan)] hover:underline"
                   >
-                    Ver <ChevronRight className="size-3" />
+                    View <ChevronRight className="size-3" />
                   </button>
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 ? (
-              <tr><td colSpan={10} className="border-t border-border px-4 py-8 text-center text-sm text-muted-foreground">Nenhum sinal real corresponde a este filtro.</td></tr>
-            ) : null}
           </tbody>
         </table>
       </div>

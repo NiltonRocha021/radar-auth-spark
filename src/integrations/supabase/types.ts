@@ -196,159 +196,6 @@ export type Database = {
         }
         Relationships: []
       }
-      api_keys: {
-        Row: {
-          created_at: string
-          id: string
-          key_hash: string
-          key_prefix: string
-          key_suffix: string
-          last_used_at: string | null
-          name: string
-          requests_today: number
-          revoked_at: string | null
-          rotated_at: string | null
-          status: string
-          updated_at: string
-          usage_date: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          key_hash: string
-          key_prefix: string
-          key_suffix: string
-          last_used_at?: string | null
-          name: string
-          requests_today?: number
-          revoked_at?: string | null
-          rotated_at?: string | null
-          status?: string
-          updated_at?: string
-          usage_date?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          key_hash?: string
-          key_prefix?: string
-          key_suffix?: string
-          last_used_at?: string | null
-          name?: string
-          requests_today?: number
-          revoked_at?: string | null
-          rotated_at?: string | null
-          status?: string
-          updated_at?: string
-          usage_date?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      binance_credentials: {
-        Row: {
-          api_key_ciphertext: string
-          api_key_iv: string
-          api_secret_ciphertext: string
-          api_secret_iv: string
-          created_at: string
-          environment: string
-          id: string
-          key_suffix: string
-          last_validated_at: string | null
-          last_validation_error: string | null
-          revoked_at: string | null
-          rotated_at: string | null
-          status: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          api_key_ciphertext: string
-          api_key_iv: string
-          api_secret_ciphertext: string
-          api_secret_iv: string
-          created_at?: string
-          environment?: string
-          id?: string
-          key_suffix: string
-          last_validated_at?: string | null
-          last_validation_error?: string | null
-          revoked_at?: string | null
-          rotated_at?: string | null
-          status?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          api_key_ciphertext?: string
-          api_key_iv?: string
-          api_secret_ciphertext?: string
-          api_secret_iv?: string
-          created_at?: string
-          environment?: string
-          id?: string
-          key_suffix?: string
-          last_validated_at?: string | null
-          last_validation_error?: string | null
-          revoked_at?: string | null
-          rotated_at?: string | null
-          status?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      binance_order_validations: {
-        Row: {
-          created_at: string
-          environment: string
-          id: string
-          message: string | null
-          mode: string
-          order_type: string
-          price: number | null
-          quantity: number
-          side: string
-          status: string
-          symbol: string
-          user_id: string
-          validated_at: string
-        }
-        Insert: {
-          created_at?: string
-          environment: string
-          id?: string
-          message?: string | null
-          mode?: string
-          order_type: string
-          price?: number | null
-          quantity: number
-          side: string
-          status: string
-          symbol: string
-          user_id: string
-          validated_at?: string
-        }
-        Update: {
-          created_at?: string
-          environment?: string
-          id?: string
-          message?: string | null
-          mode?: string
-          order_type?: string
-          price?: number | null
-          quantity?: number
-          side?: string
-          status?: string
-          symbol?: string
-          user_id?: string
-          validated_at?: string
-        }
-        Relationships: []
-      }
       bot_cop_decisions: {
         Row: {
           context: Json
@@ -422,7 +269,6 @@ export type Database = {
           daily_pnl: number | null
           emergency_triggered_at: string | null
           exchange: string | null
-          execution_mode: string
           fomo_limit: number | null
           id: string
           leverage: number | null
@@ -451,7 +297,6 @@ export type Database = {
           daily_pnl?: number | null
           emergency_triggered_at?: string | null
           exchange?: string | null
-          execution_mode?: string
           fomo_limit?: number | null
           id?: string
           leverage?: number | null
@@ -480,7 +325,6 @@ export type Database = {
           daily_pnl?: number | null
           emergency_triggered_at?: string | null
           exchange?: string | null
-          execution_mode?: string
           fomo_limit?: number | null
           id?: string
           leverage?: number | null
@@ -1550,30 +1394,6 @@ export type Database = {
           status?: string
           trade_data?: Json
           user_id?: string
-        }
-        Relationships: []
-      }
-      trading_safety_state: {
-        Row: {
-          id: boolean
-          live_trading_enabled: boolean
-          reason: string | null
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          id?: boolean
-          live_trading_enabled?: boolean
-          reason?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          id?: boolean
-          live_trading_enabled?: boolean
-          reason?: string | null
-          updated_at?: string
-          updated_by?: string | null
         }
         Relationships: []
       }

@@ -113,7 +113,7 @@ function PairsPage() {
           >
             {data && (
               <div className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
+                <div className="grid gap-3 sm:grid-cols-4">
                   <SummaryTile label="Ordens" value={String(data.totals.orders)} />
                   <SummaryTile label="Encerradas" value={String(data.totals.closedOrders)} />
                   <SummaryTile label="Taxa de sucesso" value={`${data.totals.winRate.toFixed(1)}%`} />
@@ -122,9 +122,6 @@ function PairsPage() {
                     value={money(data.totals.netPnl)}
                     tone={data.totals.netPnl >= 0 ? "text-[#1D9E75]" : "text-[#E24B4A]"}
                   />
-                  <SummaryTile label="Saldo atual" value={money(data.totals.balance)} tone={data.totals.balance >= 0 ? "text-success" : "text-destructive"} />
-                  <SummaryTile label="Custos" value={money(data.totals.fees)} />
-                  <SummaryTile label="ROI acumulado" value={pct(data.totals.roiPct)} tone={data.totals.roiPct >= 0 ? "text-success" : "text-destructive"} />
                 </div>
 
                 <Card>

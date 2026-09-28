@@ -1,5 +1,8 @@
-// Ordens DEMO/LIVE com modo decidido exclusivamente pela configuração persistida
-// do usuário. O cliente não pode promover uma ordem para LIVE pelo payload.
+// Server functions da Fase 3 — Orders (DEMO agora, LIVE reservado p/ Fase 4).
+// Porta OrderController do Nest (place/close/list) sem executar contra exchange
+// real. O contrato inclui `mode` desde já (default 'DEMO') para que a Fase 4
+// só precise emitir orders com mode='LIVE' via mesmo pipeline, sem migration
+// de rename/merge de tabela.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -70,7 +73,7 @@ function toDto(r: OrderRow): OrderDTO {
 // ---------- placeOrder (DEMO | LIVE) ---------------------------------------
 // Fase 4: mode='LIVE' executa de fato contra a Binance dentro do Worker
 // (src/lib/binance.server.ts, import dinâmico p/ não vazar ao bundle client).
-// Guardas para LIVE: modo persistido + credenciais Binance válidas do usuário.
+// Guardas para LIVE: 2FA verificado + credenciais Binance configuradas.
 
 export const placeDemoOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -85,7 +88,7 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
         stopLoss: z.number().positive().optional(),
         takeProfit: z.number().positive().optional(),
         signalId: z.string().uuid().optional(),
-        liveConfirmation: z.literal("CONFIRMAR ORDEM REAL").optional(),
+        mode: z.enum(MODES).default("DEMO"),
       })
       .parse(d),
   )
@@ -93,36 +96,20 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     let entryPrice = data.entryPrice;
     let quantity = data.quantity;
 
-    const { data: config, error: configError } = await context.supabase
-      .from("bot4x_configs")
-      .select("execution_mode")
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    if (configError) throw new Error("Não foi possível confirmar o modo de execução.");
-    const executionMode: "DEMO" | "LIVE" = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
+    if (data.mode === "LIVE") {
+      const { data: tfa } = await context.supabase
+        .from("user_two_factor")
+        .select("enabled")
+        .eq("user_id", context.userId)
+        .maybeSingle();
+      if (!tfa?.enabled) {
+        throw new Error("Ative o 2FA antes de operar em modo LIVE.");
+      }
 
-    if (executionMode === "LIVE") {
-      if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
-        throw new Error("Confirme explicitamente a ordem REAL antes do envio à Binance.");
+      const { placeBinanceOrder, isLiveTradingConfigured } = await import("./binance.server");
+      if (!isLiveTradingConfigured()) {
+        throw new Error("Execução LIVE indisponível: credenciais da Binance não configuradas.");
       }
-      if (data.side === "BUY" && data.stopLoss != null && data.stopLoss >= data.entryPrice) {
-        throw new Error("Em uma compra, o stop deve ficar abaixo do preço de entrada.");
-      }
-      if (data.side === "BUY" && data.takeProfit != null && data.takeProfit <= data.entryPrice) {
-        throw new Error("Em uma compra, o alvo deve ficar acima do preço de entrada.");
-      }
-      if (data.side === "SELL" && data.stopLoss != null && data.stopLoss <= data.entryPrice) {
-        throw new Error("Em uma venda, o stop deve ficar acima do preço de entrada.");
-      }
-      if (data.side === "SELL" && data.takeProfit != null && data.takeProfit >= data.entryPrice) {
-        throw new Error("Em uma venda, o alvo deve ficar abaixo do preço de entrada.");
-      }
-      const [{ placeBinanceOrder }, { getBinanceCredentials }, { assertTradingRiskAllowed }, { assertLiveTradingAllowed }] = await Promise.all([
-        import("./binance.server"), import("./binance-credentials.server"), import("./risk.functions"), import("./live-safety.server"),
-      ]);
-      await assertLiveTradingAllowed(context.userId);
-      await assertTradingRiskAllowed(context.supabase, context.userId);
-      const credentials = await getBinanceCredentials(context.userId);
 
       const fill = await placeBinanceOrder({
         symbol: data.symbol,
@@ -130,17 +117,16 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
         orderType: data.orderType,
         quantity: data.quantity,
         price: data.orderType === "LIMIT" ? data.entryPrice : undefined,
-      }, credentials);
+      });
       if (fill.avgPrice > 0) entryPrice = fill.avgPrice;
       if (fill.executedQty > 0) quantity = fill.executedQty;
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
+    const { data: row, error } = await context.supabase
       .from("orders")
       .insert({
         user_id: context.userId,
-        mode: executionMode,
+        mode: data.mode,
         symbol: data.symbol,
         side: data.side,
         order_type: data.orderType,
@@ -157,7 +143,7 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     return toDto(row as OrderRow);
   });
 
-/** Alias público do pipeline único; o modo é sempre resolvido no servidor. */
+/** Alias explícito para a Fase 4 — mesmo pipeline, aceita mode='LIVE'. */
 export const placeOrder = placeDemoOrder;
 
 // ---------- closeOrder (DEMO | LIVE) ---------------------------------------
@@ -166,13 +152,9 @@ export const placeOrder = placeDemoOrder;
 
 export const closeDemoOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { orderId: string; exitPrice?: number; liveConfirmation?: "CONFIRMAR ORDEM REAL" }) =>
+  .inputValidator((d: { orderId: string; exitPrice?: number }) =>
     z
-      .object({
-        orderId: z.string().uuid(),
-        exitPrice: z.number().positive().optional(),
-        liveConfirmation: z.literal("CONFIRMAR ORDEM REAL").optional(),
-      })
+      .object({ orderId: z.string().uuid(), exitPrice: z.number().positive().optional() })
       .parse(d),
   )
   .handler(async ({ data, context }): Promise<OrderDTO> => {
@@ -190,20 +172,13 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
     let exit = data.exitPrice;
 
     if (row.mode === "LIVE") {
-      if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
-        throw new Error("Confirme explicitamente o encerramento REAL antes do envio à Binance.");
-      }
-      const [{ closeBinancePosition, fetchBinancePrice }, { getBinanceCredentials }, { assertLiveTradingAllowed }] = await Promise.all([
-        import("./binance.server"), import("./binance-credentials.server"), import("./live-safety.server"),
-      ]);
-      await assertLiveTradingAllowed(context.userId);
-      const credentials = await getBinanceCredentials(context.userId);
+      const { closeBinancePosition, fetchBinancePrice } = await import("./binance.server");
       const fill = await closeBinancePosition({
         symbol: row.symbol,
         side: row.side,
         quantity: Number(row.quantity),
-      }, credentials);
-      exit = fill.avgPrice > 0 ? fill.avgPrice : ((await fetchBinancePrice(row.symbol, credentials.baseUrl)) ?? exit);
+      });
+      exit = fill.avgPrice > 0 ? fill.avgPrice : ((await fetchBinancePrice(row.symbol)) ?? exit);
     }
 
     if (exit == null) {
@@ -220,8 +195,7 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
     const pnl = (exit - entry) * qty * dir;
     const pnlPct = entry > 0 ? ((exit - entry) / entry) * 100 * dir : 0;
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: updated, error: uErr } = await supabaseAdmin
+    const { data: updated, error: uErr } = await context.supabase
       .from("orders")
       .update({
         status: "CLOSED",
@@ -445,8 +419,6 @@ export interface PairAnalyticsDTO {
   pairs: PairStatsDTO[];
   /** Curva por par (ordem cronológica) — apenas ordens encerradas. */
   equityBySymbol: Record<string, EquityPointDTO[]>;
-  /** Saldo LIVE/DEMO acumulado em ordem cronológica, incluindo custos de entrada. */
-  equityCurve: EquityPointDTO[];
   totals: {
     orders: number;
     closedOrders: number;
@@ -483,8 +455,6 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
     const stats = new Map<string, PairStatsDTO>();
     const equity: Record<string, EquityPointDTO[]> = {};
     const cum = new Map<string, number>();
-    const equityCurve: EquityPointDTO[] = [];
-    let totalRunning = 0;
 
     for (const raw of (rows ?? []) as OrderRow[]) {
       const symbol = raw.symbol;
@@ -517,7 +487,6 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
       const fee = notional * FEE_RATE + (closed && exit != null ? qty * exit * FEE_RATE : 0);
       const gross = raw.pnl != null ? Number(raw.pnl) : 0;
       const net = closed ? gross - fee : 0;
-      const orderNet = closed ? gross - fee : -fee;
 
       s.orders += 1;
       s.volume += notional;
@@ -539,14 +508,6 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
           symbol,
         });
       }
-
-      totalRunning += orderNet;
-      equityCurve.push({
-        t: raw.closed_at ?? raw.opened_at,
-        cum: totalRunning,
-        pnl: orderNet,
-        symbol,
-      });
     }
 
     const pairs = Array.from(stats.values()).map((s) => ({
@@ -573,7 +534,6 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
       mode: data.mode ?? "ALL",
       pairs,
       equityBySymbol: equity,
-      equityCurve,
       totals: {
         orders: totals.orders,
         closedOrders: totals.closedOrders,
@@ -632,15 +592,7 @@ export const getRiskByPair = createServerFn({ method: "GET" })
     z.object({ mode: z.enum(MODES).optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }): Promise<RiskByPairDTO> => {
-    let mode = data.mode;
-    if (!mode) {
-      const { data: config } = await context.supabase
-        .from("bot4x_configs")
-        .select("execution_mode")
-        .eq("user_id", context.userId)
-        .maybeSingle();
-      mode = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
-    }
+    const mode: "DEMO" | "LIVE" = data.mode ?? "LIVE";
     const { data: rows, error } = await context.supabase
       .from("orders")
       .select("*")

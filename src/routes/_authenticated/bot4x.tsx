@@ -15,10 +15,6 @@ export const Route = createFileRoute("/_authenticated/bot4x")({
     meta: [
       { title: "Bot4x — AISignalRadar" },
       { name: "description", content: "Motor de execução algorítmica com calibração e circuit breakers." },
-      { property: "og:title", content: "Bot4x — AISignalRadar" },
-      { property: "og:description", content: "Motor de execução algorítmica em modo DEMO ou REAL por perfil." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Bot4xPage,

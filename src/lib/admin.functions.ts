@@ -28,9 +28,8 @@ export const adminListUsers = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const limit = data.limit ?? 50;
-    let q = supabaseAdmin
+    let q = context.supabase
       .from("profiles")
       .select("id,email,username,full_name,plan_tier,country,created_at,updated_at")
       .order("created_at", { ascending: false })
@@ -41,29 +40,7 @@ export const adminListUsers = createServerFn({ method: "GET" })
     }
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    const userIds = (rows ?? []).map((row) => row.id);
-    if (userIds.length === 0) return { users: [] };
-
-    const [{ data: configs }, { data: states }] = await Promise.all([
-      supabaseAdmin.from("bot4x_configs").select("user_id,active,api_key_set,execution_mode").in("user_id", userIds),
-      supabaseAdmin.from("bot_system_state").select("user_id,state").in("user_id", userIds),
-    ]);
-    const configByUser = new Map((configs ?? []).map((row) => [row.user_id, row]));
-    const stateByUser = new Map((states ?? []).map((row) => [row.user_id, row.state]));
-
-    return {
-      users: (rows ?? []).map((row) => {
-        const config = configByUser.get(row.id);
-        const botActive = config?.active === true && stateByUser.get(row.id) === "ACTIVE";
-        return {
-          ...row,
-          executionMode: config?.execution_mode === "LIVE" ? "LIVE" as const : "DEMO" as const,
-          botStatus: config?.execution_mode === "LIVE" && botActive && config.api_key_set === true ? "LIVE" as const : botActive ? "ATIVO" as const : "INATIVO" as const,
-          credentialsValid: config?.api_key_set === true,
-          botActive,
-        };
-      }),
-    };
+    return { users: rows ?? [] };
   });
 
 export const adminGetUser = createServerFn({ method: "GET" })
@@ -71,14 +48,7 @@ export const adminGetUser = createServerFn({ method: "GET" })
   .inputValidator((d: { userId: string }) => z.object({ userId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [
-      { data: profile, error: pErr },
-      { data: roles },
-      { data: audit },
-      { data: config },
-      { data: botState },
-    ] = await Promise.all([
+    const [{ data: profile, error: pErr }, { data: roles }, { data: audit }] = await Promise.all([
       context.supabase.from("profiles").select("*").eq("id", data.userId).maybeSingle(),
       context.supabase.from("user_roles").select("role").eq("user_id", data.userId),
       context.supabase
@@ -87,21 +57,10 @@ export const adminGetUser = createServerFn({ method: "GET" })
         .eq("target_user_id", data.userId)
         .order("created_at", { ascending: false })
         .limit(50),
-      supabaseAdmin.from("bot4x_configs").select("active,api_key_set,execution_mode").eq("user_id", data.userId).maybeSingle(),
-      supabaseAdmin.from("bot_system_state").select("state").eq("user_id", data.userId).maybeSingle(),
     ]);
     if (pErr) throw new Error(pErr.message);
     if (!profile) throw new Error("Usuário não encontrado");
-    const botActive = config?.active === true && botState?.state === "ACTIVE";
-    return {
-      profile,
-      roles: (roles ?? []).map((r: { role: string }) => r.role),
-      audit: audit ?? [],
-      executionMode: config?.execution_mode === "LIVE" ? "LIVE" as const : "DEMO" as const,
-      botStatus: config?.execution_mode === "LIVE" && botActive && config?.api_key_set === true ? "LIVE" as const : botActive ? "ATIVO" as const : "INATIVO" as const,
-      credentialsValid: config?.api_key_set === true,
-      botActive,
-    };
+    return { profile, roles: (roles ?? []).map((r: { role: string }) => r.role), audit: audit ?? [] };
   });
 
 export const adminUpdateUser = createServerFn({ method: "POST" })
@@ -342,40 +301,4 @@ export const adminSetRole = createServerFn({ method: "POST" })
     ]);
 
     return { ok: true };
-  });
-
-export const adminSetExecutionMode = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ userId: z.string().uuid(), mode: z.enum(["DEMO", "LIVE"]) }).parse(input))
-  .handler(async ({ data, context }) => {
-    await assertAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: config } = await supabaseAdmin
-      .from("bot4x_configs")
-      .select("execution_mode,api_key_set")
-      .eq("user_id", data.userId)
-      .maybeSingle();
-    if (data.mode === "LIVE" && config?.api_key_set !== true) {
-      throw new Error("Este perfil precisa validar as próprias credenciais Binance antes de usar REAL.");
-    }
-    if (data.mode === "LIVE") {
-      const { assertLiveTradingAllowed } = await import("./live-safety.server");
-      await assertLiveTradingAllowed(data.userId);
-    }
-    const previous = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
-    const { error } = await supabaseAdmin
-      .from("bot4x_configs")
-      .upsert({ user_id: data.userId, execution_mode: data.mode }, { onConflict: "user_id" });
-    if (error) throw new Error("Não foi possível salvar o modo de execução.");
-    if (previous !== data.mode) {
-      await supabaseAdmin.from("admin_audit_log").insert({
-        actor_id: context.userId,
-        target_user_id: data.userId,
-        table_name: "bot4x_configs",
-        field_name: "execution_mode",
-        old_value: JSON.stringify(previous),
-        new_value: JSON.stringify(data.mode),
-      });
-    }
-    return { ok: true, mode: data.mode };
   });
