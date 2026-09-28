@@ -69,17 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     //    como "tela em branco" ao recarregar).
     supabase.auth
       .getSession()
-      .then(async ({ data, error: sessionError }) => {
+      .then(async ({ data }) => {
         if (!mounted) return;
-        if (sessionError) {
-          // Cookies de refresh revogados não podem manter a tela em um estado
-          // quebrado. Remove somente a sessão local; nenhuma conta é alterada.
-          await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
-          if (!mounted) return;
-          setSession(null);
-          setLoading(false);
-          return;
-        }
         if (data.session) {
           if (!sawEvent) setSession(data.session);
           setLoading(false);
@@ -112,21 +103,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     //    a rede reconecta — evita 401 silencioso após sleep / suspensão
     //    do navegador, que também causava tela vazia até o próximo evento.
     const refreshIfStale = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
-        if (mounted) setSession(null);
-        return;
-      }
+      const { data } = await supabase.auth.getSession();
       const expiresAt = data.session?.expires_at ?? 0;
       const now = Math.floor(Date.now() / 1000);
       // Refresh proativo se faltar menos de 60s para expirar.
       if (data.session && expiresAt - now < 60) {
-        const { error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError) {
-          await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
-          if (mounted) setSession(null);
-        }
+        await supabase.auth.refreshSession();
       }
     };
     const onVisibility = () => {

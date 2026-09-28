@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useBot4xStore } from "./bot4x-store";
 import { useSignalsStore } from "./signals-store";
 import { PROFILE_RISK_LADDER, type CalibProfile } from "./bot4x-data";
-import type { SimulationResultUI } from "@/lib/calibrator";
+import type { SimulationResultUI } from "@/adapters/backend/calibrator.adapter";
 
 export type SimProposal =
   | { kind: "profile"; from: CalibProfile; to: CalibProfile; reason: string }

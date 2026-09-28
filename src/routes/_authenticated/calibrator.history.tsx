@@ -18,7 +18,7 @@ import {
   calibratorHistoryStore,
   type CalibratorHistoryEntry,
 } from "@/lib/calibrator-history-store";
-import type { SimulationProfile } from "@/lib/calibrator";
+import type { SimulationProfile } from "@/adapters/backend/calibrator.adapter";
 import { History, Play, Trash2, FlaskConical, TrendingUp, TrendingDown } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/calibrator/history")({

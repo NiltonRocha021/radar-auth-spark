@@ -20,7 +20,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { QRCodeSVG } from "qrcode.react";
 import { getLiveTradingStatus } from "@/lib/live-trading.functions";
 import { setupTwoFactor, verifyTwoFactor } from "@/lib/auth.functions";
 
@@ -31,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/live-trading")({
       {
         name: "description",
         content:
-          "Confirme credenciais e conectividade antes de ligar o bot em execução real.",
+          "Confirme 2FA, credenciais da corretora e conectividade antes de ligar o bot em execução real.",
       },
       { property: "og:title", content: "Modo LIVE — Pré-voo | AISignalRadar" },
       {
@@ -139,7 +138,7 @@ function LiveTradingPage() {
             <header className="space-y-1">
               <h1 className="text-xl font-semibold">Modo LIVE — checklist de pré-voo</h1>
               <p className="text-sm text-muted-foreground">
-                O bot só executa ordens reais quando as credenciais e permissões abaixo estiverem verdes.
+                O bot só executa ordens reais quando todos os requisitos abaixo estiverem verdes.
                 Enquanto isso, as ordens continuam em modo DEMO.
               </p>
             </header>
@@ -201,8 +200,8 @@ function LiveTradingPage() {
                             s.twoFactorEnabledAt
                               ? new Date(s.twoFactorEnabledAt).toLocaleString("pt-BR")
                               : "—"
-                          }. Protege o acesso à plataforma, sem interferir na API da Binance.`
-                        : "Obrigatório para selecionar o modo REAL e executar ou encerrar ordens reais."
+                          }. Exigido para qualquer ordem em modo LIVE.`
+                        : "Obrigatório antes de operar em LIVE. Use um app autenticador (Google Authenticator, 1Password, Authy)."
                     }
                     state={s.twoFactorEnabled ? "ok" : "fail"}
                     action={
@@ -222,9 +221,9 @@ function LiveTradingPage() {
                     icon={KeyRound}
                     title="Credenciais da corretora"
                     description={
-                       s.credentialsConfigured
-                         ? `Chave exclusiva deste perfil (${s.apiKeyMasked}). O segredo nunca é exposto ao navegador.`
-                         : "Cadastre e valide as credenciais deste perfil em Configurações › API Keys."
+                      s.credentialsConfigured
+                        ? `Chave configurada no servidor (${s.apiKeyMasked}). O segredo nunca é exposto ao navegador.`
+                        : "BINANCE_API_KEY e BINANCE_API_SECRET não estão configurados no servidor."
                     }
                     state={s.credentialsConfigured ? "ok" : "fail"}
                   />
@@ -274,12 +273,12 @@ function LiveTradingPage() {
                 Escaneie o QR no seu app autenticador e digite o código de 6 dígitos.
               </p>
               <div className="flex justify-center">
-                <QRCodeSVG
-                  value={setup.otpauthUri}
-                  size={200}
-                  marginSize={2}
-                  title="QR code para configurar 2FA"
-                  className="rounded-md bg-background p-2"
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setup.otpauthUri)}`}
+                  alt="QR code para configurar 2FA"
+                  className="rounded-md bg-white p-2"
+                  width={200}
+                  height={200}
                 />
               </div>
               <div className="text-xs text-center text-muted-foreground font-mono break-all">

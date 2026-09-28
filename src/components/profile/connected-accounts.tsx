@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Send, ShieldCheck } from "lucide-react";
+import { Send, MessageSquare, KeyRound, ShieldCheck, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useProfileStore } from "@/lib/profile-store";
 import { TelegramConnectModal } from "@/components/alerts/telegram-modal";
@@ -114,6 +114,57 @@ export function ConnectedAccounts() {
           />
         </div>
 
+        {/* Exchange APIs */}
+        <div className="mt-6">
+          <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+            <KeyRound className="size-3.5" /> Exchange APIs <span className="text-muted-foreground/60">(read-only)</span>
+          </h3>
+          <div className="space-y-2.5">
+            {[
+              { id: "binance", label: "Binance", color: "#F0B90B" },
+              { id: "bybit", label: "Bybit", color: "#F7A600" },
+              { id: "okx", label: "OKX", color: "#FFFFFF" },
+            ].map((ex) => {
+              const c = connections[ex.id as "binance" | "bybit" | "okx"];
+              return (
+                <Row
+                  key={ex.id}
+                  icon={
+                    <div className="size-9 rounded-md flex items-center justify-center" style={{ background: `${ex.color}1f` }}>
+                      <span className="text-[11px] font-bold tracking-tight" style={{ color: ex.color }}>{ex.label.slice(0, 3).toUpperCase()}</span>
+                    </div>
+                  }
+                  customIcon
+                  label={ex.label}
+                  status={c.connected ? "Connected — read-only" : "Not connected"}
+                  connected={c.connected}
+                  action={
+                    c.connected ? (
+                      <Button size="sm" variant="outline">Manage</Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setConnection(ex.id as "binance" | "bybit" | "okx", { connected: true });
+                          toast.success(`${ex.label} API connected (read-only)`);
+                        }}
+                      >
+                        Connect API
+                      </Button>
+                    )
+                  }
+                />
+              );
+            })}
+          </div>
+
+          <div className="mt-3 flex items-start gap-2 px-3 py-2 rounded-md border border-amber-500/30 bg-amber-500/5 text-[12px] text-amber-200">
+            <AlertTriangle className="size-4 mt-0.5 shrink-0 text-amber-400" />
+            <span>
+              We only accept <b>read-only</b> API keys. AISignalRadar never requests trading or withdrawal permissions.
+            </span>
+          </div>
+        </div>
       </section>
 
       <TelegramConnectModal open={tgOpen} onOpenChange={setTgOpen} />

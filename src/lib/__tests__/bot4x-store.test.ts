@@ -1,8 +1,8 @@
 // Testa regras puras do bot4x-store: getEffectiveMode, limites de setters
 // e o handler SIGNED_OUT que limpa history/orders.
 //
-// Mocks necessários: server functions e db helpers são importados pelo
-// store e disparam efeitos de rede/persistência.
+// Mocks necessários: adapters/db helpers e ws-client são importados no
+// top-level do store e disparam efeitos de rede/persistência.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/integrations/supabase/client", () => {
@@ -21,9 +21,23 @@ vi.mock("@/integrations/supabase/client", () => {
   return { supabase: { auth, from: vi.fn() } };
 });
 
-vi.mock("../bot.functions", () => ({
-  getBotConfig: vi.fn().mockResolvedValue(null),
-  getBotExecutions: vi.fn().mockResolvedValue([]),
+vi.mock("@/adapters/backend/bot4x.adapter", () => ({
+  bot4xAdapter: {
+    getConfig: vi.fn().mockResolvedValue(null),
+    executions: vi.fn().mockResolvedValue([]),
+  },
+}));
+
+vi.mock("@/adapters/backend/ws-client", () => ({
+  backendWs: {
+    on: vi.fn(() => () => {}),
+    onChannel: vi.fn(() => () => {}),
+    onStatus: vi.fn(() => () => {}),
+    send: vi.fn(),
+    connect: vi.fn().mockResolvedValue("open"),
+    close: vi.fn(),
+    isAuthenticatedOpen: vi.fn(() => false),
+  },
 }));
 
 vi.mock("../bot4x-trades-db", () => ({
@@ -37,7 +51,7 @@ vi.mock("../bot4x-config-db", () => ({
   saveConfig: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { useBot4xStore, getEffectiveMode } from "../bot4x-store";
+import { useBot4xStore, getEffectiveMode, REAL_MODE_ENABLED } from "../bot4x-store";
 import { supabase } from "@/integrations/supabase/client";
 
 type MockedAuth = typeof supabase.auth & {
@@ -46,8 +60,10 @@ type MockedAuth = typeof supabase.auth & {
 const mockAuth = supabase.auth as MockedAuth;
 
 describe("getEffectiveMode", () => {
-  it("respeita o modo persistido", () => {
-    expect(getEffectiveMode("REAL")).toBe("REAL");
+  it("retorna DEMO quando REAL_MODE_ENABLED é false (default em testes)", () => {
+    // O ambiente de teste não define VITE_BOT4X_REAL_ENABLED=true.
+    expect(REAL_MODE_ENABLED).toBe(false);
+    expect(getEffectiveMode("REAL")).toBe("DEMO");
     expect(getEffectiveMode("DEMO")).toBe("DEMO");
   });
 });

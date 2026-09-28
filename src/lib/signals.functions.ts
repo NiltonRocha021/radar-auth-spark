@@ -6,7 +6,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { parseRow, parseRows, signalRowSchema } from "@/lib/db-schemas";
 
 export interface SignalListItemDTO {
   id: string;
@@ -46,9 +45,28 @@ function normalizeState(status: string | null | undefined): SignalListItemDTO["s
   return "active";
 }
 
-// Forma da linha validada por Zod (ver src/lib/db-schemas.ts) — o DTO só é
-// construído a partir de linhas que passaram na validação.
-type SignalRow = z.infer<typeof signalRowSchema>;
+type SignalRow = {
+  id: string;
+  pair: string | null;
+  side: string | null;
+  score: number | null;
+  ai_score: number | null;
+  entry_price: number | null;
+  stop_loss: number | null;
+  take_profit1: number | null;
+  take_profit2: number | null;
+  timeframe: string | null;
+  status: string | null;
+  channel_zone: string | null;
+  rsi: number | null;
+  liquidity_grab: boolean | null;
+  ai_reasoning: string | null;
+  confirmations: string | null;
+  invalidations: string | null;
+  expires_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
 
 function toListItem(s: SignalRow): SignalListItemDTO {
   return {
@@ -87,14 +105,13 @@ export const getSignalsList = createServerFn({ method: "GET" })
         "id,pair,side,score,ai_score,entry_price,stop_loss,take_profit1,take_profit2,timeframe,status,channel_zone,rsi,liquidity_grab,ai_reasoning,confirmations,invalidations,expires_at,created_at,updated_at",
       )
       .eq("status", data.status)
-      .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false })
       .limit(20);
     if (error) {
       console.warn("[signals.functions] getSignalsList error:", error.message);
-      throw new Error("Não foi possível consultar os sinais agora.");
+      return [];
     }
-    return parseRows(signalRowSchema, rows, "signals.getSignalsList").map(toListItem);
+    return (rows ?? []).map((r) => toListItem(r as SignalRow));
   });
 
 /**
@@ -121,10 +138,10 @@ export const getSignalById = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) {
       console.warn("[signals.functions] getSignalById error:", error.message);
-      throw new Error("Não foi possível consultar o sinal agora.");
+      return null;
     }
-    const s = parseRow(signalRowSchema, row, "signals.getSignalById");
-    if (!s) return null;
+    if (!row) return null;
+    const s = row as SignalRow;
     return {
       ...toListItem(s),
       aiScore: s.ai_score != null ? Number(s.ai_score) : undefined,

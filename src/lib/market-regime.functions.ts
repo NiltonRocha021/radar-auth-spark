@@ -17,7 +17,6 @@
 // Normalizamos removendo `/` e `-` (mesma regra usada em prices.functions.ts).
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { parseRows, usableOhlcvSchema } from "@/lib/db-schemas";
 
 // ── Indicadores (cópia literal do FeaturesService do Nest) ────────────────
 function calculateEMA(prices: number[], period: number): number {
@@ -187,16 +186,12 @@ export const getCurrentMarketRegime = createServerFn({ method: "GET" })
       console.warn("[market-regime.functions] query error:", error.message);
       return defaultRegime(data.pair);
     }
-    // Valida cada vela antes de calcular indicadores: velas incompletas ou
-    // incoerentes (high < low, valores não numéricos) são descartadas — um
-    // NaN aqui contaminaria EMA/ATR/RSI e o regime inteiro.
-    const valid = parseRows(usableOhlcvSchema, rows, "market-regime.market_ohlcv");
-    if (valid.length < 51) return defaultRegime(data.pair);
+    if (!rows || rows.length < 51) return defaultRegime(data.pair);
 
-    const chronological = [...valid].reverse();
-    const closes = chronological.map((r) => r.close as number);
-    const highs = chronological.map((r) => r.high as number);
-    const lows = chronological.map((r) => r.low as number);
+    const chronological = [...rows].reverse();
+    const closes = chronological.map((r) => Number((r as { close: number }).close));
+    const highs = chronological.map((r) => Number((r as { high: number }).high));
+    const lows = chronological.map((r) => Number((r as { low: number }).low));
 
     const snapshot: Snapshot = {
       ema20: calculateEMA(closes, 20),

@@ -1,3 +1,5 @@
+import { fearGreed7d } from "@/lib/dashboard-data";
+import { LineChart, Line, ResponsiveContainer } from "recharts";
 import { useLivePrices } from "@/hooks/useLivePrices";
 
 const zones = [
@@ -10,8 +12,8 @@ const zones = [
 
 export function FearGreedGauge() {
   const { fearGreed, loading } = useLivePrices();
-  const VALUE = fearGreed?.value ?? 50;
-  const LABEL = fearGreed?.label ?? "Indisponível";
+  const VALUE = fearGreed?.value ?? 68;
+  const LABEL = fearGreed?.label ?? "Greed";
 
   // semicircle 180° → angle = (value/100)*180 from the left
   const angle = (VALUE / 100) * 180;
@@ -44,7 +46,16 @@ export function FearGreedGauge() {
           <div className="text-[12px] text-muted-foreground mt-0.5">{LABEL}</div>
         </div>
       </div>
-      {!fearGreed && !loading ? <p className="mt-3 text-center text-xs text-muted-foreground">Índice não recebido da fonte de mercado.</p> : null}
+      <div className="mt-3">
+        <div className="text-[11px] text-muted-foreground mb-1">Last 7 days</div>
+        <div className="h-12">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={fearGreed7d.map((v, i) => ({ i, v }))}>
+              <Line type="monotone" dataKey="v" stroke="#378ADD" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
 }

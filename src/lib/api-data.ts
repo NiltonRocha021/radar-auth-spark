@@ -8,30 +8,37 @@ export type Endpoint = {
 };
 
 export const ENDPOINTS: Endpoint[] = [
-  { method: "GET", path: "/api/public/v1/signals", desc: "List active signals with status and limit filters", responseMs: 32 },
+  { method: "GET", path: "/v1/signals", desc: "List active signals with filters", responseMs: 32 },
+  { method: "GET", path: "/v1/signals/:id", desc: "Signal detail + AI analysis", responseMs: 41 },
+  { method: "GET", path: "/v1/score/:asset", desc: "AI score for any asset", responseMs: 28 },
+  { method: "GET", path: "/v1/sentiment/:asset", desc: "Multi-source sentiment aggregate", responseMs: 36 },
+  { method: "GET", path: "/v1/manipulation", desc: "Active manipulation alerts", responseMs: 44 },
+  { method: "WS", path: "/v1/stream/signals", desc: "Real-time signal stream", responseMs: 12 },
+  { method: "WS", path: "/v1/stream/scores", desc: "Real-time score updates", responseMs: 14 },
+  { method: "POST", path: "/v1/alerts/webhook", desc: "Register webhook endpoint", responseMs: 58 },
 ];
 
 export const SNIPPETS = {
-  javascript: `// GET /api/public/v1/signals — list active signals
-const res = await fetch("https://signalsignin.company/api/public/v1/signals?status=active&limit=20", {
+  javascript: `// GET /v1/signals — list active signals
+const res = await fetch("https://api.aisignalradar.io/v1/signals?asset=BTC&tf=4h", {
   headers: {
-    "Authorization": "Bearer asr_live_YOUR_API_KEY",
+    "Authorization": "Bearer sk_live_YOUR_API_KEY",
     "Content-Type": "application/json"
   }
 });
 const { data } = await res.json();
 console.log(data);`,
-  python: `# GET /api/public/v1/signals — list active signals
+  python: `# GET /v1/signals — list active signals
 import requests
 
 res = requests.get(
-    "https://signalsignin.company/api/public/v1/signals",
-    params={"status": "active", "limit": 20},
-    headers={"Authorization": "Bearer asr_live_YOUR_API_KEY"}
+    "https://api.aisignalradar.io/v1/signals",
+    params={"asset": "BTC", "tf": "4h"},
+    headers={"Authorization": "Bearer sk_live_YOUR_API_KEY"}
 )
 print(res.json())`,
-  curl: `curl -X GET "https://signalsignin.company/api/public/v1/signals?status=active&limit=20" \
-  -H "Authorization: Bearer asr_live_YOUR_API_KEY" \
+  curl: `curl -X GET "https://api.aisignalradar.io/v1/signals?asset=BTC&tf=4h" \\
+  -H "Authorization: Bearer sk_live_YOUR_API_KEY" \\
   -H "Content-Type: application/json"`,
 };
 
@@ -51,6 +58,20 @@ export const RESPONSE_JSON = `{
   ],
   "meta": { "count": 1, "rate_remaining": 4982 }
 }`;
+
+export type ApiKey = {
+  id: string;
+  name: string;
+  key: string;
+  plan: "Starter" | "Pro" | "Institutional";
+  requestsToday: number;
+  createdAt: string;
+};
+
+export const SAMPLE_KEYS: ApiKey[] = [
+  { id: "k1", name: "Production backend", key: "sk_live_••••••••••••PROD", plan: "Institutional", requestsToday: 12483, createdAt: "2026-03-14" },
+  { id: "k2", name: "Research notebooks", key: "sk_live_••••••••••••RSCH", plan: "Institutional", requestsToday: 942, createdAt: "2026-04-02" },
+];
 
 export const RATE_LIMITS = [
   { plan: "Starter", limit: "100 req/day", burst: "10 req/min", streams: "—" },
