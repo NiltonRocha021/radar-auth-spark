@@ -23,7 +23,6 @@ import { AnnouncementBanner } from "@/components/dashboard/announcement-banner";
 import { IntegrationWidgets } from "@/components/dashboard/integration-widgets";
 import { PollingAlertBanner } from "@/components/diagnostics/polling-alert-banner";
 import { PollingMetricsPanel } from "@/components/diagnostics/polling-metrics-panel";
-import { CostsRoiCard } from "@/components/dashboard/costs-roi-card";
 
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -67,8 +66,6 @@ function Dashboard() {
         <main className="flex-1 min-w-0 p-5 space-y-5">
           <IntegrationWidgets />
           <MetricCards />
-
-          <CostsRoiCard />
 
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
             <div className="lg:col-span-3"><SignalsTable /></div>

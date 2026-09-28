@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { adminListUsers, adminGetUser, adminUpdateUser, adminCreateUser, adminSetRole } from "@/lib/admin.functions";
+import { adminListUsers, adminGetUser, adminUpdateUser } from "@/lib/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ShieldAlert, UserPlus } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
+import { ShieldAlert } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — AISignalRadar" }] }),
@@ -50,8 +49,6 @@ function AdminPage() {
         <h1 className="text-2xl font-semibold">Painel Administrativo</h1>
         <p className="text-sm text-muted-foreground">Gerencie perfis e plano dos usuários. Todas as alterações são auditadas.</p>
       </div>
-
-      <CreateUserCard />
 
       <div className="grid md:grid-cols-[360px_1fr] gap-6">
         <Card>
@@ -169,8 +166,6 @@ function UserDetail({ userId }: { userId: string }) {
         </CardContent>
       </Card>
 
-      <RolesCard userId={userId} roles={data.roles} />
-
       <Card>
         <CardHeader><CardTitle className="text-base">Auditoria (últimas 50)</CardTitle></CardHeader>
         <CardContent>
@@ -202,134 +197,5 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <Label className="text-xs">{label}</Label>
       {children}
     </div>
-  );
-}
-
-const ROLE_INFO = [
-  { role: "admin" as const, label: "Administrador", desc: "Acesso total ao painel administrativo e às permissões." },
-  { role: "moderator" as const, label: "Moderador", desc: "Pode revisar conteúdo e apoiar usuários." },
-  { role: "user" as const, label: "Usuário", desc: "Acesso padrão da plataforma." },
-];
-
-function RolesCard({ userId, roles }: { userId: string; roles: string[] }) {
-  const setRoleFn = useServerFn(adminSetRole);
-  const qc = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: (v: { role: "admin" | "moderator" | "user"; grant: boolean }) =>
-      setRoleFn({ data: { userId, role: v.role, grant: v.grant } }),
-    onSuccess: () => {
-      toast.success("Permissões atualizadas");
-      qc.invalidateQueries({ queryKey: ["admin"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">Permissões</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
-        {ROLE_INFO.map((r) => (
-          <div key={r.role} className="flex items-center justify-between gap-4">
-            <div>
-              <div className="text-sm font-medium">{r.label}</div>
-              <div className="text-xs text-muted-foreground">{r.desc}</div>
-            </div>
-            <Switch
-              checked={roles.includes(r.role)}
-              disabled={mutation.isPending}
-              onCheckedChange={(checked) => mutation.mutate({ role: r.role, grant: checked })}
-              aria-label={r.label}
-            />
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function CreateUserCard() {
-  const createFn = useServerFn(adminCreateUser);
-  const qc = useQueryClient();
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "", fullName: "", username: "", planTier: "free", role: "user" });
-
-  const mutation = useMutation({
-    mutationFn: () =>
-      createFn({
-        data: {
-          email: form.email,
-          password: form.password,
-          fullName: form.fullName || undefined,
-          username: form.username || undefined,
-          planTier: form.planTier as "free" | "pro" | "elite",
-          roles: [form.role as "admin" | "moderator" | "user"],
-        },
-      }),
-    onSuccess: (r) => {
-      toast.success("Conta criada com sucesso");
-      setForm({ email: "", password: "", fullName: "", username: "", planTier: "free", role: "user" });
-      setOpen(false);
-      qc.invalidateQueries({ queryKey: ["admin"] });
-      navigate({ to: "/admin", search: { userId: r.userId } });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base flex items-center gap-2">
-          <UserPlus className="size-4" /> Criar novo perfil
-        </CardTitle>
-        <Button variant={open ? "ghost" : "default"} size="sm" onClick={() => setOpen((o) => !o)}>
-          {open ? "Cancelar" : "Novo usuário"}
-        </Button>
-      </CardHeader>
-      {open && (
-        <CardContent className="grid md:grid-cols-3 gap-4">
-          <Field label="E-mail">
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          </Field>
-          <Field label="Senha provisória (mín. 8)">
-            <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          </Field>
-          <Field label="Nome completo">
-            <Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-          </Field>
-          <Field label="Usuário">
-            <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-          </Field>
-          <Field label="Plano">
-            <Select value={form.planTier} onValueChange={(v) => setForm({ ...form, planTier: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="free">free</SelectItem>
-                <SelectItem value="pro">pro</SelectItem>
-                <SelectItem value="elite">elite</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label="Permissão inicial">
-            <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">Usuário</SelectItem>
-                <SelectItem value="moderator">Moderador</SelectItem>
-                <SelectItem value="admin">Administrador</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          <div className="md:col-span-3 flex justify-end">
-            <Button
-              onClick={() => mutation.mutate()}
-              disabled={mutation.isPending || !form.email || form.password.length < 8}
-            >
-              {mutation.isPending ? "Criando…" : "Criar conta"}
-            </Button>
-          </div>
-        </CardContent>
-      )}
-    </Card>
   );
 }
