@@ -117,9 +117,10 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
       if (data.side === "SELL" && data.takeProfit != null && data.takeProfit >= data.entryPrice) {
         throw new Error("Em uma venda, o alvo deve ficar abaixo do preço de entrada.");
       }
-      const [{ placeBinanceOrder }, { getBinanceCredentials }, { assertTradingRiskAllowed }] = await Promise.all([
-        import("./binance.server"), import("./binance-credentials.server"), import("./risk.functions"),
+      const [{ placeBinanceOrder }, { getBinanceCredentials }, { assertTradingRiskAllowed }, { assertLiveTradingAllowed }] = await Promise.all([
+        import("./binance.server"), import("./binance-credentials.server"), import("./risk.functions"), import("./live-safety.server"),
       ]);
+      await assertLiveTradingAllowed(context.userId);
       await assertTradingRiskAllowed(context.supabase, context.userId);
       const credentials = await getBinanceCredentials(context.userId);
 
@@ -134,7 +135,8 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
       if (fill.executedQty > 0) quantity = fill.executedQty;
     }
 
-    const { data: row, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
       .from("orders")
       .insert({
         user_id: context.userId,
@@ -191,9 +193,10 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
       if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
         throw new Error("Confirme explicitamente o encerramento REAL antes do envio à Binance.");
       }
-      const [{ closeBinancePosition, fetchBinancePrice }, { getBinanceCredentials }] = await Promise.all([
-        import("./binance.server"), import("./binance-credentials.server"),
+      const [{ closeBinancePosition, fetchBinancePrice }, { getBinanceCredentials }, { assertLiveTradingAllowed }] = await Promise.all([
+        import("./binance.server"), import("./binance-credentials.server"), import("./live-safety.server"),
       ]);
+      await assertLiveTradingAllowed(context.userId);
       const credentials = await getBinanceCredentials(context.userId);
       const fill = await closeBinancePosition({
         symbol: row.symbol,
@@ -217,7 +220,8 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
     const pnl = (exit - entry) * qty * dir;
     const pnlPct = entry > 0 ? ((exit - entry) / entry) * 100 * dir : 0;
 
-    const { data: updated, error: uErr } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: updated, error: uErr } = await supabaseAdmin
       .from("orders")
       .update({
         status: "CLOSED",

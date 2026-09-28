@@ -172,6 +172,8 @@ export const updateBotConfig = createServerFn({ method: "POST" })
     }
 
     if (data.executionMode === "LIVE") {
+      const { assertLiveTradingAllowed } = await import("./live-safety.server");
+      await assertLiveTradingAllowed(context.userId);
       const { getBinanceCredentialMetadata } = await import("./binance-credentials.server");
       const credentials = await getBinanceCredentialMetadata(context.userId);
       if (credentials?.status !== "valid") throw new Error("Valide suas credenciais Binance antes de selecionar REAL.");
@@ -250,7 +252,19 @@ export const startBot = createServerFn({ method: "POST" })
   .inputValidator((d?: { reason?: string }) =>
     z.object({ reason: z.string().trim().max(200).optional() }).parse(d ?? {}),
   )
-  .handler(({ data, context }) => setBotState(context, "ACTIVE", data.reason ?? null));
+  .handler(async ({ data, context }) => {
+    const { data: config, error } = await context.supabase
+      .from("bot4x_configs")
+      .select("execution_mode")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error("Não foi possível confirmar o modo do bot.");
+    if (config?.execution_mode === "LIVE") {
+      const { assertLiveTradingAllowed } = await import("./live-safety.server");
+      await assertLiveTradingAllowed(context.userId);
+    }
+    return setBotState(context, "ACTIVE", data.reason ?? null);
+  });
 
 export const stopBot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
