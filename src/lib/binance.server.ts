@@ -2,7 +2,11 @@
 // Server-only: assina requisições com HMAC-SHA256 via Web Crypto (compatível
 // com o runtime Cloudflare Workers — não usa `crypto` do Node nem SDK Node-only).
 //
-import type { BinanceCredentials } from "./binance-credentials.server";
+// Env necessárias (secrets do projeto):
+//   BINANCE_API_KEY, BINANCE_API_SECRET
+//   BINANCE_BASE_URL (opcional; default = testnet)
+
+const DEFAULT_BASE_URL = "https://testnet.binance.vision";
 
 export interface BinanceFill {
   orderId: string;
@@ -13,24 +17,22 @@ export interface BinanceFill {
   status: string;
 }
 
-export interface BinanceBalance {
-  asset: string;
-  free: number;
-  locked: number;
-  valueUsdt: number;
+function readCreds() {
+  const apiKey = process.env["BINANCE_API_KEY"];
+  const apiSecret = process.env["BINANCE_API_SECRET"];
+  const baseUrl = process.env["BINANCE_BASE_URL"] || DEFAULT_BASE_URL;
+  if (!apiKey || !apiSecret) {
+    throw new Error(
+      "Execução LIVE indisponível: configure BINANCE_API_KEY e BINANCE_API_SECRET.",
+    );
+  }
+  return { apiKey, apiSecret, baseUrl };
 }
 
-export interface BinanceAccountSnapshot {
-  canTrade: boolean;
-  walletValueUsdt: number;
-  availableValueUsdt: number;
-  lockedValueUsdt: number;
-  openOrderValueUsdt: number;
-  balances: BinanceBalance[];
+/** Indica se o modo LIVE está habilitado no ambiente atual. */
+export function isLiveTradingConfigured(): boolean {
+  return Boolean(process.env["BINANCE_API_KEY"] && process.env["BINANCE_API_SECRET"]);
 }
-
-const accountCache = new Map<string, { expiresAt: number; snapshot: BinanceAccountSnapshot }>();
-const ACCOUNT_CACHE_MS = 15_000;
 
 async function sign(query: string, secret: string): Promise<string> {
   const key = await crypto.subtle.importKey(
@@ -47,39 +49,27 @@ async function sign(query: string, secret: string): Promise<string> {
 }
 
 async function signedRequest<T>(
-  credentials: BinanceCredentials,
   path: string,
   method: "GET" | "POST" | "DELETE",
   params: Record<string, string | number>,
-  allowEmpty = false,
 ): Promise<T> {
-  const { apiKey, apiSecret, baseUrl } = credentials;
+  const { apiKey, apiSecret, baseUrl } = readCreds();
   const query = new URLSearchParams({
     ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
     timestamp: String(Date.now()),
-    recvWindow: "10000",
+    recvWindow: "5000",
   }).toString();
   const signature = await sign(query, apiSecret);
 
   const res = await fetch(`${baseUrl}${path}?${query}&signature=${signature}`, {
     method,
     headers: { "X-MBX-APIKEY": apiKey },
-    signal: AbortSignal.timeout(12_000),
   });
   const text = await res.text();
   if (!res.ok) {
-    const detail = text.trim() || res.statusText || "resposta vazia";
-    throw new Error(`Binance ${res.status}: ${detail.slice(0, 300)}`);
+    throw new Error(`Binance ${res.status}: ${text.slice(0, 300)}`);
   }
-  if (!text.trim()) {
-    if (allowEmpty) return {} as T;
-    throw new Error(`Binance ${res.status}: resposta vazia inesperada`);
-  }
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new Error(`Binance ${res.status}: resposta inválida`);
-  }
+  return JSON.parse(text) as T;
 }
 
 type BinanceOrderResponse = {
@@ -119,7 +109,7 @@ export async function placeBinanceOrder(input: {
   orderType: "MARKET" | "LIMIT";
   quantity: number;
   price?: number;
-}, credentials: BinanceCredentials): Promise<BinanceFill> {
+}): Promise<BinanceFill> {
   const params: Record<string, string | number> = {
     symbol: input.symbol,
     side: input.side,
@@ -131,24 +121,8 @@ export async function placeBinanceOrder(input: {
     params["price"] = input.price;
     params["timeInForce"] = "GTC";
   }
-  const res = await signedRequest<BinanceOrderResponse>(credentials, "/api/v3/order", "POST", params);
+  const res = await signedRequest<BinanceOrderResponse>("/api/v3/order", "POST", params);
   return toFill(res);
-}
-
-/** Valida assinatura, permissões e filtros sem criar uma ordem ou movimentar fundos. */
-export async function validateBinanceOrder(input: {
-  symbol: string;
-  side: "BUY" | "SELL";
-  quoteAmount: number;
-}, credentials: BinanceCredentials): Promise<void> {
-  const price = input.side === "SELL" ? await fetchBinancePrice(input.symbol, credentials.baseUrl) : null;
-  if (input.side === "SELL" && !price) throw new Error("Não foi possível obter o preço atual para validar a venda.");
-  await signedRequest<Record<string, never>>(credentials, "/api/v3/order/test", "POST", {
-    symbol: input.symbol,
-    side: input.side,
-    type: "MARKET",
-    ...(input.side === "BUY" ? { quoteOrderQty: input.quoteAmount } : { quantity: input.quoteAmount / price! }),
-  }, true);
 }
 
 /** Fecha uma posição enviando a ordem MARKET oposta. */
@@ -156,17 +130,18 @@ export async function closeBinancePosition(input: {
   symbol: string;
   side: "BUY" | "SELL";
   quantity: number;
-}, credentials: BinanceCredentials): Promise<BinanceFill> {
+}): Promise<BinanceFill> {
   return placeBinanceOrder({
     symbol: input.symbol,
     side: input.side === "BUY" ? "SELL" : "BUY",
     orderType: "MARKET",
     quantity: input.quantity,
-  }, credentials);
+  });
 }
 
 /** Preço público de referência (sem assinatura). */
-export async function fetchBinancePrice(symbol: string, baseUrl = "https://api.binance.com"): Promise<number | null> {
+export async function fetchBinancePrice(symbol: string): Promise<number | null> {
+  const baseUrl = process.env["BINANCE_BASE_URL"] || DEFAULT_BASE_URL;
   try {
     const res = await fetch(`${baseUrl}/api/v3/ticker/price?symbol=${encodeURIComponent(symbol)}`);
     if (!res.ok) return null;
@@ -179,68 +154,7 @@ export async function fetchBinancePrice(symbol: string, baseUrl = "https://api.b
 }
 
 /** Conta autenticada — usado para validar credenciais/permissões. */
-export async function fetchBinanceAccount(credentials: BinanceCredentials): Promise<BinanceAccountSnapshot> {
-  const [account, openOrders] = await Promise.all([
-    signedRequest<{
-      canTrade?: boolean;
-      balances?: Array<{ asset?: string; free?: string; locked?: string }>;
-    }>(credentials, "/api/v3/account", "GET", { omitZeroBalances: "true" }),
-    signedRequest<Array<{ symbol?: string; price?: string; origQty?: string; executedQty?: string }>>(
-      credentials,
-      "/api/v3/openOrders",
-      "GET",
-      {},
-    ),
-  ]);
-
-  const rawBalances = (account.balances ?? []).flatMap((row) => {
-    const asset = row.asset?.trim().toUpperCase();
-    const free = Number(row.free ?? 0);
-    const locked = Number(row.locked ?? 0);
-    return asset && Number.isFinite(free) && Number.isFinite(locked) && free + locked > 0
-      ? [{ asset, free, locked }]
-      : [];
-  });
-  const prices = await Promise.all(rawBalances.map(async ({ asset }) => {
-    if (["USDT", "USDC", "FDUSD", "BUSD"].includes(asset)) return 1;
-    return (await fetchBinancePrice(`${asset}USDT`, credentials.baseUrl)) ?? 0;
-  }));
-  const valuedBalances = rawBalances.map((balance, index) => ({
-      ...balance,
-      availableValueUsdt: balance.free * (prices[index] ?? 0),
-      valueUsdt: (balance.free + balance.locked) * (prices[index] ?? 0),
-    }));
-  const availableValueUsdt = valuedBalances.reduce((sum, balance) => sum + balance.availableValueUsdt, 0);
-  const balances = valuedBalances
-    .filter((balance) => balance.valueUsdt > 0)
-    .sort((a, b) => b.valueUsdt - a.valueUsdt)
-    .map(({ asset, free, locked, valueUsdt }) => ({ asset, free, locked, valueUsdt }));
-
-  const walletValueUsdt = balances.reduce((sum, balance) => sum + balance.valueUsdt, 0);
-  const lockedValueUsdt = Math.max(walletValueUsdt - availableValueUsdt, 0);
-  const openOrderValueUsdt = (openOrders ?? []).reduce((sum, order) => {
-    const remaining = Math.max(Number(order.origQty ?? 0) - Number(order.executedQty ?? 0), 0);
-    return sum + remaining * Number(order.price ?? 0);
-  }, 0);
-
-  return {
-    canTrade: Boolean(account.canTrade),
-    walletValueUsdt,
-    availableValueUsdt,
-    lockedValueUsdt,
-    openOrderValueUsdt,
-    balances: balances.slice(0, 12),
-  };
-}
-
-export async function fetchBinanceAccountCached(
-  credentials: BinanceCredentials,
-  profileKey: string,
-): Promise<BinanceAccountSnapshot> {
-  const key = `${profileKey}:${credentials.environment}`;
-  const cached = accountCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return cached.snapshot;
-  const snapshot = await fetchBinanceAccount(credentials);
-  accountCache.set(key, { expiresAt: Date.now() + ACCOUNT_CACHE_MS, snapshot });
-  return snapshot;
+export async function fetchBinanceAccount(): Promise<{ canTrade: boolean }> {
+  const res = await signedRequest<{ canTrade?: boolean }>("/api/v3/account", "GET", {});
+  return { canTrade: Boolean(res.canTrade) };
 }

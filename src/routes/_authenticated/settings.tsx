@@ -15,10 +15,6 @@ export const Route = createFileRoute("/_authenticated/settings")({
     meta: [
       { title: "Account Settings — AISignalRadar" },
       { name: "description", content: "Security, billing, API keys, privacy and notifications for your AISignalRadar account." },
-       { property: "og:title", content: "Account Settings — AISignalRadar" },
-       { property: "og:description", content: "Manage security, billing, API keys, privacy and notifications for your AISignalRadar account." },
-       { property: "og:type", content: "website" },
-       { name: "twitter:card", content: "summary" },
     ],
   }),
   component: SettingsPage,

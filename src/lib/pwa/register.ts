@@ -7,7 +7,6 @@
 // - autoUpdate: o plugin injeta o cliente; aqui apenas decidimos registrar.
 
 const SW_PATH = "/sw.js";
-const APP_CACHE_PREFIXES = ["html-cache", "api-cache", "asset-cache", "workbox-precache"];
 
 function isRefusedHost(hostname: string): boolean {
   if (hostname.startsWith("id-preview--") || hostname.startsWith("preview--")) return true;
@@ -35,25 +34,6 @@ async function unregisterMatching(): Promise<void> {
   }
 }
 
-/** Remove respostas antigas deixadas por versões anteriores do PWA no preview. */
-async function clearAppCaches(): Promise<void> {
-  if (typeof caches === "undefined") return;
-  try {
-    const names = await caches.keys();
-    await Promise.all(
-      names
-        .filter((name) => APP_CACHE_PREFIXES.some((prefix) => name.includes(prefix)))
-        .map((name) => caches.delete(name)),
-    );
-  } catch {
-    // best-effort: a aplicação continua pela rede.
-  }
-}
-
-export async function resetPwaRuntime(): Promise<void> {
-  await Promise.all([unregisterMatching(), clearAppCaches()]);
-}
-
 export function registerPWA(): void {
   if (typeof window === "undefined") return;
   if (!("serviceWorker" in navigator)) return;
@@ -66,7 +46,7 @@ export function registerPWA(): void {
     url.searchParams.get("sw") === "off";
 
   if (refused) {
-    void resetPwaRuntime();
+    void unregisterMatching();
     return;
   }
 

@@ -9,8 +9,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { create } from "zustand";
 import { getMarketSnapshot } from "@/lib/market.functions";
-import { acquireBinanceStream, type StreamStatus } from "@/lib/binance-stream";
-
 
 // ─── Tipos públicos ──────────────────────────────────────────────────────────
 
@@ -51,8 +49,7 @@ interface PriceStoreState {
   global: GlobalMetrics | null;
   fearGreed: FearGreed | null;
   lastUpdate: Date | null;
-  stale: boolean;
-  setPrices: (prices: Record<string, CoinPrice>, global: GlobalMetrics | null, fearGreed: FearGreed | null, dataAsOf: Date, stale: boolean) => void;
+  setPrices: (prices: Record<string, CoinPrice>, global: GlobalMetrics | null, fearGreed: FearGreed | null) => void;
   setLivePrice: (symbol: string, update: PartialPriceUpdate) => void;
 }
 
@@ -61,9 +58,8 @@ export const usePriceStore = create<PriceStoreState>((set) => ({
   global: null,
   fearGreed: null,
   lastUpdate: null,
-  stale: false,
 
-  setPrices: (prices, global, fearGreed, dataAsOf, stale) => set({ prices, global, fearGreed, lastUpdate: dataAsOf, stale }),
+  setPrices: (prices, global, fearGreed) => set({ prices, global, fearGreed, lastUpdate: new Date() }),
 
   setLivePrice: (symbol, update) =>
     set((state) => {
@@ -83,7 +79,6 @@ export const usePriceStore = create<PriceStoreState>((set) => ({
       return {
         prices: { ...state.prices, [symbol]: { ...base, ...update } },
         lastUpdate: update.lastUpdated,
-        stale: false,
       };
     }),
 }));
@@ -97,27 +92,19 @@ interface UseLivePricesReturn {
   loading: boolean;
   error: string | null;
   lastUpdate: Date | null;
-  /** Estado do stream de tickers da Binance (tempo real). */
-  streamStatus: StreamStatus;
-  stale: boolean;
   refresh: () => void;
 }
 
 const REFRESH_INTERVAL = 30_000;
 
-// Janela em que um tick do stream é considerado mais confiável que o snapshot.
-const STREAM_FRESH_MS = 20_000;
-
 // Número mínimo de símbolos no store para considerar "dados válidos disponíveis".
 const MIN_PRICES_FOR_LIVE = 5;
 
 export function useLivePrices(): UseLivePricesReturn {
-  const { prices, global, fearGreed, lastUpdate, stale, setPrices } = usePriceStore();
+  const { prices, global, fearGreed, lastUpdate, setPrices } = usePriceStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [streamStatus, setStreamStatus] = useState<StreamStatus>("closed");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
 
   const fetchAll = useCallback(async () => {
     try {
@@ -127,15 +114,12 @@ export function useLivePrices(): UseLivePricesReturn {
 
       for (const [sym, p] of Object.entries(snap.prices)) {
         const streamPrice = usePriceStore.getState().prices[sym];
-        // O tick do WebSocket da Binance é sempre mais recente que o snapshot
-        // de 30s — só é descartado quando ficou obsoleto (sem tick recente).
-        const streamFresh =
-          !!streamPrice && now.getTime() - streamPrice.lastUpdated.getTime() < STREAM_FRESH_MS;
-        map[sym] = streamFresh
-          ? { ...p, ...streamPrice, marketCap: p.marketCap, name: p.name }
-          : { ...p, lastUpdated: now };
+        map[sym] = {
+          ...p,
+          price: streamPrice && streamPrice.lastUpdated > now ? streamPrice.price : p.price,
+          lastUpdated: now,
+        };
       }
-
 
       if (Object.keys(map).length > 0) {
         setPrices(
@@ -149,8 +133,6 @@ export function useLivePrices(): UseLivePricesReturn {
               }
             : null,
           snap.fearGreed,
-          new Date(snap.dataAsOf),
-          snap.stale,
         );
       }
 
@@ -183,22 +165,5 @@ export function useLivePrices(): UseLivePricesReturn {
     };
   }, [fetchAll]);
 
-  // Stream tick a tick da Binance (WebSocket público, só no browser).
-  useEffect(() => {
-    const release = acquireBinanceStream(setStreamStatus);
-    return release;
-  }, []);
-
-  return {
-    prices,
-    global,
-    fearGreed,
-    loading,
-    error,
-    lastUpdate,
-    streamStatus,
-    stale,
-    refresh: fetchAll,
-  };
+  return { prices, global, fearGreed, loading, error, lastUpdate, refresh: fetchAll };
 }
-
