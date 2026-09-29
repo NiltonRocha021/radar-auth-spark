@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/live-trading")({
       {
         name: "description",
         content:
-          "Confirme 2FA, credenciais da corretora e conectividade antes de ligar o bot em execução real.",
+          "Confirme credenciais e conectividade antes de ligar o bot em execução real.",
       },
       { property: "og:title", content: "Modo LIVE — Pré-voo | AISignalRadar" },
       {
@@ -138,7 +138,7 @@ function LiveTradingPage() {
             <header className="space-y-1">
               <h1 className="text-xl font-semibold">Modo LIVE — checklist de pré-voo</h1>
               <p className="text-sm text-muted-foreground">
-                O bot só executa ordens reais quando todos os requisitos abaixo estiverem verdes.
+                O bot só executa ordens reais quando as credenciais e permissões abaixo estiverem verdes.
                 Enquanto isso, as ordens continuam em modo DEMO.
               </p>
             </header>
@@ -200,10 +200,10 @@ function LiveTradingPage() {
                             s.twoFactorEnabledAt
                               ? new Date(s.twoFactorEnabledAt).toLocaleString("pt-BR")
                               : "—"
-                          }. Exigido para qualquer ordem em modo LIVE.`
-                        : "Obrigatório antes de operar em LIVE. Use um app autenticador (Google Authenticator, 1Password, Authy)."
+                          }. Protege o acesso à plataforma, sem interferir na API da Binance.`
+                        : "Opcional para a conexão Binance; recomendado para proteger o acesso à plataforma."
                     }
-                    state={s.twoFactorEnabled ? "ok" : "fail"}
+                    state={s.twoFactorEnabled ? "ok" : "warn"}
                     action={
                       s.twoFactorEnabled ? null : (
                         <Button
@@ -221,9 +221,9 @@ function LiveTradingPage() {
                     icon={KeyRound}
                     title="Credenciais da corretora"
                     description={
-                      s.credentialsConfigured
-                        ? `Chave configurada no servidor (${s.apiKeyMasked}). O segredo nunca é exposto ao navegador.`
-                        : "BINANCE_API_KEY e BINANCE_API_SECRET não estão configurados no servidor."
+                       s.credentialsConfigured
+                         ? `Chave exclusiva deste perfil (${s.apiKeyMasked}). O segredo nunca é exposto ao navegador.`
+                         : "Cadastre e valide as credenciais deste perfil em Configurações › API Keys."
                     }
                     state={s.credentialsConfigured ? "ok" : "fail"}
                   />

@@ -83,17 +83,23 @@ async function addSecurityHeaders(response: Response, nonce: string): Promise<Re
     "https://*.lovable.dev",
   ];
 
+  // Stream público de cotações da Binance (WebSocket, sem credenciais) —
+  // usado pelo topo do dashboard para preços tick a tick.
+  const marketDataOrigins = ["wss://stream.binance.com:9443", "wss://stream.binance.com"];
+
   const connectSrc = [
     "connect-src 'self'",
     supabaseOrigin,
     supabaseWss,
     apiOrigin,
     apiWsOrigin,
+    ...marketDataOrigins,
     ...oauthOrigins,
     ...devOrigins,
   ]
     .filter(Boolean)
     .join(" ");
+
 
   const frameSrc = ["frame-src 'self'", ...oauthOrigins, "https://accounts.google.com"].join(" ");
 

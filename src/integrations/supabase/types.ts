@@ -1553,30 +1553,6 @@ export type Database = {
         }
         Relationships: []
       }
-      trading_safety_state: {
-        Row: {
-          id: boolean
-          live_trading_enabled: boolean
-          reason: string | null
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          id?: boolean
-          live_trading_enabled?: boolean
-          reason?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          id?: boolean
-          live_trading_enabled?: boolean
-          reason?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
       user_notifications: {
         Row: {
           body: string | null
