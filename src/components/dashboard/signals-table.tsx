@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSignalsStore } from "@/lib/signals-store";
 import { ScoreBadge } from "./score-badge";
 import { ChevronRight } from "lucide-react";
@@ -7,7 +7,8 @@ import { formatAge } from "@/lib/signals-data";
 type Filter = "ALL" | "BUY" | "SELL" | "HIGH";
 
 export function SignalsTable() {
-  const signals = useSignalsStore((s) => s.signals.filter((signal) => !signal.isMock));
+  const allSignals = useSignalsStore((s) => s.signals);
+  const signals = useMemo(() => allSignals.filter((signal) => !signal.isMock), [allSignals]);
   const openDetail = useSignalsStore((s) => s.openDetail);
   const [filter, setFilter] = useState<Filter>("ALL");
 
