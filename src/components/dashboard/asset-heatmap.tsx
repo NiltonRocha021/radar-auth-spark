@@ -101,6 +101,15 @@ function Cell({
     );
   }
 
+  if (!asset.loaded) {
+    return (
+      <div className="relative rounded-lg border border-dashed border-border bg-muted/20 p-2.5">
+        <div className="text-[13px] font-semibold text-foreground">{asset.symbol}</div>
+        <div className="mt-1 text-[10px] leading-tight text-muted-foreground">Cotação indisponível</div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="relative group rounded-lg p-2.5 transition-all duration-500 hover:scale-[1.03] cursor-pointer"

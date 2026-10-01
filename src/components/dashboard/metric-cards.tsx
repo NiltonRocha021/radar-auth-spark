@@ -1,5 +1,6 @@
 import { Activity, Trophy, TrendingUp, AlertTriangle } from "lucide-react";
 import { motion } from "framer-motion";
+import { useMemo } from "react";
 import { ScoreBadge } from "./score-badge";
 import { useCountUp } from "@/lib/use-count-up";
 import { useLivePrices } from "@/hooks/useLivePrices";
@@ -7,10 +8,11 @@ import { useSignalsStore } from "@/lib/signals-store";
 
 export function MetricCards() {
   const { prices, global, loading, stale } = useLivePrices();
-  const signals = useSignalsStore((state) => state.signals.filter((signal) => !signal.isMock));
+  const allSignals = useSignalsStore((state) => state.signals);
+  const signals = useMemo(() => allSignals.filter((signal) => !signal.isMock), [allSignals]);
 
   const trendingUp = Object.values(prices).filter((p) => (p.change24h ?? 0) > 0).length;
-  const totalTracked = Object.keys(prices).length || 20;
+  const totalTracked = Object.keys(prices).length;
 
   const activeSignals = signals.filter((signal) => signal.status === "active" || signal.status === "new" || signal.status === "premium");
   const topSignal = [...activeSignals].sort((a, b) => b.score - a.score)[0];
@@ -48,7 +50,7 @@ export function MetricCards() {
         label="Market Trend"
         value={trendLabel}
         valueColor={trendColor}
-        sub={loading ? "Sincronizando mercado" : `${trendingUp} de ${totalTracked} ativos em alta${stale ? " · dados antigos" : ""}`}
+         sub={loading ? "Sincronizando mercado" : totalTracked > 0 ? `${trendingUp} de ${totalTracked} ativos em alta${stale ? " · dados antigos" : ""}` : "Cotações indisponíveis"}
       />
       <Card
         index={3}

@@ -448,23 +448,25 @@ function OrderGrid() {
 // ----- Today PnL row -----
 function TodayPnlRow() {
   const pnl = useBot4xStore((s) => s.dailyPnlPct);
+  const history = useBot4xStore((s) => s.history);
+  const orders = useBot4xStore((s) => s.orders);
+  const slotSize = useBot4xStore(selectSlotSize);
   const color = pnl >= 0 ? "#1D9E75" : "#E24B4A";
+  const today = new Date().toISOString().slice(0, 10);
+  const todayTrades = useMemo(() => history.filter((trade) => trade.day === today), [history, today]);
+  const wins = todayTrades.filter((trade) => trade.result === "WIN").length;
+  const losses = todayTrades.filter((trade) => trade.result === "LOSS").length;
+  const winRate = todayTrades.length ? (wins / todayTrades.length) * 100 : 0;
+  const capitalAtRisk = orders.length * slotSize;
 
-  // Mock last-2h equity series (24 pts ≈ 5min ticks) walking toward current pnl
+  // Curva construída somente a partir do resultado acumulado das operações reais registradas.
   const points = useMemo(() => {
-    const N = 24;
-    const out: number[] = [];
-    let v = 0;
-    const target = pnl;
-    for (let i = 0; i < N; i++) {
-      const drift = (target - v) * 0.08;
-      const noise = (Math.sin(i * 1.7) + Math.cos(i * 0.9)) * 0.04;
-      v = v + drift + noise;
-      out.push(+v.toFixed(3));
-    }
-    out[N - 1] = pnl;
-    return out;
-  }, [pnl]);
+    let accumulated = 0;
+    return [0, ...[...todayTrades].reverse().map((trade) => {
+      accumulated += trade.pnlPct;
+      return Number(accumulated.toFixed(3));
+    })];
+  }, [todayTrades]);
 
   return (
     <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -476,13 +478,13 @@ function TodayPnlRow() {
               {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
             </div>
           </div>
-          <span className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">2h</span>
+           <span className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">Hoje</span>
         </div>
         <Sparkline points={points} color={color} />
       </div>
-      <Stat label="Trades (W/L)" value="7 / 4" />
-      <Stat label="Win rate" value="63.6%" color="#1D9E75" />
-      <Stat label="Capital at risk" value="120 USDT" />
+       <Stat label="Trades (W/L)" value={`${wins} / ${losses}`} />
+       <Stat label="Win rate" value={todayTrades.length ? `${winRate.toFixed(1)}%` : "—"} color="#1D9E75" />
+       <Stat label="Capital at risk" value={`${fmt(capitalAtRisk)} USDT`} />
     </section>
   );
 }
@@ -492,7 +494,7 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
   const min = Math.min(...points, 0);
   const max = Math.max(...points, 0);
   const range = max - min || 1;
-  const step = W / (points.length - 1);
+  const step = points.length > 1 ? W / (points.length - 1) : W;
   const norm = (v: number) => H - ((v - min) / range) * H;
   const d = points.map((v, i) => `${i === 0 ? "M" : "L"}${(i * step).toFixed(1)},${norm(v).toFixed(1)}`).join(" ");
   const area = `${d} L${W},${H} L0,${H} Z`;
@@ -509,7 +511,7 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
       <line x1="0" x2={W} y1={zeroY} y2={zeroY} stroke="currentColor" strokeOpacity="0.18" strokeDasharray="2 2" />
       <path d={area} fill={`url(#${gid})`} />
       <path d={d} fill="none" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={W} cy={norm(points[points.length - 1])} r="1.8" fill={color} />
+      <circle cx={W} cy={norm(points.at(-1) ?? 0)} r="1.8" fill={color} />
     </svg>
   );
 }

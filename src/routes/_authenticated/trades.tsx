@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_authenticated/trades")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  errorComponent: ({ error }) => <div className="p-8 text-sm text-destructive">{error.message}</div>,
+  errorComponent: ({ error }) => <div className="p-8 text-sm text-destructive">{error instanceof Error ? error.message : "Não foi possível carregar as operações."}</div>,
   notFoundComponent: () => <div className="p-8">Não encontrado</div>,
   component: TradesPage,
 });
