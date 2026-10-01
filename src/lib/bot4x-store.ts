@@ -8,7 +8,6 @@ import {
   type Tick,
   type Trade,
   makeTick,
-  genHistory,
 } from "./bot4x-data";
 import { PROFILES } from "./bot4x-data";
 import type { BotConfigDTO, BotExecutionDTO } from "./bot.functions";
@@ -270,16 +269,10 @@ export const useBot4xStore = create<State>()(
                 .then((trades) => {
                   if (trades.length > 0) {
                     set({ history: trades });
-                  } else {
-                    set({ history: genHistory(183) });
-                  }
+                   }
                 })
-                .catch(() => {
-                  set({ history: genHistory(183) });
-                });
-            } else {
-              set({ history: genHistory(183) });
-            }
+                 .catch(() => set({ history: [] }));
+             }
           }
 
           get().seedOrders();
