@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, type ErrorComponentProps } from "@tanstack/react-router";
 import { Heart, User, AlertTriangle } from "lucide-react";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
@@ -48,14 +48,14 @@ function ProfileShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ProfileErrorState({ error }: { error: Error }) {
+function ProfileErrorState({ error }: ErrorComponentProps) {
   return (
     <ProfileShell>
       <Alert variant="destructive">
         <AlertTriangle className="size-4" />
         <AlertTitle>Não foi possível carregar seu perfil</AlertTitle>
         <AlertDescription>
-          {error?.message || "Erro inesperado."}{" "}
+          {error instanceof Error ? error.message : "Erro inesperado."}{" "}
           <Link to="/dashboard" className="underline">Voltar ao dashboard</Link>
         </AlertDescription>
       </Alert>
