@@ -13,7 +13,7 @@ import { PROFILES } from "./bot4x-data";
 import { TOP_20_USDT_PAIRS, fetchKlines, fetchTickerPrices, type KlineInterval } from "./market-data";
 import type { BotConfigDTO, BotExecutionDTO } from "./bot.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { saveTrade, loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
+import { loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
 import { logger } from "./logger";
 import { pollWithRetry } from "./polling-metrics";
 import { loadConfig, saveConfig } from "./bot4x-config-db";
@@ -289,7 +289,7 @@ export const useBot4xStore = create<State>()(
             try {
               // Uma análise por ciclo: candles reais + preço real. Sem Math.random().
               const candles = await fetchKlines(symbol, interval, limit);
-              const market = (await import("./bot4x-data")).analyzeCandles(symbol, interval, candles);
+              const market = analyzeCandles(symbol, interval, candles);
               const activeSymbols = get().orders.map((o) => o.pair.replace("/", ""));
               const prices = await fetchTickerPrices([...activeSymbols, symbol]);
               const now = Date.now();
