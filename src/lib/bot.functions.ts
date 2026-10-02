@@ -176,7 +176,8 @@ export const updateBotConfig = createServerFn({ method: "POST" })
       const credentials = await getBinanceCredentialMetadata(context.userId);
       if (credentials?.status !== "valid") throw new Error("Valide suas credenciais Binance antes de selecionar REAL.");
     }
-    const { error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("bot4x_configs")
       .upsert(patch as never, { onConflict: "user_id" });
     if (error) throw new Error("Falha ao salvar config: " + error.message);
