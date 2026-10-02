@@ -163,12 +163,14 @@ export const useSignalsStore = create<State>((set, get) => ({
         target: s.tp ?? s.entry * 1.01,
         rr: stopDistance > 0 ? Number((targetDistance / stopDistance).toFixed(1)) : 0,
         riskPct: s.entry > 0 ? Number(((stopDistance / s.entry) * 100).toFixed(2)) : 0,
-        volDelta: 0,
-        confirms: { rsi: true, macd: false, volume: true, structure: true, vwap: false },
-        dnaMatch: 70,
-        manipRisk: "low",
-        setup: "Breakout",
-        session: "NY",
+        // Campos analíticos não presentes no DTO não podem ser inventados.
+        // A UI deve tratá-los como indisponíveis até o backend fornecê-los.
+        volDelta: undefined,
+        confirms: undefined,
+        dnaMatch: undefined,
+        manipRisk: undefined,
+        setup: undefined,
+        session: undefined,
         ageMin,
         status: (s.state === "active" ? "active" : "expired") as Signal["status"],
         isMock: false,
@@ -266,17 +268,17 @@ function computeFilteredSorted(
     if (exchSet.size && !exchSet.has(s.exchange)) return false;
     if (s.score < filters.scoreRange[0] || s.score > filters.scoreRange[1]) return false;
     if (s.rr < filters.minRR) return false;
-    if (!filters.manipRisk[s.manipRisk]) return false;
-    if (setupKeys.length && !setupKeys.includes(s.setup)) return false;
+    if (s.manipRisk && !filters.manipRisk[s.manipRisk]) return false;
+    if (setupKeys.length && (!s.setup || !setupKeys.includes(s.setup))) return false;
     if (filters.session !== "All" && s.session !== filters.session) return false;
-    if (filters.dnaCompat70 && s.dnaMatch < 70) return false;
+    if (filters.dnaCompat70 && (s.dnaMatch == null || s.dnaMatch < 70)) return false;
     return true;
   });
   return [...list].sort((a, b) => {
     if (sort === "score") return b.score - a.score;
     if (sort === "rr") return b.rr - a.rr;
     if (sort === "age") return a.ageMin - b.ageMin;
-    return b.volDelta - a.volDelta;
+    return (b.volDelta ?? -Infinity) - (a.volDelta ?? -Infinity);
   });
 }
 
