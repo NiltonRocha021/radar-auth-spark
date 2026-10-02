@@ -102,7 +102,6 @@ export const getSignalsList = createServerFn({ method: "GET" })
 
     // Fallback: gera candidatos técnicos diretamente das velas reais da Binance
     // quando o produtor global ainda não populou a tabela `signals`.
-    const generatedAt = new Date().toISOString();
     const candidates = (
       await Promise.allSettled(
         TOP_20_USDT_PAIRS.map(async ({ symbol }) => {
