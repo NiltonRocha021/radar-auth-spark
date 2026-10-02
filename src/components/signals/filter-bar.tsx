@@ -1,7 +1,7 @@
 import { Search, LayoutGrid, Table as TableIcon, Radar, SlidersHorizontal, ChevronDown, Play, Pause, Rss, Cpu } from "lucide-react";
 import { useSignalsStore } from "@/lib/signals-store";
 
-const assetClasses = ["All", "Crypto", "Forex", "Indices", "Stocks"] as const;
+const assetClasses = ["All", "Crypto"] as const;
 const timeframes = ["All", "1m", "5m", "15m", "1H", "4H", "1D"] as const;
 const directions = ["All", "BUY", "SELL"] as const;
 const scoreOptions = [
@@ -10,10 +10,10 @@ const scoreOptions = [
   { label: "≥75", value: 75 },
   { label: "≥90", value: 90 },
 ] as const;
-const exchanges = ["Binance", "Bybit", "OKX", "Coinbase"];
+const exchanges = ["Binance"];
 
 export function FilterBar() {
-  const { filters, view, sort, live, streamOpen, setView, setSort, setLive, setFilter, toggleAdv, toggleStream, toggleExchange } = useSignalsStore();
+  const { filters, view, sort, live, streamOpen, setView, setSort, setLive, setFilter, toggleAdv, toggleStream } = useSignalsStore();
   const bot4xOnly = filters.bot4xOnly;
 
   return (
@@ -25,7 +25,7 @@ export function FilterBar() {
           <input
             value={filters.search}
             onChange={(e) => setFilter("search", e.target.value)}
-            placeholder="Search asset, setup…"
+            placeholder="Search asset…"
             className="w-60 h-8 pl-8 pr-3 rounded-md bg-card border border-border text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[var(--brand-cyan)] transition-colors"
           />
         </div>
@@ -150,22 +150,9 @@ export function FilterBar() {
         />
         <Divider />
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground mr-1">Exch</span>
-        {exchanges.map((e) => {
-          const active = filters.exchanges.includes(e);
-          return (
-            <button
-              key={e}
-              onClick={() => toggleExchange(e)}
-              className={`h-7 px-2.5 rounded-md text-[12px] border transition-colors ${
-                active
-                  ? "border-[var(--brand-cyan)] bg-[color-mix(in_oklab,var(--brand-cyan)_18%,transparent)] text-foreground"
-                  : "border-border bg-card text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {e}
-            </button>
-          );
-        })}
+        <span className="h-7 px-2.5 rounded-md text-[12px] border border-[var(--brand-cyan)] bg-[color-mix(in_oklab,var(--brand-cyan)_12%,transparent)] text-foreground">
+          Binance
+        </span>}
       </div>
     </div>
   );
