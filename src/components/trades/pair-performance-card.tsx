@@ -14,7 +14,7 @@ export function PairPerformanceCard() {
   const [selected, setSelected] = useState("");
   const config = useQuery({ queryKey: ["bot-config"], queryFn: () => configFn(), refetchInterval: 5_000 });
   const mode = config.data?.executionMode ?? "DEMO";
-  const analytics = useQuery({ queryKey: ["orders", "pairs", mode], queryFn: () => analyticsFn({ data: { mode, limit: 1000 } }), refetchInterval: 15_000 });
+  const analytics = useQuery({ queryKey: ["orders", "pairs", mode], queryFn: () => analyticsFn({ data: { mode, limit: 1000 } }) });
   const symbol = selected || analytics.data?.pairs[0]?.symbol || "";
   const pair = analytics.data?.pairs.find((item) => item.symbol === symbol);
   const points = useMemo(() => (analytics.data?.equityBySymbol[symbol] ?? []).map((p) => ({ time: new Date(p.t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), result: Number(p.cum.toFixed(2)) })), [analytics.data, symbol]);
