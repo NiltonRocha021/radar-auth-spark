@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function AnnouncementBanner() {
@@ -22,7 +23,7 @@ export function AnnouncementBanner() {
                 <span className="relative inline-flex size-2 rounded-full bg-[#E24B4A]" />
               </span>
               <AlertTriangle className="size-4 text-[#E24B4A]" />
-              <span className="font-medium">3 manipulation alerts active</span>
+              <span className="font-medium">Nenhum alerta de manipulação confirmado</span>
               <span className="text-muted-foreground">—</span>
               <button className="text-[#FF9B9A] hover:text-white transition-colors font-medium">
                 View details →
