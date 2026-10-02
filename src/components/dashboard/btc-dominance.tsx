@@ -11,7 +11,7 @@ export function BtcDominance() {
       <div className="flex items-baseline justify-between">
         <div>
           <h3 className="text-[15px] font-medium text-foreground">BTC Dominance</h3>
-          <p className="text-[11px] text-muted-foreground">Last 30 days</p>
+          <p className="text-[11px] text-muted-foreground">Atual · variação de mercado em 24h</p>
         </div>
         <div className="text-right">
            <div className="text-[22px] font-semibold tabular-nums text-foreground">{dom != null ? `${dom.toFixed(1)}%` : "—"}</div>
