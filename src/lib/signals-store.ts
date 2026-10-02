@@ -127,6 +127,7 @@ export const useSignalsStore = create<State>((set, get) => ({
   lastError: null,
   syncing: false,
   syncFromBackend: async () => {
+    if (get().syncing) return;
     set({ syncing: true });
     try {
       // Server fn cacheada (caches.default, TTL 10s por usuário) — polling.
@@ -141,7 +142,14 @@ export const useSignalsStore = create<State>((set, get) => ({
         { maxRetries: 3, extra: (rows: { id: string }[] | null) => ({ received: rows?.length ?? 0 }) },
       );
       if (!backendSignals?.length) {
-        set({ syncing: false, lastError: null, lastSyncAt: Date.now() });
+        set((st) => ({
+          signals: import.meta.env.DEV ? st.signals.filter((s) => s.isMock) : [],
+          toasts: [],
+          flashIds: [],
+          syncing: false,
+          lastError: null,
+          lastSyncAt: Date.now(),
+        }));
         return;
       }
 
@@ -172,7 +180,7 @@ export const useSignalsStore = create<State>((set, get) => ({
         setup: undefined,
         session: undefined,
         ageMin,
-        status: (s.state === "active" ? "active" : "expired") as Signal["status"],
+        status: s.state === "active" ? "active" : s.state === "pending" ? "new" : s.state === "expired" ? "expired" : "expired",
         isMock: false,
       });
       });
