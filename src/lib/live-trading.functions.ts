@@ -87,7 +87,7 @@ export const getLiveTradingStatus = createServerFn({ method: "GET" })
       connectivity,
       connectivityError,
       canTrade,
-      ready: credentialsConfigured && connectivity === "ok" && canTrade !== false,
+      ready: twoFactorEnabled && credentialsConfigured && connectivity === "ok" && canTrade !== false,
     };
   });
 
