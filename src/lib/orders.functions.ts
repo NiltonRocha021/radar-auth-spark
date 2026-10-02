@@ -67,6 +67,16 @@ function toDto(r: OrderRow): OrderDTO {
   };
 }
 
+async function requireTwoFactorEnabled(supabase: any, userId: string): Promise<void> {
+  const { data, error } = await supabase
+    .from("user_two_factor")
+    .select("enabled")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error("Não foi possível verificar o 2FA antes da operação REAL.");
+  if (!data?.enabled) throw new Error("Ative o 2FA antes de operar no modo REAL.");
+}
+
 // ---------- placeOrder (DEMO | LIVE) ---------------------------------------
 // Fase 4: mode='LIVE' executa de fato contra a Binance dentro do Worker
 // (src/lib/binance.server.ts, import dinâmico p/ não vazar ao bundle client).
@@ -102,6 +112,7 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
     const executionMode: "DEMO" | "LIVE" = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
 
     if (executionMode === "LIVE") {
+      await requireTwoFactorEnabled(context.supabase, context.userId);
       if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
         throw new Error("Confirme explicitamente a ordem REAL antes do envio à Binance.");
       }
@@ -196,6 +207,7 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
     let exit = data.exitPrice;
 
     if (row.mode === "LIVE") {
+      await requireTwoFactorEnabled(context.supabase, context.userId);
       if (data.liveConfirmation !== "CONFIRMAR ORDEM REAL") {
         throw new Error("Confirme explicitamente o encerramento REAL antes do envio à Binance.");
       }
