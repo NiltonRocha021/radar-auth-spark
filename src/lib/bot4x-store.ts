@@ -452,6 +452,7 @@ export const useBot4xStore = create<State>()(
       cleanup: () => {
         const t = get()._ticker;
         if (t) clearInterval(t);
+        stopDemoMarketFeed();
         if (realPollCleanup) {
           realPollCleanup();
           realPollCleanup = null;
