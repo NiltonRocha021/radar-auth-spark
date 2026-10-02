@@ -26,6 +26,7 @@ export type Signal = {
   ageMin: number;
   status: SignalStatus;
   isMock?: boolean;
+  source?: "database" | "binance-radar";
 };
 
 export function formatPrice(p: number): string {
