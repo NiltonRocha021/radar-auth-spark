@@ -233,6 +233,8 @@ export const useBot4xStore = create<State>()(
           loadConfig(uid)
             .then((cfg) => {
               if (!cfg) return;
+              const previousMode = get().mode;
+              const previousProfile = get().profile;
               set({
                 mode: cfg.executionMode,
                 profile: cfg.profile as CalibProfileType,
@@ -246,6 +248,15 @@ export const useBot4xStore = create<State>()(
                 circuitBreaker: cfg.circuitBreaker as State["circuitBreaker"],
                 dailyPnlPct: cfg.dailyPnl,
               });
+
+              // A configuração do banco pode chegar depois do primeiro init.
+              // Reinicia o motor quando ela muda o modo/perfil para evitar um
+              // motor DEMO rodando com configuração REAL (ou timeframe antigo).
+              if (previousMode !== cfg.executionMode || previousProfile !== cfg.profile) {
+                get().cleanup();
+                set({ status: "IDLE", realInited: false, errorMsg: null });
+                queueMicrotask(() => void get().init());
+              }
             })
             .catch(() => {
               /* fallback para localStorage */
@@ -515,9 +526,15 @@ export const useBot4xStore = create<State>()(
         if (uid) saveConfig(uid, { leverage: v });
       },
       setProfile: (profile) => {
+        const changed = get().profile !== profile;
         set({ profile });
         const uid = get().userId;
         if (uid) saveConfig(uid, { profile });
+        if (changed && get().mode === "DEMO") {
+          get().cleanup();
+          set({ status: "IDLE", errorMsg: null });
+          queueMicrotask(() => void get().init());
+        }
       },
       setSlPct: (n) => {
         const v = Math.min(10, Math.max(0.1, +Number(n).toFixed(2)));
