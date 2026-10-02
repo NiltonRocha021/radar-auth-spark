@@ -519,42 +519,7 @@ export const useBot4xStore = create<State>()(
       },
 
       closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
-      seedOrders: () => {
-        const sample: Order[] = [
-          {
-            id: "o1",
-            pair: "BTC/USDT",
-            side: "LONG",
-            entry: 43240,
-            sl: 43168,
-            tp: 43385,
-            openedAt: Date.now() - 1000 * 60 * 4,
-            pnlPct: +0.18,
-          },
-          {
-            id: "o2",
-            pair: "ETH/USDT",
-            side: "SHORT",
-            entry: 2251,
-            sl: 2257,
-            tp: 2239,
-            openedAt: Date.now() - 1000 * 60 * 12,
-            pnlPct: -0.09,
-          },
-          {
-            id: "o3",
-            pair: "SOL/USDT",
-            side: "LONG",
-            entry: 171.4,
-            sl: 170.5,
-            tp: 173.1,
-            openedAt: Date.now() - 1000 * 60 * 7,
-            pnlPct: +0.31,
-          },
-        ];
-        set({ orders: sample });
-      },
-      setMonitorTab: (monitorTab) => set({ monitorTab }),
+      seedOrders: () => {\n        // Mantido apenas por compatibilidade; o DEMO não cria ordens artificiais.\n      },\n      setMonitorTab: (monitorTab) => set({ monitorTab }),
       toggleFeedPaused: () => set((s) => ({ feedPaused: !s.feedPaused })),
       clearTicks: () => set({ ticks: [] }),
     }),
