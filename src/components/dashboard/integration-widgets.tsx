@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Brain, Shield, Cpu, Sparkles, ArrowRight, AlertTriangle, Activity } from "lucide-react";
 import { useBot4xStore } from "@/lib/bot4x-store";
-import { dna } from "@/lib/dashboard-data";
+import { useDnaProfile } from "@/hooks/useDnaProfile";
+import { useAuth } from "@/lib/auth";
 
 const PROFILE_LABEL: Record<string, string> = {
   conservador: "Conservador",
@@ -60,16 +61,33 @@ function ConsistencyRing({ value, color }: { value: number; color: string }) {
 }
 
 export function DnaTraderWidget() {
+  const { session } = useAuth();
+  const { data, isPending, isError } = useDnaProfile(session?.user?.id);
+  const consistency = data && typeof data === "object" && "dnaConsistency" in data
+    ? Math.round(Number((data as { dnaConsistency?: number }).dnaConsistency ?? 0))
+    : null;
+
   return (
     <Card title="DNA Trader" icon={Brain} accent="#378ADD" to="/dna-trader" ctaLabel="Full report">
       <div className="flex items-center gap-3">
-        <ConsistencyRing value={dna.consistency} color="#378ADD" />
+        {isPending && session?.user?.id ? (
+          <div className="size-14 shrink-0 rounded-full bg-muted/40 animate-pulse" aria-label="Carregando DNA" />
+        ) : consistency != null ? (
+          <ConsistencyRing value={consistency} color="#378ADD" />
+        ) : (
+          <div className="size-14 shrink-0 rounded-full border border-border bg-secondary/40 flex items-center justify-center text-[11px] text-muted-foreground">
+            —
+          </div>
+        )}
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Archetype</div>
-          <div className="text-[13px] font-medium text-foreground truncate">Strategic Sniper</div>
-          <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded border border-[#378ADD]/40 bg-[#378ADD]/10 text-[#5fa8ff]">
-            Win {dna.winRate}%
-          </span>
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">DNA Trader</div>
+          <div className="text-[12px] text-muted-foreground">
+            {consistency != null
+              ? `Consistência ${consistency}%`
+              : isError
+                ? "Não foi possível carregar seus dados."
+                : "Dados de DNA ainda não disponíveis."}
+          </div>
         </div>
       </div>
     </Card>
