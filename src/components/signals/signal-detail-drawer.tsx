@@ -6,12 +6,12 @@ import {
   TrendingUp, TrendingDown, Globe, Activity, ShieldCheck, Shield, ShieldAlert, Sparkles, GripVertical,
   ThumbsUp, ThumbsDown, MinusCircle,
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { ScoreBadge, scoreColor } from "@/components/dashboard/score-badge";
 import { useSignalsStore } from "@/lib/signals-store";
-import { submitSignalFeedback } from "@/lib/signals.functions";
+import { getSignalById, submitSignalFeedback } from "@/lib/signals.functions";
 import { formatPrice, formatAge, type Signal } from "@/lib/signals-data";
 import { MiniChart } from "./mini-chart";
 
@@ -53,6 +53,13 @@ export function SignalDetailDrawer() {
 }
 
 function DrawerBody({ signal, onClose }: { signal: Signal; onClose: () => void }) {
+  const detailFn = useServerFn(getSignalById);
+  const detailQuery = useQuery({
+    queryKey: ["signal-detail", signal.id],
+    queryFn: () => detailFn({ data: { id: signal.id } }),
+    staleTime: 15_000,
+  });
+  const detail = detailQuery.data;
   const isBuy = signal.direction === "BUY";
   const accent = isBuy ? "#1D9E75" : "#E24B4A";
   const isPremium = signal.score >= 90;
@@ -100,8 +107,8 @@ function DrawerBody({ signal, onClose }: { signal: Signal; onClose: () => void }
         <div className="flex-1 overflow-y-auto">
           <SectionTradeSetup signal={signal} isBuy={isBuy} accent={accent} />
           <SectionChart signal={signal} />
-          <SectionAnalysis signal={signal} />
-          <SectionInvalidation signal={signal} />
+          <SectionAnalysis signal={signal} detail={detail} />
+          <SectionInvalidation signal={signal} detail={detail} />
           <SectionMarketContext signal={signal} />
           <SectionSentiment />
           <SectionHistorical />
@@ -427,27 +434,36 @@ function SectionChart({ signal }: { signal: Signal }) {
 }
 
 // ---------- Section 3: AI Analysis ----------
-function SectionAnalysis({ signal }: { signal: Signal }) {
+function SectionAnalysis({ signal, detail }: { signal: Signal; detail?: Awaited<ReturnType<typeof getSignalById>> }) {
+  const reasoning = detail?.aiReasoning?.trim();
+  const confirmations = detail?.confirmations?.trim();
   return (
     <Section title="AI Analysis">
-      <div className="rounded-lg border border-border bg-card p-3 text-[12px] text-muted-foreground">
-        O backend deste sinal não fornece raciocínio de IA detalhado. Exibindo apenas os dados confirmados do sinal.
-      </div>
+      {reasoning ? (
+        <p className="text-[13px] text-foreground/85 leading-relaxed whitespace-pre-wrap">{reasoning}</p>
+      ) : (
+        <div className="rounded-lg border border-border bg-card p-3 text-[12px] text-muted-foreground">
+          O backend não forneceu raciocínio de IA detalhado para este sinal.
+        </div>
+      )}
       <div className="mt-4 rounded-lg border border-border bg-card p-3">
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Confirmations</div>
-        <div className="space-y-1.5 text-[12px]">
-          <Row label="BOS" value="N/D" />
-          <Row label="Order Block" value={signal.confirms?.structure == null ? "N/D" : signal.confirms.structure ? "SIM" : "NÃO"} />
-          <Row label="RSI" value={signal.confirms?.rsi == null ? "N/D" : signal.confirms.rsi ? "SIM" : "NÃO"} />
-          <Row label="VWAP" value={signal.confirms?.vwap == null ? "N/D" : signal.confirms.vwap ? "SIM" : "NÃO"} />
-          <Row label="Volume" value={signal.volDelta == null ? "N/D" : `+${signal.volDelta}%`} />
-          <Row label="Manipulation Risk" value={signal.manipRisk ?? "N/D"} />
-        </div>
+        {confirmations ? (
+          <p className="text-[12px] text-foreground whitespace-pre-wrap leading-relaxed">{confirmations}</p>
+        ) : (
+          <div className="space-y-1.5 text-[12px]">
+            <Row label="BOS" value="N/D" />
+            <Row label="Order Block" value={signal.confirms?.structure == null ? "N/D" : signal.confirms.structure ? "SIM" : "NÃO"} />
+            <Row label="RSI" value={signal.confirms?.rsi == null ? "N/D" : signal.confirms.rsi ? "SIM" : "NÃO"} />
+            <Row label="VWAP" value={signal.confirms?.vwap == null ? "N/D" : signal.confirms.vwap ? "SIM" : "NÃO"} />
+            <Row label="Volume" value={signal.volDelta == null ? "N/D" : `+${signal.volDelta}%`} />
+            <Row label="Manipulation Risk" value={signal.manipRisk ?? "N/D"} />
+          </div>
+        )}
       </div>
     </Section>
   );
 }
-
 function ScoreBar({ label, value, delay }: { label: string; value: number; delay: number }) {
   const color = scoreColor(value);
   return (
@@ -478,22 +494,14 @@ function ManipChip({ risk }: { risk: "low" | "medium" | "high" }) {
 }
 
 // ---------- Section 4: Invalidation ----------
-function SectionInvalidation({ signal }: { signal: Signal }) {
-  const items = [
-    `Price closes ${signal.direction === "BUY" ? "below" : "above"} $${formatPrice(signal.stop)} on ${signal.tf}`,
-    `BTC dominance ${signal.direction === "BUY" ? "drops below 50%" : "spikes above 56%"}`,
-    "Fed speech in 3h 20min — reduce size",
-    `RSI crosses ${signal.direction === "BUY" ? "below 45" : "above 55"} before TP1`,
-  ];
+function SectionInvalidation({ signal, detail }: { signal: Signal; detail?: Awaited<ReturnType<typeof getSignalById>> }) {
+  const invalidations = detail?.invalidations?.trim();
+  const items = invalidations
+    ? invalidations.split(/\n|•|;/).map((item) => item.trim()).filter(Boolean)
+    : [`Preço fecha ${signal.direction === "BUY" ? "abaixo" : "acima"} de $${formatPrice(signal.stop)} no ${signal.tf}`];
   return (
     <Section title="Invalidation Scenarios">
-      <div
-        className="rounded-lg border p-3 space-y-1.5"
-        style={{
-          background: "color-mix(in oklab, #E24B4A 8%, var(--card))",
-          borderColor: "color-mix(in oklab, #E24B4A 35%, transparent)",
-        }}
-      >
+      <div className="rounded-lg border p-3 space-y-1.5" style={{ background: "color-mix(in oklab, #E24B4A 8%, var(--card))", borderColor: "color-mix(in oklab, #E24B4A 35%, transparent)" }}>
         {items.map((it, i) => (
           <div key={i} className="flex items-start gap-2 text-[12px] text-foreground/90">
             <AlertTriangle className="size-3.5 text-[#E24B4A] mt-0.5 shrink-0" />
@@ -504,8 +512,6 @@ function SectionInvalidation({ signal }: { signal: Signal }) {
     </Section>
   );
 }
-
-// ---------- Section 5: Market Context ----------
 function SectionMarketContext() {
   return (
     <Section title="Market Context">
