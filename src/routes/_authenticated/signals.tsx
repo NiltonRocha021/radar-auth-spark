@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/signals")({
   head: () => ({
     meta: [
       { title: "Signal Radar — AISignalRadar" },
-      { name: "description", content: "Live institutional trading signals across crypto, forex, indices, and stocks." },
+      { name: "description", content: "Live market-derived trading signals from Binance crypto markets." },
     ],
   }),
   component: SignalsPage,
