@@ -23,6 +23,7 @@ const schema = z
       .string()
       .min(12, "Mínimo de 12 caracteres")
       .regex(/[A-Z]/, "Inclua ao menos uma letra maiúscula")
+      .regex(/[a-z]/, "Inclua ao menos uma letra minúscula")
       .regex(/\d/, "Inclua ao menos um número")
       .regex(/[^A-Za-z0-9]/, "Inclua ao menos um caractere especial"),
     confirm: z.string(),
