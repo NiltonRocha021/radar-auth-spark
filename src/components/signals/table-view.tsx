@@ -48,15 +48,12 @@ const COLUMNS: Record<ColKey, ColDef> = {
   risk: { key: "risk", label: "Risk%", render: (s) => <span className="tabular-nums">{s.riskPct}%</span> },
   tf: { key: "tf", label: "TF", render: (s) => s.tf },
   exchange: { key: "exchange", label: "Exchange", render: (s) => <span className="text-muted-foreground">{s.exchange}</span> },
-  setup: { key: "setup", label: "Setup", render: (s) => <span className="text-muted-foreground">{s.setup}</span> },
-  confirms: { key: "confirms", label: "Confirms", render: (s) => <span className="tabular-nums">{Object.values(s.confirms).filter(Boolean).length}/5</span> },
-  dna: { key: "dna", label: "DNA%", render: (s) => <span className="tabular-nums">{s.dnaMatch}%</span> },
+  setup: { key: "setup", label: "Setup", render: (s) => <span className="text-muted-foreground">{s.setup ?? "N/D"}</span> },
+  confirms: { key: "confirms", label: "Confirms", render: (s) => <span className="tabular-nums">{s.confirms ? `${Object.values(s.confirms).filter(Boolean).length}/5` : "N/D"}</span> },
+  dna: { key: "dna", label: "DNA%", render: (s) => <span className="tabular-nums">{s.dnaMatch != null ? `${s.dnaMatch}%` : "N/D"}</span> },
   manip: {
     key: "manip", label: "Manip",
-    render: (s) =>
-      s.manipRisk === "low" ? <ShieldCheck className="size-3.5 text-[#1D9E75]" /> :
-        s.manipRisk === "medium" ? <Shield className="size-3.5 text-[#EF9F27]" /> :
-          <ShieldAlert className="size-3.5 text-[#E24B4A]" />,
+    render: (s) => s.manipRisk === "low" ? <ShieldCheck className="size-3.5 text-[#1D9E75]" /> : s.manipRisk === "medium" ? <Shield className="size-3.5 text-[#EF9F27]" /> : s.manipRisk === "high" ? <ShieldAlert className="size-3.5 text-[#E24B4A]" /> : <span className="text-muted-foreground">N/D</span>,
   },
   bot4x: { key: "bot4x", label: "Bot4x", render: (s) => <Bot4xCell signal={s} /> },
   age: { key: "age", label: "Age", render: (s) => <span className="text-muted-foreground">{formatAge(s.ageMin)}</span> },
@@ -133,6 +130,7 @@ function loadColState(): ColState {
 export function TableView({ signals }: { signals: Signal[] }) {
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEffect(() => { setPage(0); setSelected(new Set()); }, [signals]);
   const [cols, setCols] = useState<ColState>(loadColState);
   const [ctx, setCtx] = useState<{ x: number; y: number; col: ColKey } | null>(null);
   const dragKey = useRef<ColKey | null>(null);
@@ -315,7 +313,7 @@ function MenuItem({ icon, label, onClick }: { icon?: React.ReactNode; label: str
 
 function ActionBtn({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <button className="h-7 px-2.5 rounded-md border border-border bg-card text-foreground hover:border-[var(--brand-cyan)] inline-flex items-center gap-1 transition-colors">
+    <button type="button" disabled className="h-7 px-2.5 rounded-md border border-border bg-card text-muted-foreground opacity-60 inline-flex items-center gap-1 transition-colors cursor-not-allowed" title="Ação ainda não disponível">
       {icon} {label}
     </button>
   );
