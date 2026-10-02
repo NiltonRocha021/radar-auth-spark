@@ -24,7 +24,7 @@ export const TOP_20_USDT_PAIRS: { symbol: string; label: string }[] = [
   { symbol: "AVAXUSDT", label: "Avalanche (AVAX)" },
   { symbol: "LINKUSDT", label: "Chainlink (LINK)" },
   { symbol: "DOTUSDT", label: "Polkadot (DOT)" },
-  { symbol: "MATICUSDT", label: "Polygon (MATIC)" },
+  { symbol: "POLUSDT", label: "Polygon (POL)" },
   { symbol: "TONUSDT", label: "Toncoin (TON)" },
   { symbol: "SHIBUSDT", label: "Shiba Inu (SHIB)" },
   { symbol: "LTCUSDT", label: "Litecoin (LTC)" },
