@@ -76,7 +76,7 @@ function Cell({
 
   useEffect(() => {
     if (pulseTick === 0) return;
-    const delay = (index % 4) * 120 + Math.random() * 200;
+    const delay = (index % 4) * 120 + (index % 3) * 60;
     const onT = setTimeout(() => setBright(true), delay);
     const offT = setTimeout(() => setBright(false), delay + 600);
     return () => {
