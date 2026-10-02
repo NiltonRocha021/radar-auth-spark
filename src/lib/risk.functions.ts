@@ -13,6 +13,8 @@
 //   - activePositions: trades sem resultado hoje (result IS NULL)
 //   - totalBalance: bot4x_configs.total_capital (ou active_capital fallback)
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
@@ -127,10 +129,57 @@ function classify(snapshot: {
   return { level: "LOW", message: "Sistema operando normalmente." };
 }
 
-/** Guarda server-side compartilhada pelos caminhos que podem movimentar fundos. */
-export async function assertTradingRiskAllowed(supabase: unknown, userId: string): Promise<void> {
-  const snapshot = await loadSnapshot(supabase as never, userId);
-  const { level, message } = classify(snapshot);
+/**
+ * Guarda server-side para caminhos que movimentam fundos REAIS (modo LIVE).
+ *
+ * Não usa bot4x_configs.total_capital nem bot4x_trades para autorizar uma
+ * ordem LIVE. O capital é obtido diretamente da conta Binance pelo chamador,
+ * e o resultado diário é derivado das ordens LIVE encerradas.
+ *
+ * Importante: esta guarda só se torna resistente a adulteração quando INSERT/
+ * UPDATE/DELETE de orders estiverem protegidos por RLS/grants e os writes
+ * sensíveis passarem pelo pipeline server-side.
+ */
+export async function assertTradingRiskAllowed(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  opts: { walletValueUsdt: number },
+): Promise<void> {
+  const wallet = Number(opts.walletValueUsdt);
+  if (!Number.isFinite(wallet) || wallet <= 0) {
+    throw new Error("Não foi possível validar o risco: saldo da conta indisponível.");
+  }
+
+  const startOfDay = new Date();
+  startOfDay.setUTCHours(0, 0, 0, 0);
+
+  const [closed, open] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("pnl")
+      .eq("user_id", userId)
+      .eq("mode", "LIVE")
+      .eq("status", "CLOSED")
+      .gte("closed_at", startOfDay.toISOString()),
+    supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("mode", "LIVE")
+      .eq("status", "OPEN"),
+  ]);
+
+  if (closed.error || open.error) {
+    throw new Error("Não foi possível validar o risco: falha ao ler o histórico de ordens.");
+  }
+
+  const dailyPnL = (closed.data ?? []).reduce((acc, row) => acc + Number(row.pnl ?? 0), 0);
+  const dailyPnLPct = (dailyPnL / wallet) * 100;
+  const { level, message } = classify({
+    dailyPnLPct,
+    activePositions: open.count ?? 0,
+  });
+
   if (level === "CRITICAL") throw new Error(message);
 }
 
