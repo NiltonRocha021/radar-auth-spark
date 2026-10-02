@@ -56,37 +56,10 @@ export function AdvancedFiltersDrawer() {
                 />
               </Section>
 
-              <Section title="Manipulation risk">
-                {(["low", "medium", "high"] as const).map((k) => (
-                  <Check
-                    key={k}
-                    label={k.charAt(0).toUpperCase() + k.slice(1)}
-                    checked={filters.manipRisk[k]}
-                    onChange={(c) => setFilter("manipRisk", { ...filters.manipRisk, [k]: c })}
-                  />
-                ))}
-              </Section>
-
-              <Section title="Volatility">
-                {(["low", "med", "high"] as const).map((k) => (
-                  <Check
-                    key={k}
-                    label={k === "med" ? "Medium" : k.charAt(0).toUpperCase() + k.slice(1)}
-                    checked={filters.volatility[k]}
-                    onChange={(c) => setFilter("volatility", { ...filters.volatility, [k]: c })}
-                  />
-                ))}
-              </Section>
-
-              <Section title="Setup type">
-                {setups.map((s) => (
-                  <Check
-                    key={s}
-                    label={s}
-                    checked={!!filters.setups[s]}
-                    onChange={(c) => setFilter("setups", { ...filters.setups, [s]: c })}
-                  />
-                ))}
+              <Section title="Analíticos adicionais">
+                <div className="rounded-md border border-border bg-background/40 p-2 text-[11px] text-muted-foreground">
+                  Risco de manipulação, volatilidade, setup, sessão e compatibilidade DNA não são fornecidos pelo backend do radar neste momento.
+                </div>
               </Section>
 
               <Section title="Session">
