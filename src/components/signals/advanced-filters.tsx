@@ -2,9 +2,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useSignalsStore } from "@/lib/signals-store";
 
-const setups = ["BOS+OB", "CHoCH+FVG", "VWAP", "S/R", "Breakout", "Reversal"];
-const sessions = ["All", "Asia", "London", "NY"] as const;
-
 export function AdvancedFiltersDrawer() {
   const { advOpen, toggleAdv, filters, setFilter } = useSignalsStore();
   return (
@@ -62,35 +59,6 @@ export function AdvancedFiltersDrawer() {
                 </div>
               </Section>
 
-              <Section title="Session">
-                <div className="flex gap-1">
-                  {sessions.map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setFilter("session", s)}
-                      className={`flex-1 h-8 rounded-md text-[12px] border transition-colors ${
-                        filters.session === s
-                          ? "border-[var(--brand-cyan)] bg-[color-mix(in_oklab,var(--brand-cyan)_15%,transparent)] text-foreground"
-                          : "border-border bg-background text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </Section>
-
-              <Section title="DNA Compatibility">
-                <label className="flex items-center justify-between text-[12px] text-foreground cursor-pointer">
-                  <span>DNA compat ≥ 70%</span>
-                  <input
-                    type="checkbox"
-                    checked={filters.dnaCompat70}
-                    onChange={(e) => setFilter("dnaCompat70", e.target.checked)}
-                    className="accent-[var(--brand-cyan)]"
-                  />
-                </label>
-              </Section>
             </div>
           </motion.aside>
         </>
@@ -105,20 +73,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">{title}</div>
       <div className="space-y-1.5">{children}</div>
     </div>
-  );
-}
-
-function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (c: boolean) => void }) {
-  return (
-    <label className="flex items-center gap-2 text-[12px] text-foreground cursor-pointer">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="accent-[var(--brand-cyan)]"
-      />
-      {label}
-    </label>
   );
 }
 
