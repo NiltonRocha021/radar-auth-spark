@@ -44,16 +44,4 @@ GRANT UPDATE (
   timezone,
   bio,
   website,
-  operations_today,
-  drawdown_today,
-  recent_losses,
-  open_loss_pct,
-  dna_updated_at,
-  dna_consistency,
-  dna_discipline,
-  dna_risk_control,
-  dna_timing,
-  dna_emotional_control,
-  worst_session,
-  updated_at
 ) ON public.profiles TO authenticated;
