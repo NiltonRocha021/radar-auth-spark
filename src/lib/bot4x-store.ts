@@ -15,6 +15,7 @@ import type { BotConfigDTO, BotExecutionDTO } from "./bot.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
 import { logger } from "./logger";
+import { startDemoMarketFeed, stopDemoMarketFeed, getDemoMarketPrices } from "./demo-market-feed";
 import { pollWithRetry } from "./polling-metrics";
 import { loadConfig, saveConfig } from "./bot4x-config-db";
 import type { CalibProfile as CalibProfileType } from "./bot4x-data";
@@ -280,6 +281,8 @@ export const useBot4xStore = create<State>()(
             }).catch(() => undefined);
           }
 
+          startDemoMarketFeed([...get().preferredPairs, ...get().avoidPairs]);
+
           const runCycle = async () => {
             if (get().feedPaused) return;
             const current = get();
@@ -291,7 +294,8 @@ export const useBot4xStore = create<State>()(
               const candles = await fetchKlines(symbol, interval, limit);
               const market = analyzeCandles(symbol, interval, candles);
               const activeSymbols = get().orders.map((o) => o.pair.replace("/", ""));
-              const prices = await fetchTickerPrices([...activeSymbols, symbol]);
+              const streamPrices = getDemoMarketPrices();
+              const prices = Object.keys(streamPrices).length > 0 ? streamPrices : await fetchTickerPrices([...activeSymbols, symbol]);
               const now = Date.now();
 
               set((prev) => {
@@ -519,7 +523,8 @@ export const useBot4xStore = create<State>()(
       },
 
       closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
-      seedOrders: () => {\n        // Mantido apenas por compatibilidade; o DEMO não cria ordens artificiais.\n      },\n      setMonitorTab: (monitorTab) => set({ monitorTab }),
+      seedOrders: () => {\        stopDemoMarketFeed();
+n        // Mantido apenas por compatibilidade; o DEMO não cria ordens artificiais.\n      },\n      setMonitorTab: (monitorTab) => set({ monitorTab }),
       toggleFeedPaused: () => set((s) => ({ feedPaused: !s.feedPaused })),
       clearTicks: () => set({ ticks: [] }),
     }),
