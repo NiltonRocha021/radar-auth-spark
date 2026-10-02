@@ -10,6 +10,7 @@ import {
   makeTick,
 } from "./bot4x-data";
 import { PROFILES } from "./bot4x-data";
+import { TOP_20_USDT_PAIRS, fetchKlines, fetchTickerPrices, type KlineInterval } from "./market-data";
 import type { BotConfigDTO, BotExecutionDTO } from "./bot.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { saveTrade, loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
@@ -73,6 +74,7 @@ type State = {
   preferredPairs: string[];
   avoidPairs: string[];
   dnaMinSample: number; // mínimo de trades fechados por par para veredito DNA
+  demoRealVersion: number;
   _ticker?: ReturnType<typeof setInterval>;
 
   // Real mode state
@@ -103,14 +105,20 @@ type State = {
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
-function genCtxTick(get: () => State): Tick {
+function demoTimeframe(profile: CalibProfile): { interval: KlineInterval; limit: number } {
+  if (profile === "scalper") return { interval: "5m", limit: 300 };
+  if (profile === "intraday") return { interval: "15m", limit: 300 };
+  if (profile === "swing") return { interval: "4h", limit: 300 };
+  if (profile === "position") return { interval: "1d", limit: 500 };
+  return { interval: "1h", limit: 300 };
+}
+
+function demoSymbol(get: () => State): string {
   const s = get();
-  return makeTick({
-    profile: PROFILES[s.profile],
-    slotsUsed: s.orders.length,
-    busyPairs: s.orders.map((o) => o.pair),
-    shutdown: s.dailyPnlPct <= -1.5,
-  });
+  const configured = [...s.preferredPairs, ...TOP_20_USDT_PAIRS.map((p) => p.symbol.replace("USDT", "/USDT"))]
+    .filter((p, i, a) => a.indexOf(p) === i)
+    .filter((p) => !s.avoidPairs.includes(p));
+  return configured[Math.max(0, s.ticksProcessed) % Math.max(1, configured.length)] ?? "BTC/USDT";
 }
 
 function mapBackendProfile(p: string | null | undefined): CalibProfile {
@@ -194,6 +202,7 @@ export const useBot4xStore = create<State>()(
       preferredPairs: [],
       avoidPairs: [],
       dnaMinSample: 10,
+      demoRealVersion: 0,
 
       status: "IDLE",
       circuitBreaker: "none",
@@ -255,121 +264,116 @@ export const useBot4xStore = create<State>()(
         const mode = s.mode;
 
         // ── DEMO MODE ────────────────────────────────────────────────────────
+        // DEMO é paper trading, mas a análise e o preço vêm exclusivamente da Binance.
         if (mode === "DEMO") {
-          // Guard explícito: setInterval pode retornar 0 em alguns runtimes,
-          // então não basta `if (s._ticker)`.
           if (s._ticker !== undefined && s._ticker !== null) return;
 
-
-
-          if (s.history.length === 0) {
-            const uid = get().userId;
-            if (uid) {
-              loadTrades(uid)
-                .then((trades) => {
-                  if (trades.length > 0) {
-                    set({ history: trades });
-                   }
-                })
-                 .catch(() => set({ history: [] }));
-             }
+          // Migração única: remove posições do simulador antigo, que usava preços/drift artificiais.
+          if (s.demoRealVersion !== 1) {
+            set({ orders: [], demoRealVersion: 1, errorMsg: null });
           }
 
-          get().seedOrders();
+          const uid = get().userId;
+          if (s.history.length === 0 && uid) {
+            void loadTrades(uid).then((trades) => {
+              if (trades.length > 0) set({ history: trades });
+            }).catch(() => undefined);
+          }
 
-          const ticker = setInterval(() => {
+          const runCycle = async () => {
             if (get().feedPaused) return;
-            const t = genCtxTick(get);
-            set((prev) => {
-              const walked = prev.orders.map((o) => {
-                const drift = (Math.random() - 0.48) * 0.18;
-                return { ...o, pnlPct: +(o.pnlPct + drift).toFixed(2) };
-              });
+            const current = get();
+            const profile = current.profile;
+            const { interval, limit } = demoTimeframe(profile);
+            const symbol = demoSymbol(get).replace("/", "");
+            try {
+              // Uma análise por ciclo: candles reais + preço real. Sem Math.random().
+              const candles = await fetchKlines(symbol, interval, limit);
+              const market = (await import("./bot4x-data")).analyzeCandles(symbol, interval, candles);
+              const activeSymbols = get().orders.map((o) => o.pair.replace("/", ""));
+              const prices = await fetchTickerPrices([...activeSymbols, symbol]);
+              const now = Date.now();
 
-              const slLimit = -prev.slPct;
-              const tpLimit = prev.tpPct;
-
-              const closed = walked.filter((o) => o.pnlPct <= slLimit || o.pnlPct >= tpLimit);
-              const alive = walked.filter((o) => o.pnlPct > slLimit && o.pnlPct < tpLimit);
-
-              const newTrades: Trade[] = closed.map((o) => ({
-                id: o.id,
-                day: new Date().toISOString().slice(0, 10),
-                pair: o.pair,
-                side: o.side,
-                entry: o.entry,
-                stop: o.sl,
-                target: o.tp,
-                result: o.pnlPct >= tpLimit ? "WIN" : "LOSS",
-                pnl: +((o.pnlPct * (prev.totalCapital * (prev.allocationPct / 100))) / 100).toFixed(2),
-                pnlPct: o.pnlPct,
-                accumulated: 0,
-                profile: prev.profile,
-                leverage: prev.leverage,
-                motivo: o.pnlPct >= tpLimit ? "TP atingido" : "SL atingido",
-                hour: new Date().getHours(),
-              }));
-
-              if (newTrades.length > 0) {
-                const uid = get().userId;
-                if (uid) {
-                  newTrades.forEach((t) => saveTrade(uid, t));
+              set((prev) => {
+                const slLimit = prev.slPct;
+                const tpLimit = prev.tpPct;
+                const closed: Order[] = [];
+                const alive: Order[] = [];
+                for (const o of prev.orders) {
+                  const px = prices[o.pair.replace("/", "")];
+                  if (!Number.isFinite(px)) { alive.push(o); continue; }
+                  const hitSl = o.side === "LONG" ? px <= o.sl : px >= o.sl;
+                  const hitTp = o.side === "LONG" ? px >= o.tp : px <= o.tp;
+                  const rawPct = o.side === "LONG" ? ((px - o.entry) / o.entry) * 100 : ((o.entry - px) / o.entry) * 100;
+                  const pnlPct = +(rawPct * prev.leverage).toFixed(3);
+                  if (hitSl || hitTp) closed.push({ ...o, pnlPct }); else alive.push({ ...o, pnlPct });
                 }
-              }
 
+                const newTrades: Trade[] = closed.map((o) => ({
+                  id: o.id,
+                  day: new Date(now).toISOString().slice(0, 10),
+                  pair: o.pair,
+                  side: o.side,
+                  entry: o.entry,
+                  stop: o.sl,
+                  target: o.tp,
+                  result: o.pnlPct >= tpLimit ? "WIN" : "LOSS",
+                  pnl: +((o.pnlPct * (prev.totalCapital * (prev.allocationPct / 100))) / 100).toFixed(2),
+                  pnlPct: o.pnlPct,
+                  accumulated: 0,
+                  profile: prev.profile,
+                  leverage: prev.leverage,
+                  motivo: o.pnlPct >= tpLimit ? "TP atingido por preço real" : "SL atingido por preço real",
+                  hour: new Date(now).getHours(),
+                }));
+                if (newTrades.length && prev.userId) {
+                  for (const trade of newTrades) void saveTradeWithOutbox(prev.userId, trade);
+                }
 
+                const today = new Date(now).toISOString().slice(0, 10);
+                const allToday = [...newTrades, ...prev.history.filter((h) => h.day === today)];
+                const dailyPnlPct = +allToday.reduce((acc, t) => acc + t.pnlPct, 0).toFixed(3);
+                const t = makeTick({
+                  profile: PROFILES[prev.profile],
+                  slotsUsed: alive.length,
+                  busyPairs: alive.map((o) => o.pair),
+                  shutdown: dailyPnlPct <= -1.5,
+                  market,
+                });
+                let nextOrders = alive;
+                const pairBusy = alive.some((o) => o.pair === t.pair);
+                const pairAvoided = prev.avoidPairs.includes(t.pair);
+                if (t.verdict === "EXECUTE" && t.side && alive.length < MAX_SLOTS && !pairBusy && !pairAvoided) {
+                  const side: Side = t.side === "BUY" ? "LONG" : "SHORT";
+                  const slMult = prev.slPct / 100;
+                  const tpMult = prev.tpPct / 100;
+                  const entry = market.price;
+                  nextOrders = [...alive, {
+                    id: `demo_${now}_${t.pair.replace("/", "")}`, pair: t.pair, side, entry,
+                    sl: +(entry * (side === "LONG" ? 1 - slMult : 1 + slMult)).toFixed(8),
+                    tp: +(entry * (side === "LONG" ? 1 + tpMult : 1 - tpMult)).toFixed(8),
+                    openedAt: now, pnlPct: 0,
+                  }];
+                }
+                return {
+                  ticks: [t, ...prev.ticks].slice(0, 40),
+                  ticksProcessed: prev.ticksProcessed + 1,
+                  orders: nextOrders,
+                  dailyPnlPct,
+                  history: newTrades.length ? [...newTrades, ...prev.history].slice(0, 500) : prev.history,
+                  status: "RUNNING" as const,
+                  errorMsg: null,
+                };
+              });
+            } catch (error) {
+              logger.warn?.("[Bot4x DEMO] ciclo de mercado falhou", { error });
+              set({ errorMsg: error instanceof Error ? error.message : "Falha ao obter dados reais da Binance." });
+            }
+          };
 
-              const today = new Date().toISOString().slice(0, 10);
-              const allTodayTrades = [...newTrades, ...prev.history.filter((h) => h.day === today)];
-              const dailyPnlPct = allTodayTrades.reduce((acc, t) => acc + t.pnlPct, 0);
-
-              let nextOrders = alive;
-              const slotsFree = alive.length < MAX_SLOTS;
-              const pairBusy = alive.some((o) => o.pair === t.pair);
-              const pairAvoided = prev.avoidPairs.includes(t.pair);
-              if (t.verdict === "EXECUTE" && t.side && slotsFree && !pairBusy && !pairAvoided) {
-                const side: Side = t.side === "BUY" ? "LONG" : "SHORT";
-                const base = t.pair.startsWith("BTC")
-                  ? 65000
-                  : t.pair.startsWith("ETH")
-                    ? 1800
-                    : t.pair.startsWith("SOL")
-                      ? 150
-                      : t.pair.startsWith("BNB")
-                        ? 580
-                        : 1 + Math.random() * 40;
-                const entry = +(base * (0.99 + Math.random() * 0.02)).toFixed(2);
-                const slMult = prev.slPct / 100;
-                const tpMult = prev.tpPct / 100;
-                nextOrders = [
-                  ...alive,
-                  {
-                    id: `o_${Date.now()}_${Math.floor(Math.random() * 9999)}`,
-                    pair: t.pair,
-                    side,
-                    entry,
-                    sl: +(entry * (side === "LONG" ? 1 - slMult : 1 + slMult)).toFixed(2),
-                    tp: +(entry * (side === "LONG" ? 1 + tpMult : 1 - tpMult)).toFixed(2),
-                    openedAt: Date.now(),
-                    pnlPct: 0,
-                  },
-                ];
-              }
-
-              return {
-                ticks: [t, ...prev.ticks].slice(0, 40),
-                ticksProcessed: prev.ticksProcessed + 1,
-                orders: nextOrders,
-                dailyPnlPct: +dailyPnlPct.toFixed(3),
-                history: newTrades.length > 0 ? [...newTrades, ...prev.history].slice(0, 500) : prev.history,
-              };
-            });
-          }, 8000);
-
-          set({
-            ticks: Array.from({ length: 5 }, () => genCtxTick(get)),
-            _ticker: ticker,
-          });
+          void runCycle();
+          const ticker = setInterval(() => { void runCycle(); }, 8000);
+          set({ _ticker: ticker, status: "RUNNING", ticks: [] });
           return;
         }
 
@@ -577,6 +581,7 @@ export const useBot4xStore = create<State>()(
         ticksProcessed: s.ticksProcessed,
         circuitBreaker: s.circuitBreaker,
         dnaMinSample: s.dnaMinSample,
+        demoRealVersion: s.demoRealVersion,
       }),
     },
   ),
