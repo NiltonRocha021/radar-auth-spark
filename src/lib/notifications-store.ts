@@ -110,7 +110,6 @@ export const useNotificationsStore = create<State>((set, get) => ({
     set((s) => ({ events: [ev, ...s.events].slice(0, 30) }));
 
     if (isPersistent(e.type) && currentUserId) {
-      const uid = currentUserId;
       persistCriticalNotification({
         data: {
           id: ev.id,
