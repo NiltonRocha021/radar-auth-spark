@@ -48,6 +48,14 @@ export const saveBot4xTrade = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => TradeSchema.parse(d))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: existing, error: lookupError } = await supabaseAdmin
+      .from("bot4x_trades")
+      .select("user_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (lookupError) throw new Error(lookupError.message);
+    if (existing && existing.user_id !== context.userId) throw new Error("Trade inválido.");
+
     const { error } = await supabaseAdmin
       .from("bot4x_trades")
       .upsert(toRow(data, context.userId), { onConflict: "id" });
@@ -72,6 +80,14 @@ export const saveBot4xTradeWithOutbox = createServerFn({ method: "POST" })
     if (outboxError || !outbox) {
       throw outboxError ?? new Error("outbox insert returned no row");
     }
+
+    const { data: existing, error: lookupError } = await supabaseAdmin
+      .from("bot4x_trades")
+      .select("user_id")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (lookupError) throw new Error(lookupError.message);
+    if (existing && existing.user_id !== context.userId) throw new Error("Trade inválido.");
 
     const { error: tradeError } = await supabaseAdmin
       .from("bot4x_trades")
