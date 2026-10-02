@@ -1,6 +1,6 @@
 // Card de regime de mercado com estados explícitos (loading / erro / vazio).
 import { useQuery } from "@tanstack/react-query";
-import { getCurrentMarketRegime } from "@/lib/market-regime.functions";
+import { getCurrentMarketRegimes, type MarketRegimeDTO } from "@/lib/market-regime.functions";
 import { AsyncState, LoadingState } from "@/components/common/async-state";
 
 const REGIME_LABEL: Record<string, string> = {
@@ -10,52 +10,54 @@ const REGIME_LABEL: Record<string, string> = {
   TRENDING_BEAR: "Tendência de baixa",
 };
 
-export function MarketRegimeCard({ pair = "BTC/USDT" }: { pair?: string }) {
+export function MarketRegimeCard() {
   const query = useQuery({
-    queryKey: ["market-regime", pair],
-    queryFn: () => getCurrentMarketRegime({ data: { pair } }),
-    staleTime: 60_000,
-    refetchInterval: 120_000,
+    queryKey: ["market-regime", "top20"],
+    queryFn: () => getCurrentMarketRegimes({ data: { timeframe: "1h" } }),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
     retry: 1,
   });
 
-  const data = query.data;
-  const noData = !!data && data.signals.includes("NO_DATA");
+  const data = query.data ?? [];
+  const available = data.filter((item) => !item.signals.includes("NO_DATA"));
 
   return (
     <section className="rounded-xl border border-border bg-card/40 p-4" aria-label="Regime de mercado">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="text-sm font-semibold">Regime de mercado</h2>
-          <p className="text-xs text-muted-foreground">{pair}</p>
+          <p className="text-xs text-muted-foreground">{available.length}/20 pares Binance · 1H</p>
         </div>
-        {data && !noData && (
-          <span className="text-[10px] uppercase tracking-wider px-2 py-1 rounded bg-foreground/10 font-semibold">
-            {REGIME_LABEL[data.regime] ?? data.regime}
-          </span>
-        )}
       </div>
 
       <AsyncState
         isLoading={query.isLoading}
         error={query.isError ? query.error : undefined}
-        isEmpty={noData}
+        isEmpty={query.isSuccess && available.length === 0}
         onRetry={() => void query.refetch()}
-        loading={<LoadingState rows={1} label="Carregando regime de mercado" />}
-        errorTitle="Não foi possível ler o regime de mercado"
-        errorMessage="Os indicadores de tendência não puderam ser calculados agora. Tente novamente em instantes."
-        empty={
-          <p className="text-xs text-muted-foreground">
-            Ainda não há velas suficientes para classificar o regime deste par.
-          </p>
-        }
+        loading={<LoadingState rows={1} label="Carregando regimes de mercado" />}
+        errorTitle="Não foi possível ler os regimes de mercado"
+        errorMessage="Os indicadores não puderam ser calculados agora. Tente novamente em instantes."
+        empty={<p className="text-xs text-muted-foreground">Ainda não há velas suficientes para classificar os regimes dos pares.</p>}
       >
-        {data && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <Metric label="Tendência" value={data.trend} />
-            <Metric label="Volatilidade" value={data.volatility} />
-            <Metric label="Força" value={`${data.strength}`} />
-            <Metric label="Confiança" value={`${data.score}%`} />
+        {available.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+            {available.map((item: MarketRegimeDTO) => (
+              <div key={item.pair} className="rounded-lg border border-border/60 bg-background/40 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold">{item.pair}</span>
+                  <span className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                    {REGIME_LABEL[item.regime] ?? item.regime}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-2 text-[10px]">
+                  <Metric label="Trend" value={item.trend} />
+                  <Metric label="Vol" value={item.volatility} />
+                  <Metric label="Score" value={String(item.score) + "%"} />
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </AsyncState>
