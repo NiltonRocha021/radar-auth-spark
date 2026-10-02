@@ -16,25 +16,37 @@ type LegacyStoredSession = {
   currentSession?: LegacyStoredSession;
 };
 
+function getCurrentProjectLegacyStorageKey(): string | null {
+  const url = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  if (!url) return null;
+
+  try {
+    const hostname = new URL(url).hostname;
+    const projectRef = hostname.match(/^([a-z0-9]+)\\.supabase\\.co$/i)?.[1];
+    return projectRef ? `sb-${projectRef}-auth-token` : null;
+  } catch {
+    return null;
+  }
+}
+
 function readLegacyStoredSession(): { access_token: string; refresh_token: string } | null {
   try {
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key || !/^sb-.+-auth-token$/.test(key)) continue;
+    const key = getCurrentProjectLegacyStorageKey();
+    if (!key) return null;
 
-      const raw = window.localStorage.getItem(key);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw) as LegacyStoredSession;
-      const candidate = parsed.currentSession ?? parsed;
-      if (
-        typeof candidate.access_token === "string" &&
-        typeof candidate.refresh_token === "string"
-      ) {
-        return {
-          access_token: candidate.access_token,
-          refresh_token: candidate.refresh_token,
-        };
-      }
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as LegacyStoredSession;
+    const candidate = parsed.currentSession ?? parsed;
+    if (
+      typeof candidate.access_token === "string" &&
+      typeof candidate.refresh_token === "string"
+    ) {
+      return {
+        access_token: candidate.access_token,
+        refresh_token: candidate.refresh_token,
+      };
     }
   } catch {
     // Storage legado inválido ou indisponível: o fluxo normal de login segue.
