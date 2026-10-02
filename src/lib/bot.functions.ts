@@ -172,7 +172,16 @@ export const updateBotConfig = createServerFn({ method: "POST" })
     }
 
     if (data.executionMode === "LIVE") {
-      const { getBinanceCredentialMetadata } = await import("./binance-credentials.server");
+      const [{ getBinanceCredentialMetadata }, { data: tfa, error: tfaError }] = await Promise.all([
+        import("./binance-credentials.server"),
+        context.supabase
+          .from("user_two_factor")
+          .select("enabled")
+          .eq("user_id", context.userId)
+          .maybeSingle(),
+      ]);
+      if (tfaError) throw new Error("Não foi possível verificar o 2FA antes de ativar o modo REAL.");
+      if (!tfa?.enabled) throw new Error("Ative o 2FA antes de selecionar REAL.");
       const credentials = await getBinanceCredentialMetadata(context.userId);
       if (credentials?.status !== "valid") throw new Error("Valide suas credenciais Binance antes de selecionar REAL.");
     }
