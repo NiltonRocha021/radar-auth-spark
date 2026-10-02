@@ -20,14 +20,16 @@ export function MarketRegimeCard() {
   });
 
   const data = query.data ?? [];
-  const available = data.filter((item) => !item.signals.includes("NO_DATA"));
+  const available = data.filter((item) => item.dataStatus === "ready");
+  const unavailable = data.filter((item) => item.dataStatus === "unavailable").length;
+  const insufficient = data.filter((item) => item.dataStatus === "insufficient-candles").length;
 
   return (
     <section className="rounded-xl border border-border bg-card/40 p-4" aria-label="Regime de mercado">
       <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="text-sm font-semibold">Regime de mercado</h2>
-          <p className="text-xs text-muted-foreground">{available.length}/20 pares Binance · 1H</p>
+          <p className="text-xs text-muted-foreground">{available.length}/{data.length || 19} pares Binance · 1H</p>
         </div>
       </div>
 
@@ -39,7 +41,7 @@ export function MarketRegimeCard() {
         loading={<LoadingState rows={1} label="Carregando regimes de mercado" />}
         errorTitle="Não foi possível ler os regimes de mercado"
         errorMessage="Os indicadores não puderam ser calculados agora. Tente novamente em instantes."
-        empty={<p className="text-xs text-muted-foreground">Ainda não há velas suficientes para classificar os regimes dos pares.</p>}
+        empty={<p className="text-xs text-muted-foreground">{unavailable > 0 ? "A Binance não retornou dados de velas para classificar o regime agora." : insufficient > 0 ? "Ainda não há velas suficientes para classificar os regimes dos pares." : "Nenhum regime disponível no momento."}</p>}
       >
         {available.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
