@@ -85,6 +85,7 @@ type State = {
   circuitBreaker: "none" | "emergency" | "profitLock";
   errorMsg: string | null;
   realInited: boolean;
+  configLoaded: boolean;
 
   setUserId: (uid: string | null) => void;
   init: () => void;
@@ -203,6 +204,7 @@ export const useBot4xStore = create<State>()(
       circuitBreaker: "none",
       errorMsg: null,
       realInited: false,
+      configLoaded: false,
 
       // ─── SET USER ID ──────────────────────────────────────────────────────
       // Chamado ao login/logout via supabase.auth.onAuthStateChange.
@@ -214,7 +216,7 @@ export const useBot4xStore = create<State>()(
         // do usuário anterior nem misturar streams entre contas.
         get().cleanup();
         _currentUserId = uid;
-        set({ userId: uid, realInited: false });
+        set({ userId: uid, realInited: false, configLoaded: false });
 
         // Rehidrata o store com os dados do novo usuário
         useBot4xStore.persist.rehydrate();
@@ -232,7 +234,10 @@ export const useBot4xStore = create<State>()(
         if (uid) {
           loadConfig(uid)
             .then((cfg) => {
-              if (!cfg) return;
+              if (!cfg) {
+                set({ configLoaded: true });
+                return;
+              }
               const previousMode = get().mode;
               const previousProfile = get().profile;
               set({
@@ -258,10 +263,11 @@ export const useBot4xStore = create<State>()(
               if (previousMode !== cfg.executionMode || previousProfile !== cfg.profile) {
                 get().cleanup();
               }
-              set({ status: "IDLE", realInited: false, errorMsg: null });
+              set({ status: "IDLE", realInited: false, errorMsg: null, configLoaded: true });
               queueMicrotask(() => void get().init());
             })
             .catch(() => {
+              set({ configLoaded: true });
               /* fallback para localStorage */
             });
         }
