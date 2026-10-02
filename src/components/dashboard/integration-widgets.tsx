@@ -76,38 +76,23 @@ export function DnaTraderWidget() {
   );
 }
 
-const SAMPLE_MANIP_ALERTS = [
-  { severity: "critical", title: "Spoofing detectado em BTC/USDT @ Binance" },
-  { severity: "warn", title: "Wash trading suspeito em SOL/USDT" },
-  { severity: "warn", title: "Wall artificial em ETH/USDT" },
-];
-
 export function ManipulationWidget() {
-  const active = SAMPLE_MANIP_ALERTS;
-  const count = active.length;
-  const last = active[0];
-
   return (
     <Card title="Manipulation" icon={Shield} accent="#E24B4A" to="/manipulation" ctaLabel="View all">
       <div className="flex items-center gap-3">
-        <div className="relative shrink-0">
-          <div
-            className="size-12 rounded-lg flex items-center justify-center text-base font-semibold tabular-nums"
-            style={{
-              background: count > 0 ? "color-mix(in oklab, #E24B4A 16%, transparent)" : "color-mix(in oklab, #1D9E75 14%, transparent)",
-              color: count > 0 ? "#E24B4A" : "#1D9E75",
-            }}
-          >
-            {count}
-          </div>
-          {count > 0 && (
-            <span className="absolute -top-1 -right-1 size-2.5 rounded-full bg-[#E24B4A] animate-pulse" />
-          )}
+        <div
+          className="size-12 rounded-lg flex items-center justify-center text-base font-semibold tabular-nums"
+          style={{
+            background: "color-mix(in oklab, #1D9E75 14%, transparent)",
+            color: "#1D9E75",
+          }}
+        >
+          0
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Active alerts (24h)</div>
-          <div className="text-[12px] text-foreground line-clamp-2">
-            {last ? <><AlertTriangle className="size-3 inline mr-1 text-[#EF9F27]" />{last.title}</> : "Sem alertas críticos no momento."}
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Alertas confirmados</div>
+          <div className="text-[12px] text-muted-foreground line-clamp-2">
+            Nenhum alerta confirmado disponível no momento.
           </div>
         </div>
       </div>
