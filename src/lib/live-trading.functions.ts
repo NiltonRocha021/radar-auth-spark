@@ -171,8 +171,9 @@ export const validateMyBinanceOrder = createServerFn({ method: "POST" })
     } catch {
       throw new Error("A Binance recusou a validação. Confira saldo, permissões e limites do par.");
     }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const now = new Date().toISOString();
-    const { data: row, error } = await context.supabase
+    const { data: row, error } = await supabaseAdmin
       .from("binance_order_validations")
       .insert({
         user_id: context.userId,
