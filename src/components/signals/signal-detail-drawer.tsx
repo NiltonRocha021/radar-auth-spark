@@ -57,6 +57,7 @@ function DrawerBody({ signal, onClose }: { signal: Signal; onClose: () => void }
   const detailQuery = useQuery({
     queryKey: ["signal-detail", signal.id],
     queryFn: () => detailFn({ data: { id: signal.id } }),
+    enabled: signal.source !== "binance-radar",
     staleTime: 15_000,
   });
   const detail = detailQuery.data;
