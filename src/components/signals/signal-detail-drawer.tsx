@@ -117,8 +117,6 @@ function DrawerBody({ signal, onClose }: { signal: Signal; onClose: () => void }
 // ---------- Header ----------
 function Header({ signal, accent, isBuy, onClose }: { signal: Signal; accent: string; isBuy: boolean; onClose: () => void }) {
   const [base, quote] = signal.asset.split("/");
-  const mockChange = ((signal.id.charCodeAt(signal.id.length - 1) % 50) - 20) / 10;
-  const changeColor = mockChange >= 0 ? "#1D9E75" : "#E24B4A";
 
   return (
     <header className="sticky top-0 z-10 px-5 pt-4 pb-3 bg-[#0A0B0E] border-b border-border">
@@ -134,9 +132,7 @@ function Header({ signal, accent, isBuy, onClose }: { signal: Signal; accent: st
         <span className="text-[18px] font-medium text-foreground">{base} / {quote ?? "USD"}</span>
         <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-secondary text-foreground border border-border">{signal.exchange}</span>
         <span className="text-[14px] font-semibold tabular-nums text-foreground">${formatPrice(signal.entry)}</span>
-        <span className="text-[12px] font-medium tabular-nums" style={{ color: changeColor }}>
-          {mockChange >= 0 ? "+" : ""}{mockChange.toFixed(1)}%
-        </span>
+        <span className="text-[12px] text-muted-foreground">Market change N/D</span>
       </div>
 
       <div className="flex items-center gap-2 mt-3">
@@ -432,64 +428,21 @@ function SectionChart({ signal }: { signal: Signal }) {
 
 // ---------- Section 3: AI Analysis ----------
 function SectionAnalysis({ signal }: { signal: Signal }) {
-  const isBuy = signal.direction === "BUY";
-  const reasoning = isBuy
-    ? `Bullish break of structure on the ${signal.tf} confirmed by an unmitigated order block at the prior swing high. Volume printed +${signal.volDelta}% on the breakout candle, and price reclaimed the session VWAP with momentum. Setup aligns with the broader 4H trend.`
-    : `Bearish change of character on the ${signal.tf} with rejection at the order block. Volume divergence on the last impulse leg and a failed retest of broken support increase downside conviction. Aligned with weakening sentiment indicators.`;
-
-  const breakdown = useMemo(() => {
-    const seed = signal.score;
-    return [
-      { label: "Price Action", value: Math.min(98, seed + 4) },
-      { label: "Indicators", value: Math.max(40, seed - 8) },
-      { label: "Volume", value: Math.min(99, seed + 12) },
-      { label: "Sentiment", value: Math.max(40, seed - 11) },
-      { label: "Macro", value: Math.max(40, seed - 18) },
-    ];
-  }, [signal.score]);
-
-  const confirms = [
-    { label: "BOS confirmed", ok: true },
-    { label: "Order Block respected", ok: signal.confirms.structure },
-    { label: "RSI > 50", ok: signal.confirms.rsi },
-    { label: "VWAP reclaim", ok: signal.confirms.vwap },
-    { label: `Volume +${signal.volDelta}%`, ok: signal.confirms.volume },
-    { label: "Daily trend alignment", ok: false, no: true },
-    { label: "High volatility window", ok: false, warn: true },
-  ];
-
   return (
     <Section title="AI Analysis">
-      <p className="text-[13px] text-foreground/85 leading-relaxed mb-4">{reasoning}</p>
-
-      <div className="space-y-2">
-        {breakdown.map((b, i) => (
-          <ScoreBar key={b.label} label={b.label} value={b.value} delay={i * 0.08} />
-        ))}
-        <div className="flex items-center justify-between text-[12px] pt-1">
-          <span className="text-muted-foreground">Manipulation Risk</span>
-          <ManipChip risk={signal.manipRisk} />
-        </div>
+      <div className="rounded-lg border border-border bg-card p-3 text-[12px] text-muted-foreground">
+        O backend deste sinal não fornece raciocínio de IA detalhado. Exibindo apenas os dados confirmados do sinal.
       </div>
-
       <div className="mt-4 rounded-lg border border-border bg-card p-3">
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">Confirmations</div>
-        <ul className="space-y-1">
-          {confirms.map((c) => (
-            <li key={c.label} className="flex items-center gap-2 text-[12px] text-foreground">
-              {c.warn ? (
-                <AlertTriangle className="size-3.5 text-[#EF9F27]" />
-              ) : c.no ? (
-                <X className="size-3.5 text-[#E24B4A]" />
-              ) : c.ok ? (
-                <Check className="size-3.5 text-[#1D9E75]" />
-              ) : (
-                <X className="size-3.5 text-[#E24B4A]" />
-              )}
-              {c.label}
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-1.5 text-[12px]">
+          <Row label="BOS" value="N/D" />
+          <Row label="Order Block" value={signal.confirms?.structure == null ? "N/D" : signal.confirms.structure ? "SIM" : "NÃO"} />
+          <Row label="RSI" value={signal.confirms?.rsi == null ? "N/D" : signal.confirms.rsi ? "SIM" : "NÃO"} />
+          <Row label="VWAP" value={signal.confirms?.vwap == null ? "N/D" : signal.confirms.vwap ? "SIM" : "NÃO"} />
+          <Row label="Volume" value={signal.volDelta == null ? "N/D" : `+${signal.volDelta}%`} />
+          <Row label="Manipulation Risk" value={signal.manipRisk ?? "N/D"} />
+        </div>
       </div>
     </Section>
   );
@@ -553,147 +506,46 @@ function SectionInvalidation({ signal }: { signal: Signal }) {
 }
 
 // ---------- Section 5: Market Context ----------
-function SectionMarketContext({ signal }: { signal: Signal }) {
+function SectionMarketContext() {
   return (
     <Section title="Market Context">
-      <div className="grid grid-cols-2 gap-2">
-        <CtxCell icon={<TrendingUp className="size-3" />} label="Trend 4H" value="BULLISH ↑" color="#1D9E75" />
-        <CtxCell icon={<TrendingUp className="size-3" />} label="Trend 1D" value="BULLISH ↑" color="#1D9E75" />
-        <CtxCell icon={<Activity className="size-3" />} label="Volatility" value="MODERATE" color="#EF9F27" />
-        <CtxCell icon={<Globe className="size-3" />} label="Session" value={`${signal.session} Open`} color="#378ADD" />
-      </div>
-      <div className="mt-2 space-y-1 text-[12px]">
-        <Row label="DXY" value="Weakening ↓ (bullish BTC)" color="#1D9E75" />
-        <Row label="Funding" value="+0.021%" />
-        <Row label="OI" value="+4.2%" color="#1D9E75" />
+      <div className="rounded-lg border border-border bg-card p-3 text-[12px] text-muted-foreground">
+        Contexto 4H/1D, DXY, funding e open interest não são fornecidos pelo DTO atual.
       </div>
     </Section>
   );
 }
 
-function CtxCell({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
-  return (
-    <div className="rounded-md border border-border bg-card p-2">
-      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-        {icon} {label}
-      </div>
-      <div className="text-[12px] font-semibold mt-0.5" style={{ color }}>{value}</div>
-    </div>
-  );
-}
-
-function Row({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="tabular-nums font-medium" style={{ color: color ?? "var(--foreground)" }}>{value}</span>
-    </div>
-  );
-}
-
-// ---------- Section 6: Sentiment ----------
 function SectionSentiment() {
   return (
     <Section title="Asset Sentiment">
-      <div className="rounded-lg border border-border bg-card p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[12px] text-muted-foreground">Score</span>
-          <span className="text-[14px] font-bold text-[#1D9E75]">77/100 · Bullish</span>
-        </div>
-        <Row label="Social" value="67% bull" color="#1D9E75" />
-        <Row label="News" value="ETF inflows $420M" />
-        <Row label="On-chain" value="Accumulation phase" color="#378ADD" />
+      <div className="rounded-lg border border-border bg-card p-3 text-[12px] text-muted-foreground">
+        Dados de sentimento em tempo real não estão disponíveis para este sinal.
       </div>
     </Section>
   );
 }
 
-// ---------- Section 7: Historical ----------
 function SectionHistorical() {
-  const rows = [
-    { date: "Apr 14", setup: "BOS+OB", entry: 41200, exit: 43750, win: true, ret: 6.2 },
-    { date: "Mar 28", setup: "BOS+OB", entry: 38400, exit: 40900, win: true, ret: 6.5 },
-    { date: "Mar 12", setup: "BOS+OB", entry: 36800, exit: 35300, win: false, ret: -4.1 },
-    { date: "Feb 26", setup: "BOS+OB", entry: 34500, exit: 36900, win: true, ret: 6.9 },
-    { date: "Feb 09", setup: "BOS+OB", entry: 32100, exit: 34380, win: true, ret: 7.1 },
-  ];
   return (
     <Section title="Similar Historical Signals">
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
-        <table className="w-full text-[11px]">
-          <thead className="bg-background/40 text-muted-foreground">
-            <tr>
-              {["Date", "Setup", "Entry", "Exit", "Result", "Return"].map((h) => (
-                <th key={h} className="px-2.5 py-1.5 text-left font-medium uppercase tracking-wide">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} className="border-t border-border">
-                <td className="px-2.5 py-1.5">{r.date}</td>
-                <td className="px-2.5 py-1.5 text-muted-foreground">{r.setup}</td>
-                <td className="px-2.5 py-1.5 tabular-nums">{r.entry}</td>
-                <td className="px-2.5 py-1.5 tabular-nums">{r.exit}</td>
-                <td className="px-2.5 py-1.5">
-                  <span className={`font-bold ${r.win ? "text-[#1D9E75]" : "text-[#E24B4A]"}`}>
-                    {r.win ? "WIN" : "LOSS"}
-                  </span>
-                </td>
-                <td className="px-2.5 py-1.5 tabular-nums font-medium" style={{ color: r.win ? "#1D9E75" : "#E24B4A" }}>
-                  {r.ret > 0 ? "+" : ""}{r.ret.toFixed(1)}%
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="px-3 py-2 border-t border-border text-[11px] text-foreground bg-background/40">
-          4W / 1L — <span className="font-bold text-[#1D9E75]">80% win rate</span>
-          <span className="text-muted-foreground"> · Avg win <span className="text-[#1D9E75]">+6.8%</span> · Avg loss <span className="text-[#E24B4A]">-4.1%</span></span>
-        </div>
+      <div className="rounded-lg border border-border bg-card p-3 text-[12px] text-muted-foreground">
+        O histórico de sinais similares não está disponível no DTO atual.
       </div>
     </Section>
   );
 }
 
-// ---------- Section 8: DNA ----------
 function SectionDNA({ signal }: { signal: Signal }) {
-  const good = signal.dnaMatch >= 75;
   return (
     <Section title="DNA Compatibility">
-      <div
-        className="rounded-lg border p-3"
-        style={{
-          background: "var(--card)",
-          borderColor: good ? "#1D9E75" : "var(--border)",
-        }}
-      >
-        <div className="flex justify-between text-[12px] mb-2">
-          <span className="text-muted-foreground">Match</span>
-          <span className="font-bold tabular-nums" style={{ color: good ? "#1D9E75" : "var(--foreground)" }}>
-            {signal.dnaMatch}%
-          </span>
-        </div>
-        <div className="h-2 rounded-full bg-secondary overflow-hidden mb-3">
-          <motion.div
-            initial={{ width: 0 }} animate={{ width: `${signal.dnaMatch}%` }}
-            transition={{ duration: 0.7, ease: "easeOut" }}
-            className="h-full rounded-full"
-            style={{ background: `linear-gradient(90deg, var(--brand-blue), ${scoreColor(signal.dnaMatch)})` }}
-          />
-        </div>
-        <ul className="space-y-1 text-[12px] text-foreground">
-          <li className="flex items-center gap-2"><Check className="size-3.5 text-[#1D9E75]" /> Timeframe match: {signal.tf} (your best)</li>
-          <li className="flex items-center gap-2"><Check className="size-3.5 text-[#1D9E75]" /> Setup match: {signal.setup} (#1 setup)</li>
-          <li className="flex items-center gap-2"><Check className="size-3.5 text-[#1D9E75]" /> Session: {signal.session} Open (best session)</li>
-          <li className="flex items-center gap-2"><AlertTriangle className="size-3.5 text-[#EF9F27]" /> Risk note: within your range</li>
-        </ul>
+      <div className="rounded-lg border border-border bg-card p-3 text-[12px] text-muted-foreground">
+        {signal.dnaMatch != null ? `Compatibilidade calculada: ${signal.dnaMatch}%.` : "Compatibilidade DNA não foi fornecida pelo backend para este sinal."}
       </div>
     </Section>
   );
 }
 
-// ---------- Footer ----------
 function Footer({ signal }: { signal: Signal }) {
   const [alertOpen, setAlertOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
