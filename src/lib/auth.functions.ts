@@ -8,7 +8,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // ---------- getCurrentUser -------------------------------------------------
 
@@ -80,6 +79,7 @@ export const setupTwoFactor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SetupTwoFactorDTO> => {
     const { TOTP, Secret } = await import("otpauth");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const secret = new Secret({ size: 20 });
     const emailClaim = (context.claims.email as string | null) ?? context.userId;
     const totp = new TOTP({
@@ -125,6 +125,7 @@ export const verifyTwoFactor = createServerFn({ method: "POST" })
     z.object({ token: z.string().trim().regex(/^\d{6}$/, "Código deve ter 6 dígitos") }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("user_two_factor")
       .select("secret,enabled")
@@ -161,6 +162,7 @@ export const disableTwoFactor = createServerFn({ method: "POST" })
     z.object({ token: z.string().trim().min(6).max(11) }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("user_two_factor")
       .select("secret,backup_codes,enabled")
