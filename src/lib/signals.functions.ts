@@ -108,20 +108,27 @@ export const getSignalsList = createServerFn({ method: "GET" })
           const candles = await fetchKlines(symbol, "1h", 120);
           if (candles.length < 30) return null;
           const market = analyzeCandles(symbol, "1h", candles);
-          if (!market.side || market.aiScore < 70) return null;
+          const direction = market.side ?? (market.emaFast >= market.emaSlow ? "BUY" : "SELL");
+          const trendAligned = direction === "BUY" ? market.emaFast >= market.emaSlow : market.emaFast < market.emaSlow;
+          const rsiAligned = direction === "BUY" ? market.rsi <= 58 : market.rsi >= 42;
+          const vwapAligned = direction === "BUY" ? market.price >= market.vwap : market.price <= market.vwap;
+          const volumeAligned = market.volumeRatio >= 1;
+          const trendPoints = Math.min(20, Math.round(market.trendStrength * 4));
+          const score = Math.round(Math.min(100, 45 + trendPoints + (trendAligned ? 10 : 0) + (rsiAligned ? 10 : 0) + (vwapAligned ? 10 : 0) + (volumeAligned ? 5 : 0) + (market.liquidityGrab ? 10 : 0)));
+          if (score < 65) return null;
 
           const entry = market.price;
           const atr = market.atr > 0 ? market.atr : entry * 0.005;
-          const stop = market.side === "BUY"
+          const stop = direction === "BUY"
             ? Math.max(entry - atr, entry * 0.99)
             : Math.min(entry + atr, entry * 1.01);
-          const target = market.side === "BUY" ? entry + atr * 2 : entry - atr * 2;
+          const target = direction === "BUY" ? entry + atr * 2 : entry - atr * 2;
           const lastClose = candles.at(-1)?.closeTime ?? Date.now();
           return {
             id: "radar_" + symbol + "_" + lastClose,
             symbol: symbol.replace("USDT", "/USDT"),
-            direction: market.side,
-            confidence: market.aiScore,
+            direction,
+            confidence: score,
             entry,
             sl: stop,
             tp: target,
