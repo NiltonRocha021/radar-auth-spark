@@ -73,7 +73,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
             {signal.asset.split("/")[0].slice(0, 3)}
           </div>
           <div className="flex flex-col">
-            <span className="text-[13px] font-semibold text-foreground leading-tight">{signal.asset}</span>
+            <div className="flex items-center gap-1.5"><span className="text-[13px] font-semibold text-foreground leading-tight">{signal.asset}</span>{signal.source === "binance-radar" && <span className="text-[8px] uppercase tracking-wider text-[var(--brand-cyan)] border border-[var(--brand-cyan)]/40 rounded px-1 py-0.5">Binance</span>}</div>
             <span className="text-[10px] text-muted-foreground">{signal.exchange} · {signal.tf} · {formatAge(signal.ageMin)}</span>
           </div>
         </div>
