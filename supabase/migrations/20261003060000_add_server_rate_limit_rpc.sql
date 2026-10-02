@@ -1,21 +1,12 @@
 -- Server-side rate limiting for privileged mutations.
--- Called only through the service_role-backed server client.
+-- The existing rate_limits_by_key table is used because server-side calls
+-- authenticate as service_role and therefore cannot rely on auth.uid().
 --
--- This deliberately uses an explicit key instead of auth.uid(), because
--- service_role requests do not carry the end-user JWT subject.
+-- The RPC is executable only by service_role. It performs the counter update
+-- atomically so concurrent requests cannot bypass the limit.
 
-create table if not exists public.rate_limit_buckets (
-  key text not null,
-  action text not null,
-  window_started_at timestamptz not null,
-  attempt_count integer not null,
-  primary key (key, action),
-  constraint rate_limit_buckets_attempt_count_positive
-    check (attempt_count > 0)
-);
-
-revoke all on table public.rate_limit_buckets from public, anon, authenticated;
-grant all on table public.rate_limit_buckets to service_role;
+revoke all on table public.rate_limits_by_key from public, anon, authenticated;
+grant all on table public.rate_limits_by_key to service_role;
 
 create or replace function public.check_rate_limit_by_key(
   p_key text,
@@ -40,11 +31,11 @@ begin
       using errcode = '22023';
   end if;
 
-  insert into public.rate_limit_buckets (
+  insert into public.rate_limits_by_key (
     key,
     action,
-    window_started_at,
-    attempt_count
+    window_start,
+    count
   )
   values (
     p_key,
@@ -54,19 +45,19 @@ begin
   )
   on conflict (key, action) do update
   set
-    window_started_at = case
-      when public.rate_limit_buckets.window_started_at
+    window_start = case
+      when public.rate_limits_by_key.window_start
         <= v_now - (p_window_seconds * interval '1 second')
       then v_now
-      else public.rate_limit_buckets.window_started_at
+      else public.rate_limits_by_key.window_start
     end,
-    attempt_count = case
-      when public.rate_limit_buckets.window_started_at
+    count = case
+      when public.rate_limits_by_key.window_start
         <= v_now - (p_window_seconds * interval '1 second')
       then 1
-      else public.rate_limit_buckets.attempt_count + 1
+      else public.rate_limits_by_key.count + 1
     end
-  returning attempt_count into v_count;
+  returning count into v_count;
 
   return v_count <= p_max;
 end;
