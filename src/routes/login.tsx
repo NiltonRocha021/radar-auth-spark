@@ -88,9 +88,23 @@ function LoginPage() {
   const [tab, setTab] = useState<Tab>("signin");
   const [resetEmail, setResetEmail] = useState("");
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [oauthError, setOauthError] = useState<string | null>(null);
   const [routing, setRouting] = useState(false);
 
   useEffect(() => {
+    // O provedor OAuth pode devolver o usuário para /login com um erro
+    // quando o consentimento foi cancelado ou a autenticação falhou.
+    // Tratamos isso explicitamente para não deixar a tela em loading infinito
+    // nem exibir parâmetros técnicos na URL.
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+    const description = params.get("error_description") || params.get("error_code");
+
+    if (error || description) {
+      setOauthError(friendlyAuthError(description || error));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     if (!loading && session) {
       void routeAfterLogin();
     }
@@ -178,16 +192,17 @@ function LoginPage() {
           </div>
           <div className="my-6 h-px bg-border" />
 
-          {routeError && (
+          {(routeError || oauthError) && (
             <div
               role="alert"
               aria-live="polite"
               className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
             >
-              <p>{routeError}</p>
-              <button
-                type="button"
-                onClick={() => void routeAfterLogin()}
+              <p>{routeError || oauthError}</p>
+              {routeError && (
+                <button
+                  type="button"
+                  onClick={() => void routeAfterLogin()}
                 className="mt-2 font-medium underline underline-offset-2"
               >
                 Tentar novamente
