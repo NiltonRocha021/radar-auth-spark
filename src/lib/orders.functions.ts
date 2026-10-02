@@ -279,7 +279,7 @@ export interface ModeAnalyticsDTO {
   grossPnl: number;
   fees: number;
   netPnl: number;
-  /** ROI acumulado (%) = netPnl / capital alocado. */
+  /** Retorno sobre volume operado (%) = netPnl / volume. Não representa ROI sobre capital. */
   roiPct: number;
   avgFeePerOrder: number;
   avgNetPnlPerOrder: number;
@@ -441,7 +441,7 @@ export interface PairAnalyticsDTO {
   pairs: PairStatsDTO[];
   /** Curva por par (ordem cronológica) — apenas ordens encerradas. */
   equityBySymbol: Record<string, EquityPointDTO[]>;
-  /** Saldo LIVE/DEMO acumulado em ordem cronológica, incluindo custos de entrada. */
+  /** PnL líquido realizado em ordem cronológica; ordens abertas/canceladas não entram na curva. */
   equityCurve: EquityPointDTO[];
   totals: {
     orders: number;
@@ -451,9 +451,9 @@ export interface PairAnalyticsDTO {
     fees: number;
     /** Volume operado (notional de entrada acumulado). */
     volume: number;
-    /** ROI acumulado (%) = netPnl / volume. */
+    /** Retorno sobre volume operado (%) = netPnl / volume. Não representa ROI sobre capital. */
     roiPct: number;
-    /** Saldo realizado acumulado (PnL líquido). */
+    /** PnL líquido realizado acumulado. */
     balance: number;
   };
 }
@@ -513,8 +513,6 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
       const fee = notional * FEE_RATE + (closed && exit != null ? qty * exit * FEE_RATE : 0);
       const gross = raw.pnl != null ? Number(raw.pnl) : 0;
       const net = closed ? gross - fee : 0;
-      const orderNet = closed ? gross - fee : -fee;
-
       s.orders += 1;
       s.volume += notional;
       s.fees += fee;
@@ -536,13 +534,15 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
         });
       }
 
-      totalRunning += orderNet;
-      equityCurve.push({
-        t: raw.closed_at ?? raw.opened_at,
-        cum: totalRunning,
-        pnl: orderNet,
-        symbol,
-      });
+      if (closed) {
+        totalRunning += net;
+        equityCurve.push({
+          t: raw.closed_at ?? raw.opened_at,
+          cum: totalRunning,
+          pnl: net,
+          symbol,
+        });
+      }
     }
 
     const pairs = Array.from(stats.values()).map((s) => ({
