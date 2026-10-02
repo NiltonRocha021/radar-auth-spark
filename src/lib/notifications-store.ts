@@ -1,8 +1,65 @@
 import { create } from "zustand";
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "./logger";
 
 export type NotifType = "EXECUTE" | "EMERGENCY_SHUTDOWN" | "PROFIT_LOCK" | "ALERT" | "INFO";
+
+const CriticalNotificationSchema = z.object({
+  id: z.string().min(1).max(200),
+  type: z.enum(["EMERGENCY_SHUTDOWN", "PROFIT_LOCK"]),
+  title: z.string().min(1).max(500),
+  body: z.string().max(5000).optional(),
+  createdAt: z.number().int().positive(),
+});
+
+export const persistCriticalNotification = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => CriticalNotificationSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const [{ supabaseAdmin }, { enforceRateLimit }] = await Promise.all([
+      import("@/integrations/supabase/client.server"),
+      import("./rate-limit.server"),
+    ]);
+    await enforceRateLimit(context.userId, "notifications.critical", 30, 60);
+
+    const { error: notificationError } = await supabaseAdmin
+      .from("user_notifications")
+      .upsert(
+        {
+          id: data.id,
+          user_id: context.userId,
+          type: data.type,
+          title: data.title,
+          body: data.body ?? null,
+          read: false,
+          dismissed: false,
+        },
+        { onConflict: "id" },
+      );
+
+    if (notificationError) {
+      throw new Error(`Falha ao persistir notificação crítica: ${notificationError.message}`);
+    }
+
+    const { error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        worst_session: JSON.stringify({
+          type: data.type,
+          title: data.title,
+          ts: new Date(data.createdAt).toISOString(),
+        }),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", context.userId);
+
+    if (profileError) {
+      throw new Error(`Falha ao registrar evento crítico: ${profileError.message}`);
+    }
+  });
 
 export type NotifEvent = {
   id: string;
@@ -54,39 +111,19 @@ export const useNotificationsStore = create<State>((set, get) => ({
 
     if (isPersistent(e.type) && currentUserId) {
       const uid = currentUserId;
-      // Insere notificação crítica no banco
-      supabase
-        .from("user_notifications")
-        .insert({
+      persistCriticalNotification({
+        data: {
           id: ev.id,
-          user_id: uid,
           type: ev.type,
           title: ev.title,
-          body: ev.body ?? null,
-          read: false,
-          dismissed: false,
-        })
-        .then(({ error }) => {
-          if (error) logger.error("[notifications] insert", { error: error, message: error.message });
+          body: ev.body,
+          createdAt: ev.createdAt,
+        },
+      }).catch((error) => {
+        logger.error("[notifications] critical event", {
+          error: error instanceof Error ? error.message : String(error),
         });
-
-      // Mantém também o log no profile (último evento crítico + contador)
-      const criticalCount = get().events.filter((x) => isPersistent(x.type)).length;
-      supabase
-        .from("profiles")
-        .update({
-          worst_session: JSON.stringify({
-            type: ev.type,
-            title: ev.title,
-            ts: new Date(ev.createdAt).toISOString(),
-          }),
-          operations_today: criticalCount,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", uid)
-        .then(({ error }) => {
-          if (error) logger.error("[notifications] profile log", { error: error, message: error.message });
-        });
+      });
     }
     return ev;
   },
