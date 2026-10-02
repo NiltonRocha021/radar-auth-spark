@@ -18,6 +18,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { parseRows, usableOhlcvSchema } from "@/lib/db-schemas";
+import { TOP_20_USDT_PAIRS, fetchKlines, type KlineInterval } from "@/lib/market-data";
 
 // ── Indicadores (cópia literal do FeaturesService do Nest) ────────────────
 function calculateEMA(prices: number[], period: number): number {
@@ -165,6 +166,62 @@ function defaultRegime(pair: string): MarketRegimeDTO {
 function normalizeSymbol(pair: string): string {
   return String(pair).toUpperCase().replace(/[-/]/g, "");
 }
+
+export const MARKET_REGIME_PAIRS = TOP_20_USDT_PAIRS.map((p) => ({
+  symbol: p.symbol,
+  pair: p.symbol.replace("USDT", "/USDT"),
+  label: p.label,
+}));
+
+async function classifyFromBinance(pair: string, timeframe: KlineInterval): Promise<MarketRegimeDTO> {
+  try {
+    const candles = await fetchKlines(normalizeSymbol(pair), timeframe, 120);
+    if (candles.length < 51) return defaultRegime(pair);
+    const closes = candles.map((c) => c.close);
+    const highs = candles.map((c) => c.high);
+    const lows = candles.map((c) => c.low);
+    const snapshot: Snapshot = {
+      ema20: calculateEMA(closes, 20),
+      ema50: calculateEMA(closes, 50),
+      atr14: calculateATR(highs, lows, closes, 14),
+      rsi: calculateRSI(closes, 14),
+    };
+    const result = classify(snapshot);
+    const confidence = calculateConfidence(snapshot, result);
+    const signals = buildSignals(snapshot, result);
+    return {
+      agent: "MARKET_REGIME",
+      pair,
+      regime: result.regime,
+      trend: result.trend,
+      volatility: result.volatility,
+      strength: result.strength,
+      ema20: snapshot.ema20,
+      ema50: snapshot.ema50,
+      atr: snapshot.atr14,
+      rsi: snapshot.rsi,
+      confidence,
+      score: Math.round(confidence * 100),
+      signals,
+      updatedAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    console.warn("[market-regime.functions] Binance fallback failed:", pair, error);
+    return defaultRegime(pair);
+  }
+}
+
+export const getCurrentMarketRegimes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input?: { timeframe?: string }) => ({
+    timeframe: (input?.timeframe ?? "1h") as KlineInterval,
+  }))
+  .handler(async ({ data }): Promise<MarketRegimeDTO[]> => {
+    const results = await Promise.all(
+      MARKET_REGIME_PAIRS.map(({ pair }) => classifyFromBinance(pair, data.timeframe)),
+    );
+    return results;
+  });
 
 export const getCurrentMarketRegime = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
