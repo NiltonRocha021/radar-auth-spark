@@ -316,17 +316,8 @@ export const useBot4xStore = create<State>()(
                 return analyzeCandles(symbol, interval, candles);
               }),
             )).flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
-            const now = Date.now();
-            // Ausência temporária de dados não para o motor. O próximo ciclo
-            // continua a varredura até haver mercado suficiente para F1-F6.
-            if (markets.length === 0) {
-              set({
-                status: "RUNNING",
-                errorMsg: "Aguardando dados de mercado válidos; nova tentativa no próximo ciclo.",
-                ticksProcessed: get().ticksProcessed + 1,
-              });
-              return;
-            }
+            if (markets.length === 0) throw new Error("Nenhum par retornou dados suficientes da Binance.");
+              const now = Date.now();
 
               set((prev) => {
                 const closed: Array<Order & { closeReason: "TP" | "SL" }> = [];
@@ -408,9 +399,7 @@ export const useBot4xStore = create<State>()(
                   circuitBreaker: circuitBreakerActive ? "emergency" : prev.circuitBreaker === "emergency" ? "none" : prev.circuitBreaker,
                   history: newTrades.length ? [...newTrades, ...prev.history].slice(0, 500) : prev.history,
                   status: "RUNNING" as const,
-                  errorMsg: t.verdict === "EXECUTE"
-                    ? null
-                    : "Motor ativo — aguardando uma entrada que satisfaça todos os parâmetros F1-F6.",
+                  errorMsg: null,
                 };
               });
             } catch (error) {
