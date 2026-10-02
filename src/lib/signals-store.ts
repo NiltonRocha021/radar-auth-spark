@@ -182,6 +182,7 @@ export const useSignalsStore = create<State>((set, get) => ({
         ageMin,
         status: s.state === "active" ? "active" : s.state === "pending" ? "new" : s.state === "expired" ? "expired" : "expired",
         isMock: false,
+        source: s.source ?? "database",
       });
       });
 
