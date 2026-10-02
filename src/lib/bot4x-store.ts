@@ -115,14 +115,6 @@ function demoTimeframe(profile: CalibProfile): { interval: KlineInterval; limit:
   return { interval: "1h", limit: 300 };
 }
 
-function demoSymbol(get: () => State): string {
-  const s = get();
-  const configured = [...s.preferredPairs, ...TOP_20_USDT_PAIRS.map((p) => p.symbol.replace("USDT", "/USDT"))]
-    .filter((p, i, a) => a.indexOf(p) === i)
-    .filter((p) => !s.avoidPairs.includes(p));
-  return configured[Math.max(0, s.ticksProcessed) % Math.max(1, configured.length)] ?? "BTC/USDT";
-}
-
 function mapBackendProfile(p: string | null | undefined): CalibProfile {
   if (p === "calibradoRSI") return "rsi";
   if (p === "calibradoAiScore") return "aiscore";
