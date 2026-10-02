@@ -173,8 +173,11 @@ function PriceCell({ label, value, color }: { label: string; value: string; colo
 function FooterBtn({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <button
+      type="button"
+      disabled
       onClick={(e) => e.stopPropagation()}
-      className="h-7 px-2 rounded-md border border-border bg-background/40 text-muted-foreground hover:text-foreground hover:border-[var(--brand-cyan)] text-[11px] inline-flex items-center gap-1 transition-colors"
+      title={`${label}: recurso ainda não disponível`}
+      className="h-7 px-2 rounded-md border border-border bg-background/40 text-muted-foreground/60 text-[11px] inline-flex items-center gap-1 cursor-not-allowed"
     >
       {icon} {label}
     </button>
