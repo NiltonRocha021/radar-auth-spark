@@ -5,19 +5,6 @@ import { ScoreBadge, scoreColor } from "@/components/dashboard/score-badge";
 import { useSignalsStore } from "@/lib/signals-store";
 import { formatPrice } from "@/lib/signals-data";
 
-const reasonsByDir: Record<string, string[]> = {
-  BUY: [
-    "Bullish BOS confirmed on 4H with strong volume",
-    "Price reclaimed daily VWAP with rising momentum",
-    "Liquidity sweep below prior low — institutional footprint",
-  ],
-  SELL: [
-    "Bearish CHoCH printed at session high",
-    "Volume divergence on last impulse leg",
-    "Failed retest of broken support",
-  ],
-};
-
 export function QuickViewPanel() {
   const [collapsed, setCollapsed] = useState(false);
   const { signals, hoverId, pinnedId, pin } = useSignalsStore();
@@ -77,7 +64,7 @@ export function QuickViewPanel() {
             </div>
 
             <div className="text-[11px] text-muted-foreground">
-              {signal.exchange} · {signal.tf} · {signal.setup}
+              {signal.exchange} · {signal.tf} · {signal.setup ?? "setup N/D"}
             </div>
 
             <div className="space-y-1">
@@ -89,28 +76,23 @@ export function QuickViewPanel() {
             </div>
 
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">AI Reasoning</div>
-              <ul className="space-y-1.5">
-                {reasonsByDir[signal.direction].map((r, i) => (
-                  <li key={i} className="flex gap-2 text-[12px] text-foreground">
-                    <span className="text-[var(--brand-cyan)] font-semibold">{i + 1}.</span>
-                    <span>{r}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Analysis</div>
+              <div className="rounded-md border border-border bg-background/40 p-2 text-[12px] text-muted-foreground">
+                O raciocínio detalhado não está disponível no sinal atual.
+              </div>
             </div>
 
             <div>
               <div className="flex justify-between text-[11px] text-muted-foreground mb-1">
                 <span>DNA match</span>
-                <span className="tabular-nums text-foreground">{signal.dnaMatch}%</span>
+                <span className="tabular-nums text-foreground">{signal.dnaMatch != null ? `${signal.dnaMatch}%` : "N/D"}</span>
               </div>
               <div className="h-2 rounded-full bg-secondary overflow-hidden">
                 <div
                   className="h-full rounded-full"
                   style={{
-                    width: `${signal.dnaMatch}%`,
-                    background: `linear-gradient(90deg, var(--brand-blue), ${scoreColor(signal.dnaMatch)})`,
+                    width: `${signal.dnaMatch ?? 0}%`,
+                    background: signal.dnaMatch != null ? `linear-gradient(90deg, var(--brand-blue), ${scoreColor(signal.dnaMatch)})` : "transparent",
                   }}
                 />
               </div>
