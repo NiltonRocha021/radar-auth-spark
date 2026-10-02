@@ -101,30 +101,22 @@ export function ManipulationWidget() {
 }
 
 export function SentimentWidget() {
-  const score = 68;
-  const top = [
-    { asset: "BTC", score: 74 },
-    { asset: "ETH", score: 66 },
-    { asset: "SOL", score: 59 },
-  ];
   return (
     <Card title="Sentiment" icon={Sparkles} accent="#7F77DD" to="/sentiment" ctaLabel="Full report">
       <div className="flex items-center gap-3">
-        <div className="shrink-0 relative size-12 rounded-full flex items-center justify-center"
-          style={{ background: `conic-gradient(#1D9E75 0 ${score * 3.6}deg, hsl(var(--border)) ${score * 3.6}deg 360deg)` }}
+        <div
+          className="shrink-0 size-12 rounded-full flex items-center justify-center border border-border bg-secondary/40"
+          aria-label="Sentiment indisponível"
         >
-          <div className="size-9 rounded-full bg-card flex items-center justify-center text-[12px] font-semibold tabular-nums">{score}</div>
+          <Sparkles className="size-5 text-muted-foreground" />
         </div>
-        <div className="flex-1 min-w-0 space-y-1">
-          {top.map((t) => (
-            <div key={t.asset} className="flex items-center gap-2 text-[11px]">
-              <span className="text-muted-foreground w-8">{t.asset}</span>
-              <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
-                <div className="h-full bg-[#7F77DD]" style={{ width: `${t.score}%` }} />
-              </div>
-              <span className="text-foreground tabular-nums w-6 text-right">{t.score}</span>
-            </div>
-          ))}
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            Dados de sentimento
+          </div>
+          <div className="text-[12px] text-muted-foreground">
+            Nenhum dado em tempo real disponível no momento.
+          </div>
         </div>
       </div>
     </Card>
