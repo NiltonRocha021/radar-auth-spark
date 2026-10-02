@@ -547,19 +547,17 @@ function SectionDNA({ signal }: { signal: Signal }) {
 }
 
 function Footer({ signal }: { signal: Signal }) {
-  const [alertOpen, setAlertOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   return (
     <footer className="sticky bottom-0 z-10 bg-[#0A0B0E] border-t border-border p-3 relative">
       <AnimatePresence>
-        {alertOpen && <AlertPopover signal={signal} onClose={() => setAlertOpen(false)} />}
         {shareOpen && <SharePopover signal={signal} onClose={() => setShareOpen(false)} />}
       </AnimatePresence>
       <FeedbackRow signal={signal} />
       <div className="flex items-center gap-2">
         <FooterBtn icon={<Bell className="size-3.5" />} label="Set Alert" disabled />
         <FooterBtn icon={<Bookmark className="size-3.5" />} label="Save" disabled />
-        <FooterBtn icon={<Share2 className="size-3.5" />} label="Share" onClick={() => { setShareOpen((o) => !o); setAlertOpen(false); }} />
+        <FooterBtn icon={<Share2 className="size-3.5" />} label="Share" onClick={() => setShareOpen((o) => !o)} />
         <span className="ml-auto h-9 px-4 rounded-md border border-border text-muted-foreground text-[12px] inline-flex items-center gap-1.5" title="O gráfico já está disponível na seção Price Action">
           <LineChart className="size-3.5" /> Chart acima
         </span>
@@ -651,11 +649,12 @@ function FeedbackBtn({
   );
 }
 
-function FooterBtn({ icon, label, disabled }: { icon: React.ReactNode; label: string; disabled?: boolean }) {
+function FooterBtn({ icon, label, disabled, onClick }: { icon: React.ReactNode; label: string; disabled?: boolean; onClick?: () => void }) {
   return (
     <button
       type="button"
       disabled={disabled}
+      onClick={onClick}
       title={disabled ? `${label}: recurso ainda não disponível` : undefined}
       className={`h-9 px-3 rounded-md border border-border bg-card text-[12px] inline-flex items-center gap-1.5 transition-colors ${disabled ? "text-muted-foreground/60 cursor-not-allowed" : "text-foreground hover:border-[var(--brand-cyan)]"}`}
     >
