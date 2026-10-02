@@ -89,7 +89,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
           <motion.div animate={flashing ? { scale: [1, 1.15, 1] } : {}} transition={{ duration: 0.6 }}>
             <ScoreBadge score={signal.score} />
           </motion.div>
-          <span className="ml-auto text-[10px] text-muted-foreground uppercase tracking-wide">{signal.setup}</span>
+          <span className="ml-auto text-[10px] text-muted-foreground uppercase tracking-wide">{signal.setup ?? "SETUP N/D"}</span>
         </div>
 
         {/* Prices */}
@@ -103,13 +103,13 @@ export function SignalCard({ signal }: { signal: Signal }) {
         <div className="flex items-center justify-between mt-3 text-[11px] tabular-nums">
           <span className="text-muted-foreground">R/R <span className="text-foreground font-semibold">{signal.rr.toFixed(1)}</span></span>
           <span className="text-muted-foreground">Risk <span className="text-foreground font-semibold">{signal.riskPct}%</span></span>
-          <span className="text-muted-foreground">Vol <span className="text-[#1D9E75] font-semibold">↑{signal.volDelta}%</span></span>
+          <span className="text-muted-foreground">Vol <span className="text-foreground font-semibold">{signal.volDelta != null ? `↑${signal.volDelta}%` : "N/D"}</span></span>
         </div>
 
         {/* Confirmations */}
         <div className="flex flex-wrap gap-1 mt-3">
           {(["rsi", "macd", "volume", "structure", "vwap"] as const).map((k) => {
-            const ok = signal.confirms[k];
+            const ok = signal.confirms?.[k];
             return (
               <span
                 key={k}
@@ -119,7 +119,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
                   color: ok ? "#1D9E75" : "var(--muted-foreground)",
                 }}
               >
-                {k} {ok ? "✓" : "·"}
+                {k} {ok == null ? "N/D" : ok ? "✓" : "·"}
               </span>
             );
           })}
@@ -130,7 +130,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
           <div className="flex-1">
             <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
               <span>DNA match</span>
-              <span className="tabular-nums text-foreground">{signal.dnaMatch}%</span>
+              <span className="tabular-nums text-foreground">{signal.dnaMatch != null ? `${signal.dnaMatch}%` : "N/D"}</span>
             </div>
             <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
               <div
@@ -142,7 +142,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
               />
             </div>
           </div>
-          <ManipIcon risk={signal.manipRisk} />
+          {signal.manipRisk ? <ManipIcon risk={signal.manipRisk} /> : <span className="text-[10px] text-muted-foreground uppercase">Manipulação N/D</span>}
         </div>
 
         {/* Footer */}
