@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Trade } from "./bot4x-data";
-import type { Database, Json } from "@/integrations/supabase/types";
+import type { Json } from "@/integrations/supabase/types";
 
 const TradeSchema = z.object({
   id: z.string().min(1),
@@ -52,7 +52,7 @@ async function persistTrade(
 
   if (error) {
     throw new Error(
-      error.code === "42501"
+      error.code === "P0001" && error.message === "Trade ownership conflict"
         ? "Trade inválido."
         : `Falha ao salvar trade ${data.id}: ${error.message}`,
     );
