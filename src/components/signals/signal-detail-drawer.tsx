@@ -557,12 +557,12 @@ function Footer({ signal }: { signal: Signal }) {
       </AnimatePresence>
       <FeedbackRow signal={signal} />
       <div className="flex items-center gap-2">
-        <FooterBtn icon={<Bell className="size-3.5" />} label="Set Alert" onClick={() => { setAlertOpen((o) => !o); setShareOpen(false); }} />
-        <FooterBtn icon={<Bookmark className="size-3.5" />} label="Save" />
+        <FooterBtn icon={<Bell className="size-3.5" />} label="Set Alert" disabled />
+        <FooterBtn icon={<Bookmark className="size-3.5" />} label="Save" disabled />
         <FooterBtn icon={<Share2 className="size-3.5" />} label="Share" onClick={() => { setShareOpen((o) => !o); setAlertOpen(false); }} />
-        <button className="ml-auto h-9 px-4 rounded-md bg-[var(--brand-blue)] hover:bg-[var(--brand-blue-deep)] text-foreground text-[12px] font-medium inline-flex items-center gap-1.5 transition-colors">
-          <LineChart className="size-3.5" /> Open Chart
-        </button>
+        <span className="ml-auto h-9 px-4 rounded-md border border-border text-muted-foreground text-[12px] inline-flex items-center gap-1.5" title="O gráfico já está disponível na seção Price Action">
+          <LineChart className="size-3.5" /> Chart acima
+        </span>
       </div>
     </footer>
   );
@@ -651,11 +651,13 @@ function FeedbackBtn({
   );
 }
 
-function FooterBtn({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
+function FooterBtn({ icon, label, disabled }: { icon: React.ReactNode; label: string; disabled?: boolean }) {
   return (
     <button
-      onClick={onClick}
-      className="h-9 px-3 rounded-md border border-border bg-card text-foreground hover:border-[var(--brand-cyan)] text-[12px] inline-flex items-center gap-1.5 transition-colors"
+      type="button"
+      disabled={disabled}
+      title={disabled ? `${label}: recurso ainda não disponível` : undefined}
+      className={`h-9 px-3 rounded-md border border-border bg-card text-[12px] inline-flex items-center gap-1.5 transition-colors ${disabled ? "text-muted-foreground/60 cursor-not-allowed" : "text-foreground hover:border-[var(--brand-cyan)]"}`}
     >
       {icon} {label}
     </button>
@@ -663,43 +665,24 @@ function FooterBtn({ icon, label, onClick }: { icon: React.ReactNode; label: str
 }
 
 
-function AlertPopover({ signal, onClose }: { signal: Signal; onClose: () => void }) {
-  const [trigger, setTrigger] = useState<"price" | "score" | "expiry">("price");
-  const [channel, setChannel] = useState<"push" | "email" | "telegram">("push");
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
-      className="absolute bottom-full left-3 mb-2 w-[280px] rounded-lg border border-border bg-card shadow-xl p-3 z-20"
-    >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[12px] font-medium text-foreground">Configure alert</span>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
-      </div>
-      <div className="space-y-2.5">
-        <Field label="Trigger">
-          <Tabs options={[{ v: "price", l: "Price" }, { v: "score", l: "Score" }, { v: "expiry", l: "Expiry" }]} value={trigger} onChange={setTrigger} />
-        </Field>
-        <Field label={trigger === "price" ? "Target price" : trigger === "score" ? "Score threshold" : "Minutes before expiry"}>
-          <input
-            type="number"
-            defaultValue={trigger === "price" ? Math.round(signal.entry) : trigger === "score" ? 80 : 30}
-            className="w-full h-8 px-2 rounded-md bg-background border border-border text-[12px] text-foreground tabular-nums focus:outline-none focus:border-[var(--brand-cyan)]"
-          />
-        </Field>
-        <Field label="Channel">
-          <Tabs options={[{ v: "push", l: "Push" }, { v: "email", l: "Email" }, { v: "telegram", l: "Telegram" }]} value={channel} onChange={setChannel} />
-        </Field>
-        <button className="w-full h-8 rounded-md bg-[var(--brand-blue)] hover:bg-[var(--brand-blue-deep)] text-foreground text-[12px] font-medium">
-          Create alert
-        </button>
-      </div>
-    </motion.div>
-  );
-}
-
 function SharePopover({ signal, onClose }: { signal: Signal; onClose: () => void }) {
-  const isBuy = signal.direction === "BUY";
-  const accent = isBuy ? "#1D9E75" : "#E24B4A";
+  const shareText = `${signal.asset} · ${signal.direction} · score ${signal.score} · entry ${formatPrice(signal.entry)}`;
+  const [status, setStatus] = useState<string | null>(null);
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "AISignalRadar", text: shareText });
+        setStatus("Compartilhado");
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        setStatus("Resumo copiado");
+      }
+    } catch {
+      setStatus("Compartilhamento cancelado");
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 8 }}
@@ -707,33 +690,15 @@ function SharePopover({ signal, onClose }: { signal: Signal; onClose: () => void
     >
       <div className="flex items-center justify-between mb-2">
         <span className="text-[12px] font-medium text-foreground">Share signal</span>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
+        <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="size-3.5" /></button>
       </div>
-      {/* Shareable card preview */}
-      <div
-        className="rounded-lg p-4 relative overflow-hidden"
-        style={{
-          background: `linear-gradient(135deg, #0C447C, #0A0B0E)`,
-          border: `1px solid color-mix(in oklab, ${accent} 40%, transparent)`,
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] uppercase tracking-wider text-[var(--brand-cyan)] font-semibold">AISignalRadar</span>
-          <ScoreBadge score={signal.score} size="sm" />
-        </div>
-        <div className="mt-2 text-[18px] font-bold text-white">{signal.asset}</div>
-        <div className="inline-block mt-1 px-2 py-0.5 rounded text-[11px] font-bold" style={{ background: `color-mix(in oklab, ${accent} 28%, transparent)`, color: accent }}>
-          {signal.direction} · {signal.tf}
-        </div>
-        <div className="mt-3 space-y-0.5 text-[11px] text-white/90">
-          <div className="flex justify-between"><span>Entry</span><span className="tabular-nums">${formatPrice(signal.entry)}</span></div>
-          <div className="flex justify-between"><span>Stop</span><span className="tabular-nums text-[#FF9B9A]">${formatPrice(signal.stop)}</span></div>
-          <div className="flex justify-between"><span>Target</span><span className="tabular-nums text-[#7EE3BC]">${formatPrice(signal.target)}</span></div>
-        </div>
+      <div className="rounded-lg border border-border bg-background/40 p-3 text-[11px] text-foreground">
+        {shareText}
       </div>
-      <button className="w-full mt-2 h-8 rounded-md bg-[var(--brand-blue)] hover:bg-[var(--brand-blue-deep)] text-foreground text-[12px] font-medium">
-        Download image
+      <button type="button" onClick={() => void handleShare()} className="w-full mt-2 h-8 rounded-md bg-[var(--brand-blue)] hover:bg-[var(--brand-blue-deep)] text-foreground text-[12px] font-medium">
+        Compartilhar / copiar resumo
       </button>
+      {status && <p className="mt-2 text-[11px] text-muted-foreground">{status}</p>}
     </motion.div>
   );
 }
