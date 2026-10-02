@@ -27,18 +27,15 @@ export const persistCriticalNotification = createServerFn({ method: "POST" })
 
     const { error: notificationError } = await supabaseAdmin
       .from("user_notifications")
-      .upsert(
-        {
-          id: data.id,
-          user_id: context.userId,
-          type: data.type,
-          title: data.title,
-          body: data.body ?? null,
-          read: false,
-          dismissed: false,
-        },
-        { onConflict: "id" },
-      );
+      .insert({
+        id: data.id,
+        user_id: context.userId,
+        type: data.type,
+        title: data.title,
+        body: data.body ?? null,
+        read: false,
+        dismissed: false,
+      });
 
     if (notificationError) {
       throw new Error(`Falha ao persistir notificação crítica: ${notificationError.message}`);
