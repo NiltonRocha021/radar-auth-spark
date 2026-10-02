@@ -252,11 +252,14 @@ export const useBot4xStore = create<State>()(
               // A configuração do banco pode chegar depois do primeiro init.
               // Reinicia o motor quando ela muda o modo/perfil para evitar um
               // motor DEMO rodando com configuração REAL (ou timeframe antigo).
+              // setUserId() encerra o runtime anterior para trocar o escopo
+              // do usuário. Mesmo quando modo/perfil não mudam, o novo usuário
+              // precisa ter um motor iniciado após a configuração ser carregada.
               if (previousMode !== cfg.executionMode || previousProfile !== cfg.profile) {
                 get().cleanup();
-                set({ status: "IDLE", realInited: false, errorMsg: null });
-                queueMicrotask(() => void get().init());
               }
+              set({ status: "IDLE", realInited: false, errorMsg: null });
+              queueMicrotask(() => void get().init());
             })
             .catch(() => {
               /* fallback para localStorage */
