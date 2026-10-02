@@ -276,6 +276,14 @@ function computeFilteredSorted(
     if (exchSet.size && !exchSet.has(s.exchange)) return false;
     if (s.score < filters.scoreRange[0] || s.score > filters.scoreRange[1]) return false;
     if (s.rr < filters.minRR) return false;
+    if (filters.volatility.low || filters.volatility.med || filters.volatility.high) {
+      if (s.volDelta == null) {
+        if (!(filters.volatility.low && filters.volatility.med && filters.volatility.high)) return false;
+      } else {
+        const bucket = s.volDelta < 2 ? "low" : s.volDelta < 5 ? "med" : "high";
+        if (!filters.volatility[bucket]) return false;
+      }
+    }
     if (s.manipRisk && !filters.manipRisk[s.manipRisk]) return false;
     if (setupKeys.length && (!s.setup || !setupKeys.includes(s.setup))) return false;
     if (filters.session !== "All" && s.session !== filters.session) return false;
