@@ -33,6 +33,7 @@ function OnboardingPage() {
   const [markets, setMarkets] = useState<string[]>([]);
   const [goal, setGoal] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -47,7 +48,8 @@ function OnboardingPage() {
   async function finish() {
     if (!user) return;
     setSaving(true);
-    await supabase.from("profiles").upsert({
+    setErrorMsg(null);
+    const { error } = await supabase.from("profiles").upsert({
       id: user.id,
       email: user.email,
       experience,
@@ -55,6 +57,11 @@ function OnboardingPage() {
       goal,
       onboarding_completed: true,
     });
+    if (error) {
+      setSaving(false);
+      setErrorMsg("Não foi possível salvar seu perfil. Tente novamente.");
+      return;
+    }
     navigate({ to: "/dashboard" });
   }
 
@@ -62,7 +69,22 @@ function OnboardingPage() {
     if (step < 2) { setDirection(1); setStep(step + 1); }
     else finish();
   };
-  const skip = () => navigate({ to: "/dashboard" });
+  const skip = async () => {
+    if (!user || saving) return;
+    setSaving(true);
+    setErrorMsg(null);
+    const { error } = await supabase.from("profiles").upsert({
+      id: user.id,
+      email: user.email,
+      onboarding_completed: true,
+    });
+    if (error) {
+      setSaving(false);
+      setErrorMsg("Não foi possível salvar seu perfil. Tente novamente.");
+      return;
+    }
+    navigate({ to: "/dashboard" });
+  };
 
   return (
     <div className="min-h-screen bg-background bg-dot-grid flex flex-col">
@@ -148,6 +170,8 @@ function OnboardingPage() {
         </div>
       </main>
 
+      {errorMsg && <p role="alert" className="px-6 pb-2 text-center text-xs text-destructive">{errorMsg}</p>}
+
       <footer className="px-6 py-5 border-t border-border">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <button
@@ -158,7 +182,7 @@ function OnboardingPage() {
             ← Back
           </button>
           <div className="flex items-center gap-4">
-            <button onClick={skip} className="text-sm text-muted-foreground hover:text-foreground">Skip</button>
+            <button onClick={() => void skip()} disabled={saving} className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50">Skip</button>
             <button
               onClick={next}
               disabled={!canContinue || saving}
