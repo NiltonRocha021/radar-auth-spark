@@ -11,7 +11,7 @@ import {
   analyzeCandles,
 } from "./bot4x-data";
 import { PROFILES } from "./bot4x-data";
-import { TOP_20_USDT_PAIRS, fetchKlines, fetchTickerPrices, type KlineInterval } from "./market-data";
+import { TOP_20_USDT_PAIRS, fetchTickerPrices, type KlineInterval } from "./market-data";
 import type { BotConfigDTO, BotExecutionDTO } from "./bot.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
@@ -275,17 +275,16 @@ export const useBot4xStore = create<State>()(
             }).catch(() => undefined);
           }
 
-          const demoUniverse = [...get().preferredPairs, ...TOP_20_USDT_PAIRS.map((p) => p.symbol.replace("USDT", "/USDT"))]
-            .filter((p, i, a) => a.indexOf(p) === i)
-            .filter((p) => !get().avoidPairs.includes(p));
-          startDemoMarketFeed(demoUniverse);
-          startMarketCandleCache(demoUniverse, interval);
-
           const runCycle = async () => {
             if (get().feedPaused) return;
             const current = get();
             const profile = current.profile;
             const { interval, limit } = demoTimeframe(profile);
+            const demoUniverse = [...current.preferredPairs, ...TOP_20_USDT_PAIRS.map((p) => p.symbol.replace("USDT", "/USDT"))]
+              .filter((p, i, a) => a.indexOf(p) === i)
+              .filter((p) => !current.avoidPairs.includes(p));
+            startDemoMarketFeed(demoUniverse);
+            startMarketCandleCache(demoUniverse, interval);
             const configured = [...current.preferredPairs, ...TOP_20_USDT_PAIRS.map((p) => p.symbol.replace("USDT", "/USDT"))]
               .filter((p, i, a) => a.indexOf(p) === i)
               .filter((p) => !current.avoidPairs.includes(p));
@@ -310,9 +309,7 @@ export const useBot4xStore = create<State>()(
               const now = Date.now();
 
               set((prev) => {
-                const slLimit = prev.slPct;
-                const tpLimit = prev.tpPct;
-                const closed: Order[] = [];
+                const closed: Array<Order & { closeReason: "TP" | "SL" }> = [];
                 const alive: Order[] = [];
                 for (const o of prev.orders) {
                   const px = prices[o.pair.replace("/", "")];
@@ -321,7 +318,7 @@ export const useBot4xStore = create<State>()(
                   const hitTp = o.side === "LONG" ? px >= o.tp : px <= o.tp;
                   const rawPct = o.side === "LONG" ? ((px - o.entry) / o.entry) * 100 : ((o.entry - px) / o.entry) * 100;
                   const pnlPct = +(rawPct * prev.leverage).toFixed(3);
-                  if (hitSl || hitTp) closed.push({ ...o, pnlPct }); else alive.push({ ...o, pnlPct });
+                  if (hitSl || hitTp) closed.push({ ...o, pnlPct, closeReason: hitTp ? "TP" : "SL" }); else alive.push({ ...o, pnlPct });
                 }
                 const newTrades: Trade[] = closed.map((o) => ({
                   id: o.id,
@@ -331,13 +328,13 @@ export const useBot4xStore = create<State>()(
                   entry: o.entry,
                   stop: o.sl,
                   target: o.tp,
-                  result: o.pnlPct >= tpLimit ? "WIN" : "LOSS",
+                  result: o.closeReason === "TP" ? "WIN" : "LOSS",
                   pnl: +((o.pnlPct * (prev.totalCapital * (prev.allocationPct / 100))) / 100).toFixed(2),
                   pnlPct: o.pnlPct,
                   accumulated: 0,
                   profile: prev.profile,
                   leverage: prev.leverage,
-                  motivo: o.pnlPct >= tpLimit ? "TP atingido por preço real" : "SL atingido por preço real",
+                  motivo: o.closeReason === "TP" ? "TP atingido por preço real" : "SL atingido por preço real",
                   hour: new Date(now).getHours(),
                 }));
                 if (newTrades.length && prev.userId) {
@@ -365,7 +362,8 @@ export const useBot4xStore = create<State>()(
                   const side: Side = t.side === "BUY" ? "LONG" : "SHORT";
                   const slMult = prev.slPct / 100;
                   const tpMult = prev.tpPct / 100;
-                  const entry = selectedMarket.price;
+                  const liveEntry = prices[t.pair.replace("/", "")];
+                  const entry = Number.isFinite(liveEntry) ? liveEntry : selectedMarket.price;
                   nextOrders = [...alive, {
                     id: `demo_${now}_${t.pair.replace("/", "")}`, pair: t.pair, side, entry,
                     sl: +(entry * (side === "LONG" ? 1 - slMult : 1 + slMult)).toFixed(8),
