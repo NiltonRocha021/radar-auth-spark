@@ -33,7 +33,6 @@ set search_path = public
 as $$
 declare
   v_rows integer;
-  v_outbox_id uuid;
 begin
   insert into public.bot4x_trades as t (
     id,
@@ -109,8 +108,7 @@ begin
       'processed',
       now()
     )
-    returning id into v_outbox_id;
-  end if;
+;  end if;
 end;
 $$;
 
