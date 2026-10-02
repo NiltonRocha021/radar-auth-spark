@@ -141,10 +141,11 @@ export interface MarketRegimeDTO {
   confidence: number;
   score: number;
   signals: string[];
+  dataStatus: "ready" | "insufficient-candles" | "unavailable";
   updatedAt: string;
 }
 
-function defaultRegime(pair: string): MarketRegimeDTO {
+function defaultRegime(pair: string, dataStatus: MarketRegimeDTO["dataStatus"] = "insufficient-candles"): MarketRegimeDTO {
   return {
     agent: "MARKET_REGIME",
     pair,
@@ -159,6 +160,7 @@ function defaultRegime(pair: string): MarketRegimeDTO {
     confidence: 0,
     score: 0,
     signals: ["NO_DATA"],
+    dataStatus,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -176,7 +178,7 @@ export const MARKET_REGIME_PAIRS = TOP_20_USDT_PAIRS.map((p) => ({
 async function classifyFromBinance(pair: string, timeframe: KlineInterval): Promise<MarketRegimeDTO> {
   try {
     const candles = await fetchKlines(normalizeSymbol(pair), timeframe, 120);
-    if (candles.length < 51) return defaultRegime(pair);
+    if (candles.length < 51) return defaultRegime(pair, "insufficient-candles");
     const closes = candles.map((c) => c.close);
     const highs = candles.map((c) => c.high);
     const lows = candles.map((c) => c.low);
@@ -203,11 +205,12 @@ async function classifyFromBinance(pair: string, timeframe: KlineInterval): Prom
       confidence,
       score: Math.round(confidence * 100),
       signals,
+      dataStatus: "ready",
       updatedAt: new Date().toISOString(),
     };
   } catch (error) {
     console.warn("[market-regime.functions] Binance fallback failed:", pair, error);
-    return defaultRegime(pair);
+    return defaultRegime(pair, "unavailable");
   }
 }
 
@@ -241,14 +244,14 @@ export const getCurrentMarketRegime = createServerFn({ method: "GET" })
       .order("open_time", { ascending: false })
       .limit(120);
     if (error) {
-      console.warn("[market-regime.functions] query error:", error.message);
-      return defaultRegime(data.pair);
+      console.warn("[market-regime.functions] database query unavailable; using Binance:", error.message);
+      return classifyFromBinance(data.pair, data.timeframe as KlineInterval);
     }
     // Valida cada vela antes de calcular indicadores: velas incompletas ou
     // incoerentes (high < low, valores não numéricos) são descartadas — um
     // NaN aqui contaminaria EMA/ATR/RSI e o regime inteiro.
     const valid = parseRows(usableOhlcvSchema, rows, "market-regime.market_ohlcv");
-    if (valid.length < 51) return defaultRegime(data.pair);
+    if (valid.length < 51) return classifyFromBinance(data.pair, data.timeframe as KlineInterval);
 
     const chronological = [...valid].reverse();
     const closes = chronological.map((r) => r.close as number);
@@ -281,6 +284,7 @@ export const getCurrentMarketRegime = createServerFn({ method: "GET" })
       confidence,
       score,
       signals,
+      dataStatus: "ready",
       updatedAt: new Date().toISOString(),
     };
   });
