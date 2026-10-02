@@ -144,7 +144,37 @@ function LoginPage() {
       return;
     }
 
-    navigate({ to: data?.onboarding_completed ? "/dashboard" : "/onboarding" });
+    // Usuários que chegam pela primeira vez via Google podem ainda não ter
+    // uma linha em profiles. Criamos o perfil mínimo usando os metadados
+    // confiáveis da sessão e deixamos o onboarding completar os demais dados.
+    if (!data) {
+      const user = userData.user;
+      const fullName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "Trader";
+
+      const { error: createProfileError } = await supabase.from("profiles").upsert({
+        id: uid,
+        email: user.email ?? null,
+        full_name: fullName,
+        onboarding_completed: false,
+      });
+
+      if (createProfileError) {
+        setRouting(false);
+        setRouteError(
+          "Sua conta foi autenticada, mas não conseguimos preparar seu perfil. Tente novamente.",
+        );
+        return;
+      }
+
+      navigate({ to: "/onboarding" });
+      return;
+    }
+
+    navigate({ to: data.onboarding_completed ? "/dashboard" : "/onboarding" });
   }
 
   if (loading || routing) {
