@@ -281,7 +281,12 @@ export type Trade = {
   hour: number;
 };
 
-const PAIRS = ["BTC/USDT","ETH/USDT","BNB/USDT","SOL/USDT","XRP/USDT","ADA/USDT","DOGE/USDT","TRX/USDT","AVAX/USDT","LINK/USDT","DOT/USDT","MATIC/USDT","TON/USDT","SHIB/USDT","LTC/USDT","BCH/USDT","UNI/USDT","ATOM/USDT","XLM/USDT","NEAR/USDT"];
+const PAIRS = [
+  "BTC/USDT", "ETH/USDT", "BNB/USDT", "SOL/USDT", "XRP/USDT",
+  "ADA/USDT", "DOGE/USDT", "TRX/USDT", "AVAX/USDT", "LINK/USDT",
+  "DOT/USDT", "POL/USDT", "TON/USDT", "SHIB/USDT", "LTC/USDT",
+  "BCH/USDT", "UNI/USDT", "ATOM/USDT", "XLM/USDT", "NEAR/USDT",
+];
 const MAX_SLOTS = 10;
 export type MarketAnalysis={symbol:string;pair:string;timeframe:string;price:number;rsi:number;aiScore:number;liquidityGrab:boolean;fomoDisplacement:number;channelZone:ChannelZone;side:TickSide;atr:number;vwap:number;emaFast:number;emaSlow:number;volumeRatio:number;macd:number;macdSignal:number;trendStrength:number};
 type MakeTickCtx={profile:ProfileSpec;slotsUsed:number;busyPairs?:string[];shutdown?:boolean;market?:MarketAnalysis};
