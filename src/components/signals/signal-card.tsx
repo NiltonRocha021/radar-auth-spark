@@ -136,8 +136,8 @@ export function SignalCard({ signal }: { signal: Signal }) {
               <div
                 className="h-full rounded-full"
                 style={{
-                  width: `${signal.dnaMatch}%`,
-                  background: `linear-gradient(90deg, var(--brand-blue), ${scoreColor(signal.dnaMatch)})`,
+                  width: `${signal.dnaMatch ?? 0}%`,
+                  background: signal.dnaMatch != null ? `linear-gradient(90deg, var(--brand-blue), ${scoreColor(signal.dnaMatch)})` : "transparent",
                 }}
               />
             </div>
