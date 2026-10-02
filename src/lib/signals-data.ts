@@ -17,22 +17,16 @@ export type Signal = {
   target: number;
   rr: number;
   riskPct: number;
-  volDelta: number; // % vol vs avg
-  confirms: { rsi: boolean; macd: boolean; volume: boolean; structure: boolean; vwap: boolean };
-  dnaMatch: number; // 0-100
-  manipRisk: "low" | "medium" | "high";
-  setup: SetupType;
-  session: Session;
+  volDelta?: number;
+  confirms?: { rsi?: boolean; macd?: boolean; volume?: boolean; structure?: boolean; vwap?: boolean };
+  dnaMatch?: number;
+  manipRisk?: "low" | "medium" | "high";
+  setup?: SetupType;
+  session?: Session;
   ageMin: number;
   status: SignalStatus;
-  /** true = dado de demonstração, não usar para trading real */
   isMock?: boolean;
 };
-
-// Dados de demonstração foram extraídos para `signals-data.mock.ts` e são
-// carregados via import dinâmico atrás de `import.meta.env.DEV` no store.
-// Mantemos aqui apenas tipos e helpers de formatação para que o bundle de
-// produção não contenha nenhum mock.
 
 export function formatPrice(p: number): string {
   if (p >= 1000) return p.toLocaleString(undefined, { maximumFractionDigits: 1 });
