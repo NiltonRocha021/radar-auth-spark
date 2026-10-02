@@ -8,6 +8,7 @@ import {
   type Tick,
   type Trade,
   makeTick,
+  analyzeCandles,
 } from "./bot4x-data";
 import { PROFILES } from "./bot4x-data";
 import { TOP_20_USDT_PAIRS, fetchKlines, fetchTickerPrices, type KlineInterval } from "./market-data";
@@ -288,14 +289,27 @@ export const useBot4xStore = create<State>()(
             const current = get();
             const profile = current.profile;
             const { interval, limit } = demoTimeframe(profile);
-            const symbol = demoSymbol(get).replace("/", "");
-            try {
-              // Uma análise por ciclo: candles reais + preço real. Sem Math.random().
-              const candles = await fetchKlines(symbol, interval, limit);
-              const market = analyzeCandles(symbol, interval, candles);
-              const activeSymbols = get().orders.map((o) => o.pair.replace("/", ""));
-              const streamPrices = getDemoMarketPrices();
-              const prices = Object.keys(streamPrices).length > 0 ? streamPrices : await fetchTickerPrices([...activeSymbols, symbol]);
+            const configured = [...current.preferredPairs, ...TOP_20_USDT_PAIRS.map((p) => p.symbol.replace("USDT", "/USDT"))]
+              .filter((p, i, a) => a.indexOf(p) === i)
+              .filter((p) => !current.avoidPairs.includes(p));
+            const scanSize = 5;
+            const offset = (current.ticksProcessed * scanSize) % Math.max(scanSize, configured.length);
+            const scanPairs = Array.from({ length: Math.min(scanSize, configured.length) }, (_, i) =>
+              configured[(offset + i) % configured.length],
+            );
+            const activeSymbols = current.orders.map((o) => o.pair.replace("/", ""));
+            const streamPrices = getDemoMarketPrices();
+            const prices = Object.keys(streamPrices).length > 0
+              ? streamPrices
+              : await fetchTickerPrices([...activeSymbols, ...scanPairs.map((p) => p.replace("/", ""))]);
+            const markets = (await Promise.allSettled(
+              scanPairs.map(async (pair) => {
+                const symbol = pair.replace("/", "");
+                const candles = await fetchKlines(symbol, interval, limit);
+                return analyzeCandles(symbol, interval, candles);
+              }),
+            )).flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+            if (markets.length === 0) throw new Error("Nenhum par retornou dados suficientes da Binance.");
               const now = Date.now();
 
               set((prev) => {
@@ -312,7 +326,6 @@ export const useBot4xStore = create<State>()(
                   const pnlPct = +(rawPct * prev.leverage).toFixed(3);
                   if (hitSl || hitTp) closed.push({ ...o, pnlPct }); else alive.push({ ...o, pnlPct });
                 }
-
                 const newTrades: Trade[] = closed.map((o) => ({
                   id: o.id,
                   day: new Date(now).toISOString().slice(0, 10),
@@ -337,13 +350,17 @@ export const useBot4xStore = create<State>()(
                 const today = new Date(now).toISOString().slice(0, 10);
                 const allToday = [...newTrades, ...prev.history.filter((h) => h.day === today)];
                 const dailyPnlPct = +allToday.reduce((acc, t) => acc + t.pnlPct, 0).toFixed(3);
-                const t = makeTick({
+                const candidateTicks = markets.map((market) => makeTick({
                   profile: PROFILES[prev.profile],
                   slotsUsed: alive.length,
                   busyPairs: alive.map((o) => o.pair),
                   shutdown: dailyPnlPct <= -1.5,
                   market,
-                });
+                }));
+                const t = candidateTicks
+                  .filter((tick) => tick.verdict === "EXECUTE")
+                  .sort((a, b) => b.aiScore - a.aiScore)[0] ?? candidateTicks[0];
+                const selectedMarket = markets.find((market) => market.pair === t?.pair) ?? markets[0];
                 let nextOrders = alive;
                 const pairBusy = alive.some((o) => o.pair === t.pair);
                 const pairAvoided = prev.avoidPairs.includes(t.pair);
@@ -351,7 +368,7 @@ export const useBot4xStore = create<State>()(
                   const side: Side = t.side === "BUY" ? "LONG" : "SHORT";
                   const slMult = prev.slPct / 100;
                   const tpMult = prev.tpPct / 100;
-                  const entry = market.price;
+                  const entry = selectedMarket.price;
                   nextOrders = [...alive, {
                     id: `demo_${now}_${t.pair.replace("/", "")}`, pair: t.pair, side, entry,
                     sl: +(entry * (side === "LONG" ? 1 - slMult : 1 + slMult)).toFixed(8),
@@ -360,7 +377,7 @@ export const useBot4xStore = create<State>()(
                   }];
                 }
                 return {
-                  ticks: [t, ...prev.ticks].slice(0, 40),
+                  ticks: [...candidateTicks, ...prev.ticks].slice(0, 40),
                   ticksProcessed: prev.ticksProcessed + 1,
                   orders: nextOrders,
                   dailyPnlPct,
