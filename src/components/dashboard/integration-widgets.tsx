@@ -142,6 +142,7 @@ export function SentimentWidget() {
 }
 
 export function Bot4xSummaryWidget() {
+  const configLoaded = useBot4xStore((s) => s.configLoaded);
   const mode = useBot4xStore((s) => s.mode);
   const profile = useBot4xStore((s) => s.profile);
   const leverage = useBot4xStore((s) => s.leverage);
@@ -151,30 +152,37 @@ export function Bot4xSummaryWidget() {
 
   return (
     <Card title="Bot4x" icon={Cpu} accent="#1D9E75" to="/bot4x" ctaLabel="Open Bot4x">
-      <div className="flex items-center gap-3">
-        <div className="shrink-0 flex flex-col items-center gap-1">
-          <span
-            className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide ${
-              mode === "REAL" ? "bg-[#E24B4A]/15 text-[#E24B4A] border border-[#E24B4A]/30" : "bg-[#378ADD]/15 text-[#5fa8ff] border border-[#378ADD]/30"
-            }`}
-          >
-            {mode}
-          </span>
-          <span className="text-[10px] text-muted-foreground">{leverage}×</span>
+      {!configLoaded ? (
+        <div className="flex items-center gap-3">
+          <div className="size-12 shrink-0 rounded-lg bg-muted/40 animate-pulse" aria-label="Carregando configuração do Bot4x" />
+          <div className="text-[12px] text-muted-foreground">Carregando configuração…</div>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{PROFILE_LABEL[profile] ?? profile}</div>
-          <div className="text-[18px] font-semibold tabular-nums leading-none mt-0.5" style={{ color: pnlColor }}>
-            {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
-          </div>
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <Activity className="size-3 text-muted-foreground" />
-            <span className={`text-[10.5px] ${breaker ? "text-[#E24B4A] font-medium" : "text-muted-foreground"}`}>
-              {breaker ? "Disjuntor ativo" : "Circuit OK"}
+      ) : (
+        <div className="flex items-center gap-3">
+          <div className="shrink-0 flex flex-col items-center gap-1">
+            <span
+              className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide ${
+                mode === "REAL" ? "bg-[#E24B4A]/15 text-[#E24B4A] border border-[#E24B4A]/30" : "bg-[#378ADD]/15 text-[#5fa8ff] border border-[#378ADD]/30"
+              }`}
+            >
+              {mode}
             </span>
+            <span className="text-[10px] text-muted-foreground">{leverage}×</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{PROFILE_LABEL[profile] ?? profile}</div>
+            <div className="text-[18px] font-semibold tabular-nums leading-none mt-0.5" style={{ color: pnlColor }}>
+              {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}%
+            </div>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <Activity className="size-3 text-muted-foreground" />
+              <span className={`text-[10.5px] ${breaker ? "text-[#E24B4A] font-medium" : "text-muted-foreground"}`}>
+                {breaker ? "Disjuntor ativo" : "Circuit OK"}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </Card>
   );
 }
