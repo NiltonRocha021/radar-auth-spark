@@ -10,7 +10,6 @@ export function StatsBar() {
     { label: "Avg score", value: s.avg },
     { label: "Institutional (≥90)", value: s.inst, color: "#7F77DD" },
     { label: "High prob", value: s.high, color: "#378ADD" },
-    { label: "Expired", value: s.expired, color: "#888780" },
   ];
   return (
     <div className="flex items-center gap-5 px-5 py-2 border-b border-border bg-card/30 text-[12px] flex-wrap">
