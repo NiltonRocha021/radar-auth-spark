@@ -1,3 +1,4 @@
+import { type Candle } from "./market-data";
 export type ExecMode = "DEMO" | "REAL";
 export type Side = "LONG" | "SHORT";
 export type CalibProfile =
@@ -280,205 +281,19 @@ export type Trade = {
   hour: number;
 };
 
-const PAIRS = [
-  "BTC/USDT",
-  "ETH/USDT",
-  "SOL/USDT",
-  "BNB/USDT",
-  "XRP/USDT",
-  "ARB/USDT",
-  "AVAX/USDT",
-  "LINK/USDT",
-  "DOGE/USDT",
-  "MATIC/USDT",
-];
-const MAX_SLOTS = 10; // keep in sync with bot4x-store.ts MAX_SLOTS
-const rand = (n: number) => Math.floor(Math.random() * n);
-const pick = <T,>(a: T[]) => a[rand(a.length)];
-
-type MakeTickCtx = {
-  profile: ProfileSpec;
-  slotsUsed: number; // 0..3
-  busyPairs?: string[]; // pairs in active orders
-  shutdown?: boolean; // emergency shutdown active
-};
-
-export function makeTick(ctx: MakeTickCtx): Tick {
-  const { profile, slotsUsed, busyPairs = [], shutdown = false } = ctx;
-  const pair = pick(PAIRS);
-
-  // channel zone distribution: 30% BOTTOM, 30% TOP, 40% MIDDLE
-  const cz = Math.random();
-  const channelZone: ChannelZone = cz < 0.3 ? "BOTTOM" : cz < 0.6 ? "TOP" : "MIDDLE";
-  const side: TickSide = channelZone === "BOTTOM" ? "BUY" : channelZone === "TOP" ? "SELL" : null;
-
-  const rsi = +(Math.random() * 100).toFixed(1);
-  const aiScore = Math.random() < 0.55 ? +(85 + Math.random() * 15).toFixed(1) : +(60 + Math.random() * 25).toFixed(1);
-  const liquidityGrab = Math.random() < 0.65;
-  const fomoDisplacement = +(Math.random() * 25).toFixed(1);
-
-  const filters: Record<FilterKey, boolean> = { F1: true, F2: true, F3: true, F4: true, F5: true, F6: true };
-  const detail: Record<FilterKey, string> = {
-    F1: `Top 10 USDT`,
-    F2: `${slotsUsed}/${MAX_SLOTS} slots`,
-    F3: `Par livre`,
-    F4: `Zona ${channelZone}`,
-    F5: `RSI ${rsi} · aiScore ${aiScore} · liqGrab ${liquidityGrab ? "✓" : "✗"} · ${profile.name}`,
-    F6: `Desl. ${fomoDisplacement}% (≤ ${profile.fomo}%)`,
-  };
-
-  let blockedAt: FilterKey | undefined;
-  let f5Sub: F5SubKey | undefined;
-  let verdict: Verdict = "EXECUTE";
-
-  // F1: always pass (mocked top 10)
-  // F2: grid saturation
-  if (slotsUsed >= MAX_SLOTS) {
-    filters.F2 = false;
-    blockedAt = "F2";
-    verdict = "GRID_SATURATED";
-    detail.F2 = `Grade ${MAX_SLOTS}/${MAX_SLOTS} — saturada`;
-  }
-  // F3: pair busy
-  else if (busyPairs.includes(pair)) {
-    filters.F3 = false;
-    blockedAt = "F3";
-    verdict = "IGNORE";
-    detail.F3 = `Par ${pair} já ativo`;
-  }
-  // F4: middle channel
-  else if (channelZone === "MIDDLE") {
-    filters.F4 = false;
-    blockedAt = "F4";
-    verdict = "IGNORE";
-    detail.F4 = `Zona MIDDLE → BLOQUEADO`;
-  }
-  // F5: confluence
-  else if (side === "BUY" && rsi >= profile.rsiBuy) {
-    filters.F5 = false;
-    blockedAt = "F5";
-    f5Sub = "RSI";
-    verdict = "IGNORE";
-    detail.F5 = `RSI ${rsi} ≥ ${profile.rsiBuy} (esperado < ${profile.rsiBuy})`;
-  } else if (side === "SELL" && rsi <= profile.rsiSell) {
-    filters.F5 = false;
-    blockedAt = "F5";
-    f5Sub = "RSI";
-    verdict = "IGNORE";
-    detail.F5 = `RSI ${rsi} ≤ ${profile.rsiSell} (esperado > ${profile.rsiSell})`;
-  } else if (aiScore < profile.aiScore) {
-    filters.F5 = false;
-    blockedAt = "F5";
-    f5Sub = "AISCORE";
-    verdict = "IGNORE";
-    detail.F5 = `aiScore ${aiScore} < ${profile.aiScore}`;
-  } else if (!liquidityGrab) {
-    filters.F5 = false;
-    blockedAt = "F5";
-    f5Sub = "LIQGRAB";
-    verdict = "IGNORE";
-    detail.F5 = `liquidityGrab ausente`;
-  }
-  // F6: FOMO
-  else if (fomoDisplacement > profile.fomo) {
-    filters.F6 = false;
-    blockedAt = "F6";
-    verdict = "FOMO_BLOCKED";
-    detail.F6 = `Desl. ${fomoDisplacement}% > ${profile.fomo}%`;
-  }
-
-  // Emergency shutdown overrides
-  if (shutdown) {
-    verdict = "EMERGENCY_SHUTDOWN";
-  }
-
-  // Mark filters after the blocked one as not reached
-  if (blockedAt) {
-    const order: FilterKey[] = ["F1", "F2", "F3", "F4", "F5", "F6"];
-    const idx = order.indexOf(blockedAt);
-    for (let i = idx + 1; i < order.length; i++) filters[order[i]] = false;
-  }
-
-  return {
-    id: `tk_${Date.now()}_${rand(99999)}`,
-    ts: Date.now(),
-    pair,
-    side,
-    channelZone,
-    rsi,
-    aiScore,
-    liquidityGrab,
-    fomoDisplacement,
-    profileId: profile.id,
-    rsiBuy: profile.rsiBuy,
-    rsiSell: profile.rsiSell,
-    aiScoreMin: profile.aiScore,
-    fomoLimit: profile.fomo,
-    slotsUsed,
-    filters,
-    blockedAt,
-    f5Sub,
-    verdict,
-    detail,
-  };
-}
-
-export function genHistory(n = 80): Trade[] {
-  const out: Trade[] = [];
-  let acc = 1000;
-  const today = new Date();
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - rand(30));
-    const pair = pick(PAIRS);
-    const side: Side = Math.random() > 0.5 ? "LONG" : "SHORT";
-    const r = Math.random();
-    let result: Trade["result"];
-    if (r < 0.55) result = "WIN";
-    else if (r < 0.85) result = "LOSS";
-    else if (r < 0.96) result = "BLOCKED";
-    else result = "SHUTDOWN";
-    const entry = +(100 + Math.random() * 40000).toFixed(2);
-    const stop = +(entry * (side === "LONG" ? 0.995 : 1.005)).toFixed(2);
-    const target = +(entry * (side === "LONG" ? 1.01 : 0.99)).toFixed(2);
-    const pnlPct =
-      result === "WIN"
-        ? +(0.3 + Math.random() * 0.7).toFixed(2)
-        : result === "LOSS"
-          ? -+(0.3 + Math.random() * 0.5).toFixed(2)
-          : 0;
-    const pnl = +(acc * (pnlPct / 100)).toFixed(2);
-    acc = +(acc + pnl).toFixed(2);
-    const profile = pick<CalibProfile>(["conservador", "rsi", "aiscore", "agressivo"]);
-    const leverage = 1 + rand(10);
-    const motivo =
-      result === "WIN"
-        ? "TP atingido"
-        : result === "LOSS"
-          ? "SL atingido"
-          : result === "BLOCKED"
-            ? `Bloqueado em F${1 + rand(6)}`
-            : "Circuit breaker -1.5%";
-    out.push({
-      id: `tr_${i}`,
-      day: d.toISOString().slice(0, 10),
-      pair,
-      side,
-      entry,
-      stop,
-      target,
-      result,
-      pnl,
-      pnlPct,
-      accumulated: acc,
-      profile,
-      leverage,
-      motivo,
-      hour: rand(24),
-    });
-  }
-  return out.sort((a, b) => a.day.localeCompare(b.day));
-}
+const PAIRS = ["BTC/USDT","ETH/USDT","BNB/USDT","SOL/USDT","XRP/USDT","ADA/USDT","DOGE/USDT","TRX/USDT","AVAX/USDT","LINK/USDT","DOT/USDT","MATIC/USDT","TON/USDT","SHIB/USDT","LTC/USDT","BCH/USDT","UNI/USDT","ATOM/USDT","XLM/USDT","NEAR/USDT"];
+const MAX_SLOTS = 10;
+export type MarketAnalysis={symbol:string;pair:string;timeframe:string;price:number;rsi:number;aiScore:number;liquidityGrab:boolean;fomoDisplacement:number;channelZone:ChannelZone;side:TickSide;atr:number;vwap:number;emaFast:number;emaSlow:number;volumeRatio:number;macd:number;macdSignal:number;trendStrength:number};
+type MakeTickCtx={profile:ProfileSpec;slotsUsed:number;busyPairs?:string[];shutdown?:boolean;market:MarketAnalysis};
+const clamp=(n:number,min:number,max:number)=>Math.min(max,Math.max(min,n)); const round=(n:number,d=2)=>Number(n.toFixed(d));
+function sma(v:number[],p:number){const x=v.slice(-Math.max(1,Math.min(p,v.length)));return x.reduce((a,b)=>a+b,0)/x.length}
+function ema(v:number[],p:number){if(!v.length)return 0;const k=2/(p+1);let e=v[0];for(let i=1;i<v.length;i++)e=v[i]*k+e*(1-k);return e}
+function rsi(v:number[],p=14){if(v.length<2)return 50;let g=0,l=0;const s=Math.max(1,v.length-p);for(let i=s;i<v.length;i++){const d=v[i]-v[i-1];if(d>=0)g+=d;else l-=d}const n=Math.max(1,v.length-s),ag=g/n,al=l/n;return al===0?100:100-100/(1+ag/al)}
+function atr(cs:Candle[],p=14){const t:number[]=[];for(let i=1;i<cs.length;i++){const c=cs[i],q=cs[i-1];t.push(Math.max(c.high-c.low,Math.abs(c.high-q.close),Math.abs(c.low-q.close)))}return t.length?sma(t,p):0}
+function vwap(cs:Candle[],p=50){const x=cs.slice(-p);let pv=0,v=0;for(const c of x){pv+=((c.high+c.low+c.close)/3)*c.volume;v+=c.volume}return v?pv/v:x.at(-1)?.close??0}
+function macd(v:number[]){const line=ema(v,12)-ema(v,26), hs:number[]=[];for(let i=25;i<v.length;i++)hs.push(ema(v.slice(0,i+1),12)-ema(v.slice(0,i+1),26));return {line,signal:ema(hs,9)}}
+export function analyzeCandles(symbol:string,timeframe:string,cs:Candle[]):MarketAnalysis{if(cs.length<30)throw new Error("Dados insuficientes para análise");const v=cs.map(c=>c.close),price=v.at(-1)!;const fp=timeframe==="5m"?9:timeframe==="15m"?20:timeframe==="1h"?20:timeframe==="4h"?50:200;const sp=timeframe==="5m"?21:timeframe==="15m"?50:timeframe==="1h"?50:timeframe==="4h"?200:400;const ef=ema(v,fp),es=ema(v,Math.min(sp,v.length));const avg=sma(v,20),sd=Math.sqrt(sma(v.map(x=>(x-avg)**2),20)),upper=avg+2*sd,lower=avg-2*sd;const zone:ChannelZone=price<=lower?"BOTTOM":price>=upper?"TOP":"MIDDLE";const side:TickSide=zone==="BOTTOM"?"BUY":zone==="TOP"?"SELL":null;const va=sma(cs.map(c=>c.volume),20),vr=va?cs.at(-1)!.volume/va:1,last=cs.at(-1)!,range=Math.max(last.high-last.low,Number.EPSILON),lw=Math.min(last.open,last.close)-last.low,uw=last.high-Math.max(last.open,last.close);const liq=vr>=1.2&&(lw/range>=.45||uw/range>=.45);const prev=cs.at(-2)!.close,fomo=Math.abs((price-prev)/prev)*100,m=macd(v),trend=ef>=es?1:-1;const trendScore=side?(trend===(side==="BUY"?1:-1)?20:5):0;const rs=rsi(v),rsiScore=side?(side==="BUY"?clamp((50-rs)*2,0,20):clamp((rs-50)*2,0,20)):0;const macScore=side?(side==="BUY"?(m.line>m.signal?15:0):(m.line<m.signal?15:0)):0;const vw=vwap(cs),vwScore=side?(side==="BUY"?(price<=vw?10:0):(price>=vw?10:0)):0;const volScore=clamp((vr-1)*15,0,15),liqScore=liq?10:0,score=round(clamp(30+trendScore+rsiScore+macScore+vwScore+volScore+liqScore,0,100),1);return{symbol,pair:symbol.replace("USDT","/USDT"),timeframe,price,rsi:round(rs,1),aiScore:score,liquidityGrab:liq,fomoDisplacement:round(fomo,2),channelZone:zone,side,atr:atr(cs),vwap:vw,emaFast:ef,emaSlow:es,volumeRatio:round(vr,2),macd:m.line,macdSignal:m.signal,trendStrength:round(Math.abs(ef-es)/Math.max(price,Number.EPSILON)*1000,2)}}
+export function makeTick(ctx:MakeTickCtx):Tick{const{profile,slotsUsed,busyPairs=[],shutdown=false,market}=ctx,pair=market.pair;const filters:Record<FilterKey,boolean>={F1:PAIRS.includes(pair),F2:true,F3:true,F4:true,F5:true,F6:true};const detail:Record<FilterKey,string>={F1:filters.F1?"Universo Binance USDT":"Par fora do universo",F2:`${slotsUsed}/${MAX_SLOTS} slots`,F3:"Par livre",F4:`Zona ${market.channelZone}`,F5:`RSI ${market.rsi} · score ${market.aiScore} · liqGrab ${market.liquidityGrab?"✓":"✗"} · ${profile.name}`,F6:`Desl. ${market.fomoDisplacement}% (≤ ${profile.fomo}%)`};let blockedAt:FilterKey|undefined,f5Sub:F5SubKey|undefined,verdict:Verdict="EXECUTE";const block=(k:FilterKey,v:Verdict,d:string)=>{filters[k]=false;blockedAt=k;verdict=v;detail[k]=d};if(!filters.F1)block("F1","IGNORE","Par fora do universo Binance");else if(slotsUsed>=MAX_SLOTS)block("F2","GRID_SATURATED",`Grade ${MAX_SLOTS}/${MAX_SLOTS} — saturada`);else if(busyPairs.includes(pair))block("F3","IGNORE",`Par ${pair} já ativo`);else if(!market.side)block("F4","IGNORE","Sem extremo de canal confirmado");else if(market.side==="BUY"&&market.rsi>=profile.rsiBuy){f5Sub="RSI";block("F5","IGNORE",`RSI ${market.rsi} ≥ ${profile.rsiBuy}`)}else if(market.side==="SELL"&&market.rsi<=profile.rsiSell){f5Sub="RSI";block("F5","IGNORE",`RSI ${market.rsi} ≤ ${profile.rsiSell}`)}else if(market.aiScore<profile.aiScore){f5Sub="AISCORE";block("F5","IGNORE",`score ${market.aiScore} < ${profile.aiScore}`)}else if(!market.liquidityGrab){f5Sub="LIQGRAB";block("F5","IGNORE","Liquidez/volume não confirmados")}else if(market.fomoDisplacement>profile.fomo)block("F6","FOMO_BLOCKED",`Desl. ${market.fomoDisplacement}% > ${profile.fomo}%`);if(shutdown)verdict="EMERGENCY_SHUTDOWN";if(blockedAt){const o:FilterKey[]=["F1","F2","F3","F4","F5","F6"],i=o.indexOf(blockedAt);for(let j=i+1;j<o.length;j++)filters[o[j]]=false}return{id:`tk_${Date.now()}`,ts:Date.now(),pair,side:market.side,channelZone:market.channelZone,rsi:market.rsi,aiScore:market.aiScore,liquidityGrab:market.liquidityGrab,fomoDisplacement:market.fomoDisplacement,profileId:profile.id,rsiBuy:profile.rsiBuy,rsiSell:profile.rsiSell,aiScoreMin:profile.aiScore,fomoLimit:profile.fomo,slotsUsed,filters,blockedAt,f5Sub,verdict,detail}}
 
 export function fmt(n: number, d = 2) {
   return n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
