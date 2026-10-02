@@ -85,7 +85,14 @@ async function addSecurityHeaders(response: Response, nonce: string): Promise<Re
 
   // Stream público de cotações da Binance (WebSocket, sem credenciais) —
   // usado pelo topo do dashboard para preços tick a tick.
-  const marketDataOrigins = [\n    "https://api.binance.com",\n    "https://api1.binance.com",\n    "https://api2.binance.com",\n    "https://data-api.binance.vision",\n    "wss://stream.binance.com:9443",\n    "wss://stream.binance.com",\n  ];
+  const marketDataOrigins = [
+    "https://api.binance.com",
+    "https://api1.binance.com",
+    "https://api2.binance.com",
+    "https://data-api.binance.vision",
+    "wss://stream.binance.com:9443",
+    "wss://stream.binance.com",
+  ];
 
   const connectSrc = [
     "connect-src 'self'",
