@@ -16,7 +16,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { useBot4xStore } from "./bot4x-store";
 import { useSignalsStore } from "./signals-store";
 import { PROFILE_RISK_LADDER, type CalibProfile } from "./bot4x-data";
@@ -117,7 +116,7 @@ export const persistDnaMetrics = createServerFn({ method: "POST" })
 // Throttle de 30s para não spammar o banco a cada ciclo de 30s.
 const PERSIST_THROTTLE_MS = 30_000;
 
-async function persistDnaMetrics(
+async function queueDnaMetrics(
   userId: string,
   snap: Snapshot,
   dnaValues?: {
@@ -131,23 +130,22 @@ async function persistDnaMetrics(
   if (Date.now() - lastApplied.persist < PERSIST_THROTTLE_MS) return;
   lastApplied.persist = Date.now();
 
-  const row = {
-    operations_today: snap.operationsToday,
-    drawdown_today: snap.dailyPnlPct,
-    recent_losses: snap.recentLosses,
-    open_loss_pct: snap.openLossPct,
-    dna_updated_at: new Date().toISOString(),
-    ...(dnaValues?.consistency !== undefined && { dna_consistency: dnaValues.consistency }),
-    ...(dnaValues?.discipline !== undefined && { dna_discipline: dnaValues.discipline }),
-    ...(dnaValues?.riskControl !== undefined && { dna_risk_control: dnaValues.riskControl }),
-    ...(dnaValues?.timing !== undefined && { dna_timing: dnaValues.timing }),
-    ...(dnaValues?.emotionalControl !== undefined && {
-      dna_emotional_control: dnaValues.emotionalControl,
-    }),
-  };
-
   try {
-    await persistDnaMetrics({ data: row });
+    await persistDnaMetrics({
+      data: {
+        operationsToday: snap.operationsToday,
+        drawdownToday: snap.dailyPnlPct,
+        recentLosses: snap.recentLosses,
+        openLossPct: snap.openLossPct,
+        ...(dnaValues?.consistency !== undefined && { consistency: dnaValues.consistency }),
+        ...(dnaValues?.discipline !== undefined && { discipline: dnaValues.discipline }),
+        ...(dnaValues?.riskControl !== undefined && { riskControl: dnaValues.riskControl }),
+        ...(dnaValues?.timing !== undefined && { timing: dnaValues.timing }),
+        ...(dnaValues?.emotionalControl !== undefined && {
+          emotionalControl: dnaValues.emotionalControl,
+        }),
+      },
+    });
   } catch (error) {
     logger.error("[dna-auto-corrector] persistDnaMetrics error", {
       userId,
@@ -184,7 +182,7 @@ export function runDnaAutoCorrection(userId?: string): CorrectionLog | null {
   // Sempre persistir métricas quando temos userId, mesmo sem correção ativa,
   // para que um reload não perca o contexto de drawdown do dia.
   if (userId) {
-    void persistDnaMetrics(userId, snap);
+    void queueDnaMetrics(userId, snap);
   }
 
   if (tier === 0) return null;
