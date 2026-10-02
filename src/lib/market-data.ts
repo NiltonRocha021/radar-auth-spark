@@ -11,7 +11,7 @@ export interface Candle {
   closeTime: number;
 }
 
-/** Top 20 criptos pareadas com USDT na Binance (por capitalização de mercado). */
+/** Universo configurado de pares USDT usados pelo motor DEMO/Calibrador. A lista é estática. */
 export const TOP_20_USDT_PAIRS: { symbol: string; label: string }[] = [
   { symbol: "BTCUSDT", label: "Bitcoin (BTC)" },
   { symbol: "ETHUSDT", label: "Ethereum (ETH)" },
