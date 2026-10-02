@@ -80,6 +80,8 @@ export const setupTwoFactor = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<SetupTwoFactorDTO> => {
     const { TOTP, Secret } = await import("otpauth");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { enforceRateLimit } = await import("./rate-limit.server");
+    await enforceRateLimit(context.userId, "2fa.setup", 5, 3600);
     const secret = new Secret({ size: 20 });
     const emailClaim = (context.claims.email as string | null) ?? context.userId;
     const totp = new TOTP({
@@ -126,6 +128,8 @@ export const verifyTwoFactor = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { enforceRateLimit } = await import("./rate-limit.server");
+    await enforceRateLimit(context.userId, "2fa.verify", 5, 300);
     const { data: row, error } = await supabaseAdmin
       .from("user_two_factor")
       .select("secret,enabled")
@@ -163,6 +167,8 @@ export const disableTwoFactor = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { enforceRateLimit } = await import("./rate-limit.server");
+    await enforceRateLimit(context.userId, "2fa.disable", 5, 300);
     const { data: row, error } = await supabaseAdmin
       .from("user_two_factor")
       .select("secret,backup_codes,enabled")
