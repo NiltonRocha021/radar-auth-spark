@@ -27,7 +27,11 @@ async function persistTrade(
   userId: string,
   withOutbox: boolean,
 ): Promise<void> {
-  const [{ supabaseAdmin }, { enforceRateLimit }] = await Promise.all([\n    import("@/integrations/supabase/client.server"),\n    import("./rate-limit.server"),\n  ]);\n  await enforceRateLimit(userId, "bot4x_trades.save", 30);
+  const [{ supabaseAdmin }, { enforceRateLimit }] = await Promise.all([
+    import("@/integrations/supabase/client.server"),
+    import("./rate-limit.server"),
+  ]);
+  await enforceRateLimit(userId, "bot4x_trades.save", 30);
 
   const { error } = await supabaseAdmin.rpc("save_bot4x_trade", {
     p_user_id: userId,
