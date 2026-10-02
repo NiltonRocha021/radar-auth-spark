@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { useBackendAuth } from "@/hooks/useBackendAuth";
+import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/dashboard/top-bar";
 import { LeftSidebar } from "@/components/dashboard/left-sidebar";
 import { MetricCards } from "@/components/dashboard/metric-cards";
@@ -38,22 +38,17 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 function Dashboard() {
-  const { userId, ready } = useBackendAuth();
-  const navigate = useNavigate();
+  const { session, loading } = useAuth();
   const initSignals = useSignalsStore((s) => s.init);
   const cleanupSignals = useSignalsStore((s) => s.cleanup);
 
   useEffect(() => {
-    if (ready && !userId) navigate({ to: "/login" });
-  }, [ready, userId, navigate]);
-
-  useEffect(() => {
-    if (!ready || !userId) return;
+    if (loading || !session?.user) return;
     initSignals();
     return () => cleanupSignals();
-  }, [ready, userId, initSignals, cleanupSignals]);
+  }, [loading, session?.user?.id, initSignals, cleanupSignals]);
 
-  if (!ready || !userId) {
+  if (loading || !session?.user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
