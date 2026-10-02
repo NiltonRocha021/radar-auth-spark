@@ -7,6 +7,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { parseRow, parseRows, signalRowSchema } from "@/lib/db-schemas";
+import { TOP_20_USDT_PAIRS, fetchKlines } from "@/lib/market-data";
+import { analyzeCandles } from "@/lib/bot4x-data";
 
 export interface SignalListItemDTO {
   id: string;
@@ -24,6 +26,7 @@ export interface SignalListItemDTO {
   liquidityGrab?: boolean;
   createdAt?: string;
   expiresAt?: string;
+  source?: "database" | "binance-radar";
 }
 
 export interface SignalDetailDTO extends SignalListItemDTO {
@@ -67,6 +70,7 @@ function toListItem(s: SignalRow): SignalListItemDTO {
     liquidityGrab: s.liquidity_grab ?? undefined,
     createdAt: s.created_at ?? undefined,
     expiresAt: s.expires_at ?? undefined,
+    source: "database",
   };
 }
 
@@ -94,7 +98,49 @@ export const getSignalsList = createServerFn({ method: "GET" })
       console.warn("[signals.functions] getSignalsList error:", error.message);
       throw new Error("Não foi possível consultar os sinais agora.");
     }
-    return parseRows(signalRowSchema, rows, "signals.getSignalsList").map(toListItem);
+    const databaseSignals = parseRows(signalRowSchema, rows, "signals.getSignalsList").map(toListItem);
+    if (databaseSignals.length > 0) return databaseSignals;
+
+    // Fallback: gera candidatos técnicos diretamente das velas reais da Binance
+    // quando o produtor global ainda não populou a tabela `signals`.
+    const generatedAt = new Date().toISOString();
+    const candidates = (
+      await Promise.allSettled(
+        TOP_20_USDT_PAIRS.map(async ({ symbol }) => {
+          const candles = await fetchKlines(symbol, "1h", 120);
+          if (candles.length < 30) return null;
+          const market = analyzeCandles(symbol, "1h", candles);
+          if (!market.side || market.aiScore < 70) return null;
+
+          const entry = market.price;
+          const atr = market.atr > 0 ? market.atr : entry * 0.005;
+          const stop = market.side === "BUY"
+            ? Math.max(entry - atr, entry * 0.99)
+            : Math.min(entry + atr, entry * 1.01);
+          const target = market.side === "BUY" ? entry + atr * 2 : entry - atr * 2;
+          const lastClose = candles.at(-1)?.closeTime ?? Date.now();
+          return {
+            id: "radar_" + symbol + "_" + lastClose,
+            symbol: symbol.replace("USDT", "/USDT"),
+            direction: market.side,
+            confidence: market.aiScore,
+            entry,
+            sl: stop,
+            tp: target,
+            state: "active" as const,
+            tf: "1H",
+            createdAt: new Date(lastClose).toISOString(),
+            expiresAt: generatedAt,
+            source: "binance-radar" as const,
+          };
+        }),
+      )
+    )
+      .flatMap((result) => (result.status === "fulfilled" && result.value ? [result.value] : []))
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 20);
+
+    return candidates;
   });
 
 /**
