@@ -95,8 +95,7 @@ export const getSignalsList = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(20);
     if (error) {
-      console.warn("[signals.functions] getSignalsList error:", error.message);
-      throw new Error("Não foi possível consultar os sinais agora.");
+      console.warn("[signals.functions] database source unavailable; using Binance radar:", error.message);
     }
     const databaseSignals = parseRows(signalRowSchema, rows, "signals.getSignalsList").map(toListItem);
     if (databaseSignals.length > 0) return databaseSignals;
@@ -130,7 +129,7 @@ export const getSignalsList = createServerFn({ method: "GET" })
             state: "active" as const,
             tf: "1H",
             createdAt: new Date(lastClose).toISOString(),
-            expiresAt: generatedAt,
+            expiresAt: new Date(lastClose + 2 * 60 * 60 * 1000).toISOString(),
             source: "binance-radar" as const,
           };
         }),
