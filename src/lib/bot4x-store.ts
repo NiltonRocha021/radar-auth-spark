@@ -344,21 +344,30 @@ export const useBot4xStore = create<State>()(
                 const today = new Date(now).toISOString().slice(0, 10);
                 const allToday = [...newTrades, ...prev.history.filter((h) => h.day === today)];
                 const dailyPnlPct = +allToday.reduce((acc, t) => acc + t.pnlPct, 0).toFixed(3);
+                const circuitBreakerActive = dailyPnlPct <= -1.5 || prev.circuitBreaker === "emergency";
                 const candidateTicks = markets.map((market) => makeTick({
                   profile: PROFILES[prev.profile],
                   slotsUsed: alive.length,
                   busyPairs: alive.map((o) => o.pair),
-                  shutdown: dailyPnlPct <= -1.5,
+                  shutdown: circuitBreakerActive,
                   market,
                 }));
-                const t = candidateTicks
+                const executableTicks = candidateTicks
                   .filter((tick) => tick.verdict === "EXECUTE")
-                  .sort((a, b) => b.aiScore - a.aiScore)[0] ?? candidateTicks[0];
+                  .sort((a, b) => b.aiScore - a.aiScore);
+                const t = executableTicks[0] ?? candidateTicks[0];
                 const selectedMarket = markets.find((market) => market.pair === t?.pair) ?? markets[0];
                 let nextOrders = alive;
                 const pairBusy = alive.some((o) => o.pair === t.pair);
                 const pairAvoided = prev.avoidPairs.includes(t.pair);
-                if (t.verdict === "EXECUTE" && t.side && alive.length < MAX_SLOTS && !pairBusy && !pairAvoided) {
+                const canOpenNewPosition =
+                  !circuitBreakerActive &&
+                  t.verdict === "EXECUTE" &&
+                  Boolean(t.side) &&
+                  alive.length < MAX_SLOTS &&
+                  !pairBusy &&
+                  !pairAvoided;
+                if (canOpenNewPosition) {
                   const side: Side = t.side === "BUY" ? "LONG" : "SHORT";
                   const slMult = prev.slPct / 100;
                   const tpMult = prev.tpPct / 100;
@@ -376,6 +385,7 @@ export const useBot4xStore = create<State>()(
                   ticksProcessed: prev.ticksProcessed + 1,
                   orders: nextOrders,
                   dailyPnlPct,
+                  circuitBreaker: circuitBreakerActive ? "emergency" : prev.circuitBreaker === "emergency" ? "none" : prev.circuitBreaker,
                   history: newTrades.length ? [...newTrades, ...prev.history].slice(0, 500) : prev.history,
                   status: "RUNNING" as const,
                   errorMsg: null,
