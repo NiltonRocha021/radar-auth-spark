@@ -141,7 +141,8 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
       if (fill.executedQty > 0) quantity = fill.executedQty;
     }
 
-    const { data: row, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
       .from("orders")
       .insert({
         user_id: context.userId,
@@ -224,7 +225,8 @@ export const closeDemoOrder = createServerFn({ method: "POST" })
     const pnl = (exit - entry) * qty * dir;
     const pnlPct = entry > 0 ? ((exit - entry) / entry) * 100 * dir : 0;
 
-    const { data: updated, error: uErr } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: updated, error: uErr } = await supabaseAdmin
       .from("orders")
       .update({
         status: "CLOSED",
