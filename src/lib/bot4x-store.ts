@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { loadTrades, saveTradeWithOutbox } from "./bot4x-trades-db";
 import { logger } from "./logger";
 import { startDemoMarketFeed, stopDemoMarketFeed, getDemoMarketPrices } from "./demo-market-feed";
+import { getMarketCandles, startMarketCandleCache, stopMarketCandleCache } from "./market-candle-cache";
 import { pollWithRetry } from "./polling-metrics";
 import { loadConfig, saveConfig } from "./bot4x-config-db";
 import type { CalibProfile as CalibProfileType } from "./bot4x-data";
@@ -274,7 +275,11 @@ export const useBot4xStore = create<State>()(
             }).catch(() => undefined);
           }
 
-          startDemoMarketFeed([...get().preferredPairs, ...get().avoidPairs]);
+          const demoUniverse = [...get().preferredPairs, ...TOP_20_USDT_PAIRS.map((p) => p.symbol.replace("USDT", "/USDT"))]
+            .filter((p, i, a) => a.indexOf(p) === i)
+            .filter((p) => !get().avoidPairs.includes(p));
+          startDemoMarketFeed(demoUniverse);
+          startMarketCandleCache(demoUniverse, interval);
 
           const runCycle = async () => {
             if (get().feedPaused) return;
@@ -297,7 +302,7 @@ export const useBot4xStore = create<State>()(
             const markets = (await Promise.allSettled(
               scanPairs.map(async (pair) => {
                 const symbol = pair.replace("/", "");
-                const candles = await fetchKlines(symbol, interval, limit);
+                const candles = await getMarketCandles(symbol, interval, limit);
                 return analyzeCandles(symbol, interval, candles);
               }),
             )).flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
@@ -462,6 +467,7 @@ export const useBot4xStore = create<State>()(
         const t = get()._ticker;
         if (t) clearInterval(t);
         stopDemoMarketFeed();
+        stopMarketCandleCache();
         if (realPollCleanup) {
           realPollCleanup();
           realPollCleanup = null;
