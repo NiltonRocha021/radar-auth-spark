@@ -245,9 +245,9 @@ function LoginPage() {
               <PillTabs tab={tab} onChange={setTab} />
               <div className="mt-6">
                 {tab === "signin" ? (
-                  <SignInForm onForgot={() => setView("forgot")} />
+                  <SignInForm onForgot={() => setView("forgot")} onAuthenticated={() => void routeAfterLogin()} />
                 ) : (
-                  <SignUpForm />
+                  <SignUpForm onAuthenticated={() => void routeAfterLogin()} />
                 )}
               </div>
             </>
@@ -379,7 +379,13 @@ async function signInWithGoogle() {
   return result;
 }
 
-function SignInForm({ onForgot }: { onForgot: () => void }) {
+function SignInForm({
+  onForgot,
+  onAuthenticated,
+}: {
+  onForgot: () => void;
+  onAuthenticated: () => void;
+}) {
   const [showPw, setShowPw] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -395,7 +401,11 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
       email: v.email,
       password: v.password,
     });
-    if (error) setFormErr(friendlyAuthError(error.message));
+    if (error) {
+      setFormErr(friendlyAuthError(error.message));
+      return;
+    }
+    onAuthenticated();
   };
 
   return (
@@ -454,9 +464,17 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
         loading={googleLoading}
         onClick={async () => {
           setGoogleLoading(true);
-          const r = await signInWithGoogle();
-          if (r.error) {
-            setFormErr(friendlyAuthError(r.error.message));
+          setFormErr(null);
+          try {
+            const r = await signInWithGoogle();
+            if (r.error) {
+              setFormErr(friendlyAuthError(r.error.message));
+              setGoogleLoading(false);
+            }
+          } catch (error) {
+            setFormErr(
+              friendlyAuthError(error instanceof Error ? error.message : String(error)),
+            );
             setGoogleLoading(false);
           }
         }}
@@ -477,7 +495,7 @@ function SignInForm({ onForgot }: { onForgot: () => void }) {
   );
 }
 
-function SignUpForm() {
+function SignUpForm({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [showPw, setShowPw] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -517,10 +535,13 @@ function SignUpForm() {
     // Supabase retorna session=null quando email confirmation está habilitado.
     // Quando session != null, o usuário já está logado (confirmação desativada)
     // e o onAuthStateChange do root cuida do redirecionamento.
-    if (!data.session) {
-      setSignedUpEmail(v.email);
-      setSignedUp(true);
+    if (data.session) {
+      onAuthenticated();
+      return;
     }
+
+    setSignedUpEmail(v.email);
+    setSignedUp(true);
   };
 
   if (signedUp) {
@@ -653,9 +674,17 @@ function SignUpForm() {
         loading={googleLoading}
         onClick={async () => {
           setGoogleLoading(true);
-          const r = await signInWithGoogle();
-          if (r.error) {
-            setFormErr(friendlyAuthError(r.error.message));
+          setFormErr(null);
+          try {
+            const r = await signInWithGoogle();
+            if (r.error) {
+              setFormErr(friendlyAuthError(r.error.message));
+              setGoogleLoading(false);
+            }
+          } catch (error) {
+            setFormErr(
+              friendlyAuthError(error instanceof Error ? error.message : String(error)),
+            );
             setGoogleLoading(false);
           }
         }}
