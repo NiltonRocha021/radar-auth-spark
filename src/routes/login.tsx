@@ -87,26 +87,61 @@ function LoginPage() {
   const [view, setView] = useState<View>("auth");
   const [tab, setTab] = useState<Tab>("signin");
   const [resetEmail, setResetEmail] = useState("");
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [routing, setRouting] = useState(false);
 
   useEffect(() => {
-    if (!loading && session) routeAfterLogin();
+    if (!loading && session) {
+      void routeAfterLogin();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, session]);
 
   async function routeAfterLogin() {
+    if (routing) return;
+    setRouting(true);
+    setRouteError(null);
+
     const { data: userData, error: userError } = await supabase.auth.getUser();
     const uid = userData.user?.id;
-    if (userError) return;
-    if (!uid) return;
-    const { data, error } = await supabase
+
+    if (userError || !uid) {
+      setRouting(false);
+      setRouteError(
+        userError ? friendlyAuthError(userError.message) : "Não foi possível validar sua sessão.",
+      );
+      return;
+    }
+
+    const { data, error: profileError } = await supabase
       .from("profiles")
       .select("onboarding_completed")
       .eq("id", uid)
       .maybeSingle();
 
-    // A autenticação já foi confirmada. Uma falha momentânea ao carregar o
-    // perfil não deve manter o usuário preso para sempre na tela de login.
-    navigate({ to: !error && data?.onboarding_completed ? "/dashboard" : "/onboarding" });
+    // Erro de leitura do perfil é diferente de perfil ainda não criado.
+    // Nunca devemos transformar uma falha de banco/rede em um redirecionamento
+    // automático para onboarding, pois isso pode mascarar uma sessão válida.
+    if (profileError) {
+      setRouting(false);
+      setRouteError(
+        "Sua sessão foi autenticada, mas não conseguimos carregar seu perfil. Tente novamente.",
+      );
+      return;
+    }
+
+    navigate({ to: data?.onboarding_completed ? "/dashboard" : "/onboarding" });
+  }
+
+  if (loading || routing) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-background bg-dot-grid px-4 py-10">
+        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <Loader2 className="size-7 animate-spin" />
+          <p className="text-sm">Validando sua sessão…</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -142,6 +177,23 @@ function LoginPage() {
             </div>
           </div>
           <div className="my-6 h-px bg-border" />
+
+          {routeError && (
+            <div
+              role="alert"
+              aria-live="polite"
+              className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+            >
+              <p>{routeError}</p>
+              <button
+                type="button"
+                onClick={() => void routeAfterLogin()}
+                className="mt-2 font-medium underline underline-offset-2"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          )}
 
           {view === "auth" && (
             <>
