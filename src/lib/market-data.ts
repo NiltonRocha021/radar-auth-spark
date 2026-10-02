@@ -42,7 +42,7 @@ const BINANCE_HOSTS = [
   "https://data-api.binance.vision",
 ];
 
-export type KlineInterval = "1h" | "4h" | "1d";
+export type KlineInterval = "5m" | "15m" | "1h" | "4h" | "1d";
 
 /** Busca klines reais da Binance, com fallback entre hosts. */
 export async function fetchKlines(
