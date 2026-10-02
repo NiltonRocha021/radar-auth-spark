@@ -21,7 +21,7 @@ const schema = z
   .object({
     password: z
       .string()
-      .min(8, "Mínimo de 8 caracteres")
+      .min(12, "Mínimo de 12 caracteres")
       .regex(/[A-Z]/, "Inclua ao menos uma letra maiúscula")
       .regex(/\d/, "Inclua ao menos um número")
       .regex(/[^A-Za-z0-9]/, "Inclua ao menos um caractere especial"),
@@ -42,36 +42,69 @@ function ResetPasswordPage() {
 
   useEffect(() => {
     let resolved = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const resolveReady = () => {
+      if (resolved) return;
+      resolved = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      setStatus("ready");
+    };
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
-        resolved = true;
-        setStatus("ready");
+        resolveReady();
       }
     });
 
-    // Fallback: Supabase parses the recovery hash and sets the session.
-    supabase.auth.getSession().then(({ data }) => {
+    // Supabase pode processar o token antes do listener ser registrado.
+    // Por isso verificamos a sessão imediatamente e fazemos uma segunda
+    // verificação curta para cobrir a hidratação assíncrona do SDK.
+    supabase.auth.getSession().then(({ data, error }) => {
       if (resolved) return;
-      if (data.session) {
-        setStatus("ready");
-      } else {
-        // Give the SDK a tick to process the URL hash on first load.
-        setTimeout(async () => {
-          if (resolved) return;
-          const { data: again } = await supabase.auth.getSession();
-          setStatus(again.session ? "ready" : "invalid");
-          if (!again.session) {
-            setErrorMsg("Link de recuperação inválido ou expirado.");
-          }
-        }, 800);
+
+      if (error) {
+        resolved = true;
+        setStatus("invalid");
+        setErrorMsg(friendlyResetError(error.message));
+        return;
       }
+
+      if (data.session) {
+        resolveReady();
+        return;
+      }
+
+      timeoutId = setTimeout(async () => {
+        if (resolved) return;
+        const { data: again, error: retryError } = await supabase.auth.getSession();
+        if (again.session) {
+          resolveReady();
+        } else {
+          resolved = true;
+          setStatus("invalid");
+          setErrorMsg(
+            retryError
+              ? friendlyResetError(retryError.message)
+              : "Link de recuperação inválido ou expirado. Solicite um novo email.",
+          );
+        }
+      }, 1500);
     });
 
     return () => {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  const friendlyResetError = (message?: string | null) => {
+    const normalized = (message ?? "").toLowerCase();
+    if (normalized.includes("expired") || normalized.includes("invalid"))
+      return "Link de recuperação inválido ou expirado. Solicite um novo email.";
+    if (normalized.includes("network") || normalized.includes("fetch"))
+      return "Não foi possível validar o link. Verifique sua conexão e tente novamente.";
+    return "Não foi possível validar o link de recuperação. Solicite um novo email.";
+  };
 
   const {
     register,
@@ -83,7 +116,7 @@ function ResetPasswordPage() {
     setErrorMsg(null);
     const { error } = await supabase.auth.updateUser({ password: v.password });
     if (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(friendlyResetError(error.message));
       return;
     }
     setStatus("success");
@@ -163,7 +196,7 @@ function ResetPasswordPage() {
             <div>
               <h2 className="text-lg font-medium text-foreground">Defina sua nova senha</h2>
               <p className="text-sm text-muted-foreground mb-5">
-                Use mínimo 8 caracteres, com letra maiúscula, número e caractere especial.
+                Use mínimo 12 caracteres, com letra maiúscula, minúscula, número e caractere especial.
               </p>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
                 <div>
