@@ -91,8 +91,9 @@ begin
   get diagnostics v_rows = row_count;
 
   if v_rows = 0 then
-    raise exception 'Trade inválido.'
-      using errcode = '42501';
+    raise exception using
+      errcode = 'P0001',
+      message = 'Trade ownership conflict';
   end if;
 
   if p_with_outbox then
@@ -107,8 +108,8 @@ begin
       coalesce(p_trade_data, '{}'::jsonb),
       'processed',
       now()
-    )
-;  end if;
+    );
+  end if;
 end;
 $$;
 
