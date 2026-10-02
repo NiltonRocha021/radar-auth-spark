@@ -117,11 +117,18 @@ export const placeDemoOrder = createServerFn({ method: "POST" })
       if (data.side === "SELL" && data.takeProfit != null && data.takeProfit >= data.entryPrice) {
         throw new Error("Em uma venda, o alvo deve ficar abaixo do preço de entrada.");
       }
-      const [{ placeBinanceOrder }, { getBinanceCredentials }, { assertTradingRiskAllowed }] = await Promise.all([
+      const [{ placeBinanceOrder, fetchBinanceAccount }, { getBinanceCredentials }, { assertTradingRiskAllowed }] = await Promise.all([
         import("./binance.server"), import("./binance-credentials.server"), import("./risk.functions"),
       ]);
-      await assertTradingRiskAllowed(context.supabase, context.userId);
       const credentials = await getBinanceCredentials(context.userId);
+      // Capital de risco vem da conta Binance no servidor, não de bot4x_configs.
+      const account = await fetchBinanceAccount(credentials);
+      if (!account.canTrade) {
+        throw new Error("A conta Binance não está autorizada para negociação.");
+      }
+      await assertTradingRiskAllowed(context.supabase, context.userId, {
+        walletValueUsdt: account.walletValueUsdt,
+      });
 
       const fill = await placeBinanceOrder({
         symbol: data.symbol,
