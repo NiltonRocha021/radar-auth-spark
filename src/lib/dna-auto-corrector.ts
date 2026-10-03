@@ -251,7 +251,7 @@ export function runDnaAutoCorrection(userId?: string): CorrectionLog | null {
   // Persistir métricas imediatamente após uma correção (ignora throttle)
   if (userId) {
     lastApplied.persist = 0; // força write imediato
-    void persistDnaMetrics(userId, snap);
+    void queueDnaMetrics(userId, snap);
   }
 
   const severity = tier === 3 ? "🚨 Crítico" : tier === 2 ? "⚠ Alto" : "Atenção";
