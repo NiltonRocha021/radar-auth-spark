@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -57,6 +58,7 @@ function readLegacyStoredSession(): { access_token: string; refresh_token: strin
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let mounted = true;
@@ -65,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (!mounted) return;
       sawEvent = true;
+      if (_e === "SIGNED_OUT") queryClient.clear();
       setSession(s);
       setLoading(false);
     });
@@ -117,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("online", onOnline);
     };
-  }, []);
+  }, [queryClient]);
 
   return (
     <AuthContext.Provider value={{ session, user: session?.user ?? null, loading }}>
