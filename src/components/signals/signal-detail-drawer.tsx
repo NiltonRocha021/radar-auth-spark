@@ -110,7 +110,7 @@ function DrawerBody({ signal, onClose }: { signal: Signal; onClose: () => void }
           <SectionChart signal={signal} />
           <SectionAnalysis signal={signal} detail={detail} />
           <SectionInvalidation signal={signal} detail={detail} />
-          <SectionMarketContext signal={signal} />
+          <SectionMarketContext />
           <SectionSentiment />
           <SectionHistorical />
           <SectionDNA signal={signal} />
@@ -465,6 +465,15 @@ function SectionAnalysis({ signal, detail }: { signal: Signal; detail?: Awaited<
     </Section>
   );
 }
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground tabular-nums">{value}</span>
+    </div>
+  );
+}
+
 function ScoreBar({ label, value, delay }: { label: string; value: number; delay: number }) {
   const color = scoreColor(value);
   return (

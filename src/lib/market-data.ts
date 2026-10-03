@@ -91,6 +91,39 @@ export async function fetchKlines(
   );
 }
 
+/**
+ * Busca o último preço (ticker) de vários símbolos na Binance, com fallback entre hosts.
+ * Retorna um mapa `{ BTCUSDT: 65000, ... }`. Símbolos duplicados/vazios são ignorados.
+ */
+export async function fetchTickerPrices(symbols: string[]): Promise<Record<string, number>> {
+  const unique = Array.from(new Set(symbols.filter(Boolean)));
+  if (unique.length === 0) return {};
+  const symbolsParam = JSON.stringify(unique);
+  let lastErr: unknown = null;
+  for (const host of BINANCE_HOSTS) {
+    try {
+      const res = await fetch(`${host}/api/v3/ticker/price?symbols=${encodeURIComponent(symbolsParam)}`);
+      if (!res.ok) {
+        lastErr = new Error(`Binance ${res.status}`);
+        continue;
+      }
+      const raw = (await res.json()) as unknown;
+      if (!Array.isArray(raw)) continue;
+      const out: Record<string, number> = {};
+      for (const item of raw as { symbol?: string; price?: string }[]) {
+        const price = Number(item?.price);
+        if (item?.symbol && Number.isFinite(price)) out[item.symbol] = price;
+      }
+      return out;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw new Error(
+    `Falha ao obter preços de mercado: ${(lastErr as Error)?.message ?? "rede indisponível"}`,
+  );
+}
+
 /** Escolhe o intervalo e a quantidade de candles para o período em dias. */
 export function planFetch(periodDays: number): { interval: KlineInterval; limit: number } {
   if (periodDays <= 7) return { interval: "1h", limit: Math.min(1000, periodDays * 24) };
