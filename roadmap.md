@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Corrigir a compilação bloqueada por sintaxe inválida no bot e no login e validar o build.
+
 - [ ] Auditar e corrigir leitura real de mercado, sinais, operações, risco e alertas.
 - [ ] Eliminar dados simulados ou rótulos enganosos nos fluxos identificados como reais.
 - [ ] Validar atualização, reconexão, expiração e estados de erro dos dados operacionais.
