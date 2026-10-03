@@ -111,21 +111,33 @@ function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, session]);
 
-  async function routeAfterLogin() {
+  async function routeAfterLogin(authenticatedUser?: {
+    id: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  }) {
     if (routing) return;
     setRouting(true);
     setRouteError(null);
 
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    const uid = userData.user?.id;
+    // Após signInWithPassword(), use o usuário retornado pela própria chamada.
+    // Uma chamada imediata a getUser() pode ocorrer antes de a sessão local ser
+    // persistida e produzir o erro "Auth session missing!".
+    let user = authenticatedUser;
+    if (!user) {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      user = userData.user ?? undefined;
 
-    if (userError || !uid) {
-      setRouting(false);
-      setRouteError(
-        userError ? friendlyAuthError(userError.message) : "Não foi possível validar sua sessão.",
-      );
-      return;
+      if (userError || !user) {
+        setRouting(false);
+        setRouteError(
+          userError ? friendlyAuthError(userError.message) : "Não foi possível validar sua sessão.",
+        );
+        return;
+      }
     }
+
+    const uid = user.id;
 
     const { data, error: profileError } = await supabase
       .from("profiles")
@@ -148,7 +160,6 @@ function LoginPage() {
     // uma linha em profiles. Criamos o perfil mínimo usando os metadados
     // confiáveis da sessão e deixamos o onboarding completar os demais dados.
     if (!data) {
-      const user = userData.user;
       const fullName =
         user.user_metadata?.full_name ||
         user.user_metadata?.name ||
@@ -246,7 +257,7 @@ function LoginPage() {
               <PillTabs tab={tab} onChange={setTab} />
               <div className="mt-6">
                 {tab === "signin" ? (
-                  <SignInForm onForgot={() => setView("forgot")} onAuthenticated={() => void routeAfterLogin()} />
+                  <SignInForm onForgot={() => setView("forgot")} onAuthenticated={(user) => void routeAfterLogin(user)} />
                 ) : (
                   <SignUpForm onAuthenticated={() => void routeAfterLogin()} />
                 )}
@@ -385,7 +396,11 @@ function SignInForm({
   onAuthenticated,
 }: {
   onForgot: () => void;
-  onAuthenticated: () => void;
+  onAuthenticated: (user: {
+    id: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  }) => void;
 }) {
   const [showPw, setShowPw] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
@@ -398,7 +413,7 @@ function SignInForm({
 
   const onSubmit = async (v: z.infer<typeof signInSchema>) => {
     setFormErr(null);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: v.email,
       password: v.password,
     });
@@ -406,7 +421,11 @@ function SignInForm({
       setFormErr(friendlyAuthError(error.message));
       return;
     }
-    onAuthenticated();
+    if (!data.user) {
+      setFormErr("Login concluído, mas o usuário autenticado não foi retornado. Tente novamente.");
+      return;
+    }
+    onAuthenticated(data.user);
   };
 
   return (
