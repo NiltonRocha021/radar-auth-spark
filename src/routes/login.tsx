@@ -111,19 +111,22 @@ function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, session]);
 
-  async function routeAfterLogin() {
+  async function routeAfterLogin(authenticatedUser?: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) {
     if (routing) return;
     setRouting(true);
     setRouteError(null);
 
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    const uid = userData.user?.id;
+    // Após signInWithPassword/signUp, o estado do AuthProvider pode levar um
+    // tick para receber SIGNED_IN. Não chame getUser() nesse intervalo: o
+    // cliente pode ainda não ter hidratado a sessão e o Supabase retorna
+    // AuthSessionMissingError. Quando o usuário já está disponível, usamos o
+    // objeto retornado pelo próprio login; no fluxo OAuth, usamos session.
+    const user = authenticatedUser ?? session?.user;
+    const uid = user?.id;
 
-    if (userError || !uid) {
+    if (!uid) {
       setRouting(false);
-      setRouteError(
-        userError ? friendlyAuthError(userError.message) : "Não foi possível validar sua sessão.",
-      );
+      setRouteError("Não foi possível validar sua sessão. Tente novamente.");
       return;
     }
 
@@ -148,7 +151,6 @@ function LoginPage() {
     // uma linha em profiles. Criamos o perfil mínimo usando os metadados
     // confiáveis da sessão e deixamos o onboarding completar os demais dados.
     if (!data) {
-      const user = userData.user;
       const fullName =
         user.user_metadata?.full_name ||
         user.user_metadata?.name ||
@@ -246,9 +248,9 @@ function LoginPage() {
               <PillTabs tab={tab} onChange={setTab} />
               <div className="mt-6">
                 {tab === "signin" ? (
-                  <SignInForm onForgot={() => setView("forgot")} onAuthenticated={() => void routeAfterLogin()} />
+                  <SignInForm onForgot={() => setView("forgot")} onAuthenticated={(user) => void routeAfterLogin(user)} />
                 ) : (
-                  <SignUpForm onAuthenticated={() => void routeAfterLogin()} />
+                  <SignUpForm onAuthenticated={(user) => void routeAfterLogin(user)} />
                 )}
               </div>
             </>
@@ -385,7 +387,7 @@ function SignInForm({
   onAuthenticated,
 }: {
   onForgot: () => void;
-  onAuthenticated: () => void;
+  onAuthenticated: (user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) => void;
 }) {
   const [showPw, setShowPw] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
@@ -398,7 +400,7 @@ function SignInForm({
 
   const onSubmit = async (v: z.infer<typeof signInSchema>) => {
     setFormErr(null);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: v.email,
       password: v.password,
     });
@@ -406,7 +408,7 @@ function SignInForm({
       setFormErr(friendlyAuthError(error.message));
       return;
     }
-    onAuthenticated();
+    if (data.user) onAuthenticated(data.user);
   };
 
   return (
@@ -496,7 +498,7 @@ function SignInForm({
   );
 }
 
-function SignUpForm({ onAuthenticated }: { onAuthenticated: () => void }) {
+function SignUpForm({ onAuthenticated }: { onAuthenticated: (user: { id: string; email?: string | null; user_metadata?: Record<string, unknown> }) => void }) {
   const [showPw, setShowPw] = useState(false);
   const [formErr, setFormErr] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -537,7 +539,7 @@ function SignUpForm({ onAuthenticated }: { onAuthenticated: () => void }) {
     // Quando session != null, o usuário já está logado (confirmação desativada)
     // e o onAuthStateChange do root cuida do redirecionamento.
     if (data.session) {
-      onAuthenticated();
+      if (data.user) onAuthenticated(data.user);
       return;
     }
 
