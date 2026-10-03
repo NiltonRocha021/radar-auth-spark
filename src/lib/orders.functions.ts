@@ -296,6 +296,40 @@ export const listOrders = createServerFn({ method: "GET" })
 // Taxa padrão Binance spot taker = 0,1% por perna (entrada e saída).
 
 const FEE_RATE = 0.001;
+const ORDERS_PAGE_SIZE = 500;
+
+/**
+ * Loads the user's full order history in bounded pages. Analytics and risk
+ * calculations must not silently truncate at the first 500/1000 rows.
+ */
+async function fetchAllOrders(
+  supabase: any,
+  userId: string,
+  options: { ascending: boolean; mode?: "DEMO" | "LIVE" },
+): Promise<OrderRow[]> {
+  const all: OrderRow[] = [];
+  let offset = 0;
+
+  for (;;) {
+    let q = supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", userId)
+      .order("opened_at", { ascending: options.ascending })
+      .order("id", { ascending: options.ascending })
+      .range(offset, offset + ORDERS_PAGE_SIZE - 1);
+    if (options.mode) q = q.eq("mode", options.mode);
+
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    const page = (data ?? []) as OrderRow[];
+    all.push(...page);
+    if (page.length < ORDERS_PAGE_SIZE) break;
+    offset += ORDERS_PAGE_SIZE;
+  }
+
+  return all;
+}
 
 export interface ModeAnalyticsDTO {
   mode: "DEMO" | "LIVE";
@@ -368,13 +402,7 @@ export const getOrdersAnalytics = createServerFn({ method: "GET" })
     z.object({ limit: z.number().int().min(1).max(500).optional() }).parse(d ?? {}),
   )
   .handler(async ({ data, context }): Promise<OrdersAnalyticsDTO> => {
-    const { data: rows, error } = await context.supabase
-      .from("orders")
-      .select("*")
-      .eq("user_id", context.userId)
-      .order("opened_at", { ascending: false })
-      .limit(data.limit ?? 300);
-    if (error) throw new Error(error.message);
+    const rows = await fetchAllOrders(context.supabase, context.userId, { ascending: false });
 
     const acc = { DEMO: emptyMode("DEMO"), LIVE: emptyMode("LIVE") };
     const recent: OrderCostDTO[] = [];
@@ -496,14 +524,10 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
       .parse(d ?? {}),
   )
   .handler(async ({ data, context }): Promise<PairAnalyticsDTO> => {
-    let q = context.supabase
-      .from("orders")
-      .select("*")
-      .eq("user_id", context.userId)
-      .order("opened_at", { ascending: true })
-      .limit(data.limit ?? 500);
-    if (data.mode) q = q.eq("mode", data.mode);
-    const { data: rows, error } = await q;
+    const rows = await fetchAllOrders(context.supabase, context.userId, {
+      ascending: true,
+      mode: data.mode,
+    });
     if (error) throw new Error(error.message);
 
     const stats = new Map<string, PairStatsDTO>();
@@ -667,14 +691,10 @@ export const getRiskByPair = createServerFn({ method: "GET" })
         .maybeSingle();
       mode = config?.execution_mode === "LIVE" ? "LIVE" : "DEMO";
     }
-    const { data: rows, error } = await context.supabase
-      .from("orders")
-      .select("*")
-      .eq("user_id", context.userId)
-      .eq("mode", mode)
-      .order("opened_at", { ascending: true })
-      .limit(500);
-    if (error) throw new Error(error.message);
+    const rows = await fetchAllOrders(context.supabase, context.userId, {
+      ascending: true,
+      mode,
+    });
 
     const acc = new Map<string, PairRiskDTO & { notionalSum: number }>();
     let balance = 0;
