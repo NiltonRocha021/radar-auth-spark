@@ -152,7 +152,7 @@ export function FilterBar() {
         <span className="text-[11px] uppercase tracking-wide text-muted-foreground mr-1">Exch</span>
         <span className="h-7 px-2.5 rounded-md text-[12px] border border-[var(--brand-cyan)] bg-[color-mix(in_oklab,var(--brand-cyan)_12%,transparent)] text-foreground">
           Binance
-        </span>}
+        </span>
       </div>
     </div>
   );

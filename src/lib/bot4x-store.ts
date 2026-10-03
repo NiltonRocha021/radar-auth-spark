@@ -297,6 +297,7 @@ export const useBot4xStore = create<State>()(
 
           const runCycle = async () => {
             if (get().feedPaused) return;
+            try {
             const current = get();
             const profile = current.profile;
             const { interval, limit } = demoTimeframe(profile);
@@ -325,7 +326,7 @@ export const useBot4xStore = create<State>()(
                 return analyzeCandles(symbol, interval, candles);
               }),
             )).flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
-            if (markets.length === 0) throw new Error("Nenhum par retornou dados suficientes da Binance.");
+              if (markets.length === 0) throw new Error("Nenhum par retornou dados suficientes da Binance.");
               const now = Date.now();
 
               set((prev) => {
@@ -573,8 +574,11 @@ export const useBot4xStore = create<State>()(
       },
 
       closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
-      seedOrders: () => {\        stopDemoMarketFeed();
-n        // Mantido apenas por compatibilidade; o DEMO não cria ordens artificiais.\n      },\n      setMonitorTab: (monitorTab) => set({ monitorTab }),
+      seedOrders: () => {
+        stopDemoMarketFeed();
+        // Mantido apenas por compatibilidade; o DEMO não cria ordens artificiais.
+      },
+      setMonitorTab: (monitorTab) => set({ monitorTab }),
       toggleFeedPaused: () => set((s) => ({ feedPaused: !s.feedPaused })),
       clearTicks: () => set({ ticks: [] }),
     }),

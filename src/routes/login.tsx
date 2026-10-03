@@ -233,10 +233,11 @@ function LoginPage() {
                 <button
                   type="button"
                   onClick={() => void routeAfterLogin()}
-                className="mt-2 font-medium underline underline-offset-2"
-              >
-                Tentar novamente
-              </button>
+                  className="mt-2 font-medium underline underline-offset-2"
+                >
+                  Tentar novamente
+                </button>
+              )}
             </div>
           )}
 
