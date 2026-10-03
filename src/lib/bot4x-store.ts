@@ -573,8 +573,11 @@ export const useBot4xStore = create<State>()(
       },
 
       closeOrder: (id) => set((s) => ({ orders: s.orders.filter((o) => o.id !== id) })),
-      seedOrders: () => {\        stopDemoMarketFeed();
-n        // Mantido apenas por compatibilidade; o DEMO não cria ordens artificiais.\n      },\n      setMonitorTab: (monitorTab) => set({ monitorTab }),
+      seedOrders: () => {
+        stopDemoMarketFeed();
+        // Mantido apenas por compatibilidade; o DEMO não cria ordens artificiais.
+      },
+      setMonitorTab: (monitorTab) => set({ monitorTab }),
       toggleFeedPaused: () => set((s) => ({ feedPaused: !s.feedPaused })),
       clearTicks: () => set({ ticks: [] }),
     }),
