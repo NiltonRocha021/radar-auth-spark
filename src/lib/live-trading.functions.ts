@@ -5,6 +5,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enforceRateLimit } from "@/lib/rate-limit.server";
 
 export interface LiveTradingStatusDTO {
   twoFactorEnabled: boolean;
@@ -155,6 +156,9 @@ export const validateMyBinanceOrder = createServerFn({ method: "POST" })
     quoteAmount: z.number().min(5).max(1000),
   }).parse(input))
   .handler(async ({ data, context }): Promise<BinanceOrderValidationDTO> => {
+    const aal = (context.claims as { aal?: unknown } | undefined)?.aal;
+    if (aal !== "aal2") throw new Error("A autenticação multifator (AAL2) é obrigatória para validar operações REAL.");
+    await enforceRateLimit(context.userId, "binance_order_validation", 6, 60);
     const { data: config } = await context.supabase
       .from("bot4x_configs")
       .select("execution_mode")
