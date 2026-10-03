@@ -528,8 +528,6 @@ export const getPairAnalytics = createServerFn({ method: "GET" })
       ascending: true,
       mode: data.mode,
     });
-    if (error) throw new Error(error.message);
-
     const stats = new Map<string, PairStatsDTO>();
     const equity: Record<string, EquityPointDTO[]> = {};
     const cum = new Map<string, number>();
