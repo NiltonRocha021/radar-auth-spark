@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -22,7 +23,7 @@ function getCurrentProjectLegacyStorageKey(): string | null {
 
   try {
     const hostname = new URL(url).hostname;
-    const projectRef = hostname.match(/^([a-z0-9]+)\\.supabase\\.co$/i)?.[1];
+    const projectRef = hostname.match(/^([a-z0-9]+)\.supabase\.co$/i)?.[1];
     return projectRef ? `sb-${projectRef}-auth-token` : null;
   } catch {
     return null;
@@ -57,28 +58,20 @@ function readLegacyStoredSession(): { access_token: string; refresh_token: strin
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let mounted = true;
-    // Um evento do listener é sempre mais recente que o snapshot do
-    // getSession() em voo — sem esta flag, um SIGNED_IN que chega antes do
-    // getSession resolver era sobrescrito por `null` (usuário "deslogava"
-    // sozinho logo após entrar).
     let sawEvent = false;
 
-    // 1) Subscreve PRIMEIRO para não perder eventos disparados durante a
-    //    hidratação inicial (SIGNED_IN logo após restore do localStorage,
-    //    TOKEN_REFRESHED enquanto getSession ainda resolve, etc.).
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (!mounted) return;
       sawEvent = true;
+      if (_e === "SIGNED_OUT") queryClient.clear();
       setSession(s);
       setLoading(false);
     });
 
-    // 2) Hidrata sincronamente a partir do storage. Sem isso, no F5 a UI
-    //    fica em loading até o INITIAL_SESSION chegar (race que aparecia
-    //    como "tela em branco" ao recarregar).
     supabase.auth
       .getSession()
       .then(async ({ data }) => {
@@ -89,10 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // Migração única para usuários que já estavam autenticados antes da
-        // troca do storage de localStorage para cookies com @supabase/ssr.
-        // Sem isso, a sessão continuava válida no navegador, mas a tela de
-        // login não a enxergava e nunca entrava no sistema.
         const legacySession = readLegacyStoredSession();
         if (legacySession) {
           const { data: migrated, error } = await supabase.auth.setSession(legacySession);
@@ -110,15 +99,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setLoading(false);
       });
 
-
-    // 3) Garante refresh do token quando a aba volta a ficar visível ou
-    //    a rede reconecta — evita 401 silencioso após sleep / suspensão
-    //    do navegador, que também causava tela vazia até o próximo evento.
     const refreshIfStale = async () => {
       const { data } = await supabase.auth.getSession();
       const expiresAt = data.session?.expires_at ?? 0;
       const now = Math.floor(Date.now() / 1000);
-      // Refresh proativo se faltar menos de 60s para expirar.
       if (data.session && expiresAt - now < 60) {
         await supabase.auth.refreshSession();
       }
@@ -136,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("online", onOnline);
     };
-  }, []);
+  }, [queryClient]);
 
   return (
     <AuthContext.Provider value={{ session, user: session?.user ?? null, loading }}>

@@ -1737,6 +1737,29 @@ export type Database = {
         Returns: number
       }
       purge_expired_copilot_history: { Args: never; Returns: number }
+      save_bot4x_trade: {
+        Args: {
+          p_accumulated: number
+          p_day: string
+          p_entry: number
+          p_hour: number | null
+          p_id: string
+          p_leverage: number | null
+          p_motivo: string | null
+          p_pair: string
+          p_pnl: number
+          p_pnl_pct: number
+          p_profile: string | null
+          p_result: string
+          p_side: string
+          p_stop: number | null
+          p_target: number | null
+          p_trade_data?: Json | null
+          p_user_id: string
+          p_with_outbox?: boolean
+        }
+        Returns: undefined
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {

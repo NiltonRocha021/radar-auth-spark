@@ -35,6 +35,9 @@ export const TOP_20_USDT_PAIRS: { symbol: string; label: string }[] = [
   { symbol: "NEARUSDT", label: "NEAR Protocol (NEAR)" },
 ];
 
+const KLINE_CACHE_TTL_MS = 15_000;
+const klineCache = new Map<string, { expiresAt: number; data: Candle[] }>();
+
 const BINANCE_HOSTS = [
   "https://api.binance.com",
   "https://api1.binance.com",
@@ -52,6 +55,10 @@ export async function fetchKlines(
   opts?: { startTime?: number; endTime?: number },
 ): Promise<Candle[]> {
   const lim = Math.max(1, Math.min(1000, limit));
+  const cacheKey = `${symbol}:${interval}:${lim}:${opts?.startTime ?? ""}:${opts?.endTime ?? ""}`;
+  const cached = klineCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  if (cached) klineCache.delete(cacheKey);
   let lastErr: unknown = null;
   for (const host of BINANCE_HOSTS) {
     try {
@@ -70,7 +77,7 @@ export async function fetchKlines(
       }
       const raw = (await res.json()) as unknown[];
       if (!Array.isArray(raw)) continue;
-      return raw.map((row) => {
+      const candles = raw.map((row) => {
         const r = row as (string | number)[];
         return {
           openTime: Number(r[0]),
@@ -82,6 +89,8 @@ export async function fetchKlines(
           closeTime: Number(r[6]),
         };
       });
+      klineCache.set(cacheKey, { expiresAt: Date.now() + KLINE_CACHE_TTL_MS, data: candles });
+      return candles;
     } catch (e) {
       lastErr = e;
     }

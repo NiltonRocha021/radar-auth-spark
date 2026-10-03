@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Trade } from "./bot4x-data";
-import type { Database, Json } from "@/integrations/supabase/types";
+import type { Json } from "@/integrations/supabase/types";
 
 const TradeSchema = z.object({
   id: z.string().min(1),
@@ -22,86 +22,59 @@ const TradeSchema = z.object({
   hour: z.number().nullable().optional(),
 });
 
-function toRow(trade: z.infer<typeof TradeSchema>, userId: string) {
-  return {
-    id: trade.id,
-    user_id: userId,
-    day: trade.day,
-    pair: trade.pair,
-    side: trade.side,
-    entry: trade.entry,
-    stop: trade.stop ?? null,
-    target: trade.target ?? null,
-    result: trade.result,
-    pnl: trade.pnl,
-    pnl_pct: trade.pnlPct,
-    accumulated: trade.accumulated ?? 0,
-    profile: trade.profile ?? null,
-    leverage: trade.leverage ?? null,
-    motivo: trade.motivo ?? null,
-    hour: trade.hour ?? null,
-  };
+async function persistTrade(
+  data: z.infer<typeof TradeSchema>,
+  userId: string,
+  withOutbox: boolean,
+): Promise<void> {
+  const [{ supabaseAdmin }, { enforceRateLimit }] = await Promise.all([
+    import("@/integrations/supabase/client.server"),
+    import("./rate-limit.server"),
+  ]);
+  await enforceRateLimit(userId, "bot4x_trades.save", 30);
+
+  const { error } = await supabaseAdmin.rpc("save_bot4x_trade", {
+    p_user_id: userId,
+    p_id: data.id,
+    p_day: data.day,
+    p_pair: data.pair,
+    p_side: data.side,
+    p_entry: data.entry,
+    p_stop: data.stop ?? null,
+    p_target: data.target ?? null,
+    p_result: data.result,
+    p_pnl: data.pnl,
+    p_pnl_pct: data.pnlPct,
+    p_accumulated: data.accumulated ?? 0,
+    p_profile: data.profile ?? null,
+    p_leverage: data.leverage ?? null,
+    p_motivo: data.motivo ?? null,
+    p_hour: data.hour ?? null,
+    p_with_outbox: withOutbox,
+    p_trade_data: data as unknown as Json,
+  });
+
+  if (error) {
+    throw new Error(
+      error.code === "P0001" && error.message === "Trade ownership conflict"
+        ? "Trade inválido."
+        : `Falha ao salvar trade ${data.id}: ${error.message}`,
+    );
+  }
 }
 
 export const saveBot4xTrade = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => TradeSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: existing, error: lookupError } = await supabaseAdmin
-      .from("bot4x_trades")
-      .select("user_id")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (lookupError) throw new Error(lookupError.message);
-    if (existing && existing.user_id !== context.userId) throw new Error("Trade inválido.");
-
-    const { error } = await supabaseAdmin
-      .from("bot4x_trades")
-      .upsert(toRow(data, context.userId), { onConflict: "id" });
-    if (error) throw new Error(`Falha ao salvar trade ${data.id}: ${error.message}`);
+    await persistTrade(data, context.userId, false);
   });
 
 export const saveBot4xTradeWithOutbox = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => TradeSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const tradeData = data as unknown as Json;
-    const { data: outbox, error: outboxError } = await supabaseAdmin
-      .from("trade_outbox")
-      .insert({
-        user_id: context.userId,
-        trade_data: tradeData,
-        status: "pending",
-      })
-      .select("id")
-      .single();
-    if (outboxError || !outbox) {
-      throw outboxError ?? new Error("outbox insert returned no row");
-    }
-
-    const { data: existing, error: lookupError } = await supabaseAdmin
-      .from("bot4x_trades")
-      .select("user_id")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (lookupError) throw new Error(lookupError.message);
-    if (existing && existing.user_id !== context.userId) throw new Error("Trade inválido.");
-
-    const { error: tradeError } = await supabaseAdmin
-      .from("bot4x_trades")
-      .upsert(toRow(data, context.userId), { onConflict: "id" });
-
-    if (tradeError) {
-      throw new Error(`Falha ao salvar trade ${data.id}: ${tradeError.message}`);
-    }
-
-    const { error: markError } = await supabaseAdmin
-      .from("trade_outbox")
-      .update({ status: "processed", processed_at: new Date().toISOString() })
-      .eq("id", outbox.id);
-    if (markError) throw new Error(`Trade salvo, mas outbox não foi atualizado: ${markError.message}`);
+    await persistTrade(data, context.userId, true);
   });
 
 export const loadBot4xTrades = createServerFn({ method: "GET" })
@@ -113,8 +86,7 @@ export const loadBot4xTrades = createServerFn({ method: "GET" })
     const since = new Date();
     since.setDate(since.getDate() - (data.limitDays ?? 90));
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await supabaseAdmin
+    const { data: rows, error } = await context.supabase
       .from("bot4x_trades")
       .select("*")
       .eq("user_id", context.userId)

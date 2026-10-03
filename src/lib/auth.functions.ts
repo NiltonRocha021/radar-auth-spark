@@ -79,6 +79,9 @@ export const setupTwoFactor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<SetupTwoFactorDTO> => {
     const { TOTP, Secret } = await import("otpauth");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { enforceRateLimit } = await import("./rate-limit.server");
+    await enforceRateLimit(context.userId, "2fa.setup", 5, 3600);
     const secret = new Secret({ size: 20 });
     const emailClaim = (context.claims.email as string | null) ?? context.userId;
     const totp = new TOTP({
@@ -92,8 +95,16 @@ export const setupTwoFactor = createServerFn({ method: "POST" })
     const otpauthUri = totp.toString();
     const backupCodes = generateBackupCodes();
 
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from("user_two_factor")
+      .select("enabled")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (existingError) throw new Error("Falha ao verificar o estado do 2FA: " + existingError.message);
+    if (existing?.enabled) throw new Error("Desative o 2FA atual com um código válido antes de configurar um novo segredo.");
+
     // Upsert em estado "pendente" (enabled=false). Só vira true após verify.
-    const { error } = await context.supabase.from("user_two_factor").upsert(
+    const { error } = await supabaseAdmin.from("user_two_factor").upsert(
       {
         user_id: context.userId,
         secret: secret.base32,
@@ -116,7 +127,10 @@ export const verifyTwoFactor = createServerFn({ method: "POST" })
     z.object({ token: z.string().trim().regex(/^\d{6}$/, "Código deve ter 6 dígitos") }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    const { data: row, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { enforceRateLimit } = await import("./rate-limit.server");
+    await enforceRateLimit(context.userId, "2fa.verify", 5, 300);
+    const { data: row, error } = await supabaseAdmin
       .from("user_two_factor")
       .select("secret,enabled")
       .eq("user_id", context.userId)
@@ -136,7 +150,7 @@ export const verifyTwoFactor = createServerFn({ method: "POST" })
     const delta = totp.validate({ token: data.token, window: 1 });
     if (delta === null) throw new Error("Código inválido");
 
-    const { error: upErr } = await context.supabase
+    const { error: upErr } = await supabaseAdmin
       .from("user_two_factor")
       .update({ enabled: true, enabled_at: new Date().toISOString(), last_used_at: new Date().toISOString() })
       .eq("user_id", context.userId);
@@ -152,7 +166,10 @@ export const disableTwoFactor = createServerFn({ method: "POST" })
     z.object({ token: z.string().trim().min(6).max(11) }).parse(d),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    const { data: row, error } = await context.supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { enforceRateLimit } = await import("./rate-limit.server");
+    await enforceRateLimit(context.userId, "2fa.disable", 5, 300);
+    const { data: row, error } = await supabaseAdmin
       .from("user_two_factor")
       .select("secret,backup_codes,enabled")
       .eq("user_id", context.userId)
@@ -174,7 +191,7 @@ export const disableTwoFactor = createServerFn({ method: "POST" })
     }
     if (!valid) throw new Error("Código inválido");
 
-    const { error: delErr } = await context.supabase
+    const { error: delErr } = await supabaseAdmin
       .from("user_two_factor")
       .delete()
       .eq("user_id", context.userId);

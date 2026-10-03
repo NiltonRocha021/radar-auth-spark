@@ -1,0 +1,30 @@
+name: typecheck-test-lint
+
+on:
+  push:
+    branches: ["main", "fix/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # No npm lockfile is committed; this matches the current local validation path.
+      - run: npm install --legacy-peer-deps --no-package-lock
+      - run: npx tsc --noEmit
+      - run: npm test -- --run
+      - run: npm run lint
