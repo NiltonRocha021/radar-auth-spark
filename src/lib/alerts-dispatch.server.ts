@@ -44,6 +44,27 @@ function formatMessage(ev: EventRow) {
   return `${emoji} *${ev.title}*${symbol}\n${ev.message}`;
 }
 
+function assertOfficialDiscordWebhook(value: string): URL {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("Invalid Discord webhook URL");
+  }
+
+  const valid =
+    url.protocol === "https:" &&
+    url.hostname === "discord.com" &&
+    url.port === "" &&
+    /^\/api\/webhooks\/\d{17,20}\/[A-Za-z0-9._-]{20,}$/.test(url.pathname) &&
+    url.username === "" &&
+    url.password === "" &&
+    url.search === "" &&
+    url.hash === "";
+  if (!valid) throw new Error("Invalid Discord webhook URL");
+  return url;
+}
+
 async function sendTelegram(chatId: string, text: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN not configured");
@@ -56,8 +77,9 @@ async function sendTelegram(chatId: string, text: string) {
 }
 
 async function sendDiscord(webhookUrl: string, ev: EventRow) {
+  const destination = assertOfficialDiscordWebhook(webhookUrl);
   const color = ev.severity === "critical" ? 0xe24b4a : ev.severity === "warning" ? 0xf59e0b : 0x3b82f6;
-  const res = await fetch(webhookUrl, {
+  const res = await fetch(destination, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
