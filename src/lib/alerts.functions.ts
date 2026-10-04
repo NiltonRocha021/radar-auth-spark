@@ -5,6 +5,24 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+function isOfficialDiscordWebhook(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      url.hostname === "discord.com" &&
+      url.port === "" &&
+      /^\/api\/webhooks\/\d{17,20}\/[A-Za-z0-9._-]{20,}$/.test(url.pathname) &&
+      url.username === "" &&
+      url.password === "" &&
+      url.search === "" &&
+      url.hash === ""
+    );
+  } catch {
+    return false;
+  }
+}
+
 // -------------------- Types (shape do JSONB, além do default) --------------------
 export type AlertChannels = {
   telegram: { enabled: boolean; chat_id: string | null };
@@ -94,6 +112,11 @@ export const saveAlertPreferences = createServerFn({ method: "POST" })
   }) => input)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+
+    const discordWebhook = data.channels?.discord?.webhook_url;
+    if (discordWebhook != null && !isOfficialDiscordWebhook(discordWebhook)) {
+      throw new Error("Use uma URL oficial de webhook do Discord.");
+    }
 
     // read current then merge (server-side, so client never overwrites blindly)
     const { data: current } = await supabase
@@ -196,6 +219,12 @@ export const sendTestAlert = createServerFn({ method: "POST" })
     if (prefsErr) throw new Error(prefsErr.message);
 
     const channels = (prefs?.channels ?? {}) as AlertChannels;
+    if (
+      channels.discord?.enabled &&
+      (!channels.discord.webhook_url || !isOfficialDiscordWebhook(channels.discord.webhook_url))
+    ) {
+      throw new Error("O webhook do Discord precisa usar uma URL oficial do Discord.");
+    }
     const activeChannels = (["telegram", "email", "discord"] as const).filter(
       (c) => (channels as Record<string, { enabled?: boolean }>)[c]?.enabled,
     );

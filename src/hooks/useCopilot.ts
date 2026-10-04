@@ -249,9 +249,7 @@ export function useCopilot(config: CopilotConfig) {
         credentials: "include",
         signal: controller.signal,
         body: JSON.stringify({
-          messages: history
-            .filter((m) => m.role === "user" || m.role === "assistant")
-            .map((m) => ({ role: m.role, content: m.content })),
+          message: [...history].reverse().find((m) => m.role === "user")?.content ?? "",
           marketContext,
           traderProfile,
         }),

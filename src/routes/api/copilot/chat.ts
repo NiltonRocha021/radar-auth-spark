@@ -4,6 +4,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { streamText } from "ai";
 import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import {
   createLovableAiGatewayProvider,
   getLovableAiGatewayRunId,
@@ -12,10 +13,11 @@ import {
 import { getServerSession } from "@/integrations/supabase/server-session";
 import type { Database } from "@/integrations/supabase/types";
 
-interface InboundMessage {
-  role: "user" | "assistant";
-  content: string;
-}
+const ChatRequestSchema = z.object({
+  message: z.string().trim().min(1).max(4000),
+  marketContext: z.unknown().optional(),
+  traderProfile: z.unknown().optional(),
+}).strict();
 
 async function resolveUserId(request: Request): Promise<string | null> {
   const cookieSession = await getServerSession().catch(() => null);
@@ -63,28 +65,18 @@ export const Route = createFileRoute("/api/copilot/chat")({
           return new Response("AI Gateway não configurado", { status: 503 });
         }
 
-        let body: {
-          messages?: InboundMessage[];
-          marketContext?: unknown;
-          traderProfile?: unknown;
-        };
+        let rawBody: unknown;
         try {
-          body = await request.json();
+          rawBody = await request.json();
         } catch {
           return new Response("JSON inválido", { status: 400 });
         }
 
-        const messages = (body.messages ?? [])
-          .filter((m) => m && typeof m.content === "string" && m.content.trim().length > 0)
-          .slice(-20)
-          .map((m) => ({
-            role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
-            content: m.content.slice(0, 4000),
-          }));
-
-        if (messages.length === 0) {
-          return new Response("Mensagem vazia", { status: 400 });
+        const parsed = ChatRequestSchema.safeParse(rawBody);
+        if (!parsed.success) {
+          return new Response("Solicitação inválida", { status: 400 });
         }
+        const body = parsed.data;
 
         const gateway = createLovableAiGatewayProvider(apiKey, getLovableAiGatewayRunId(request));
 
@@ -92,7 +84,7 @@ export const Route = createFileRoute("/api/copilot/chat")({
           const result = streamText({
             model: gateway(COPILOT_MODEL),
             system: buildSystemPrompt(body.marketContext, body.traderProfile),
-            messages,
+            messages: [{ role: "user", content: body.message }],
           });
           return result.toTextStreamResponse();
         } catch (error) {
